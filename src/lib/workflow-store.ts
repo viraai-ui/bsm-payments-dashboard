@@ -51,7 +51,8 @@ function ghConfig() {
   return {
     token: process.env.GITHUB_TOKEN || '',
     owner: process.env.GITHUB_OWNER || 'viraai-ui',
-    repo: process.env.GITHUB_REPO || 'bsm-dispatch-dashboard',
+    // Never fall back to the Dispatch repository: payment writes must remain isolated.
+    repo: process.env.GITHUB_REPO || 'bsm-payments-dashboard',
   }
 }
 

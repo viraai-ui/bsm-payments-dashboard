@@ -80,7 +80,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       <section className="login-card card">
         <div className="login-brand-box">
           <img className="login-brand-logo" src="/brand/bsm-logo.png" alt="BSM" />
-          <span>DISPATCH DASHBOARD</span>
+          <span>PAYMENTS DASHBOARD</span>
         </div>
         <h1 className="h1">Login</h1>
         <form className="form-grid" onSubmit={submitLogin}>
