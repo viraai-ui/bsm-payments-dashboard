@@ -1,0 +1,70 @@
+{
+  "users": [
+    {
+      "id": "u-admin",
+      "name": "Admin",
+      "email": "admin@bsmindia.com",
+      "username": "admin",
+      "role": "Admin",
+      "active": true,
+      "passwordHash": "$2b$10$9UqkjLsbHybne/9W/B2m2.0FGI4klBojKhE.F4AusmOfSD01vWXz6",
+      "createdAt": "2026-07-20T07:37:30.313Z",
+      "updatedAt": "2026-07-20T07:37:30.313Z"
+    },
+    {
+      "id": "u-ops",
+      "name": "Operations",
+      "email": "operations@bsmindia.com",
+      "username": "operations",
+      "role": "Operations",
+      "active": true,
+      "passwordHash": "$2b$10$uH6TkLtMkao9nO9NWvqhSeIipo3ABm8tcdDI64JUZWnItj01Bkm0C",
+      "createdAt": "2026-07-20T07:37:30.313Z",
+      "updatedAt": "2026-07-20T07:37:30.573Z"
+    },
+    {
+      "id": "u-dispatch",
+      "name": "Dispatch",
+      "email": "dispatch@bsmindia.com",
+      "username": "dispatch",
+      "role": "Dispatch",
+      "active": true,
+      "passwordHash": "$2b$10$qa4uN2fLbKgVJ4H7KKyWquarCo4GOaqGdvBW4.eAkgw0VqEe3mJl2",
+      "createdAt": "2026-07-20T07:37:30.313Z",
+      "updatedAt": "2026-07-28T07:52:43.085Z"
+    },
+    {
+      "id": "u-media",
+      "name": "Media",
+      "email": "media@bsmindia.com",
+      "username": "media",
+      "role": "Media",
+      "active": true,
+      "passwordHash": "$2b$10$t.efofyhWBo/SpKJrj4jIu2ZA8JdmDxiwsjSl.It3D0O1kAgbQD4y",
+      "createdAt": "2026-07-20T07:37:30.313Z",
+      "updatedAt": "2026-07-28T07:52:50.031Z"
+    },
+    {
+      "id": "u-database",
+      "name": "Database",
+      "email": "database@bsmindia.com",
+      "username": "database",
+      "role": "Database",
+      "active": true,
+      "passwordHash": "$2b$10$1.5Wpf9UHJCKIb7XaIkYjuepE.2rR6xGnzFYBRJdqvi1pSa21ClOa",
+      "createdAt": "2026-07-29T07:46:51.851Z",
+      "updatedAt": "2026-07-29T07:46:51.851Z"
+    },
+    {
+      "id": "u-accounts",
+      "name": "Accounts",
+      "email": "accounts@bsmindia.com",
+      "username": "account",
+      "role": "Accounts",
+      "active": true,
+      "passwordHash": "$2b$10$29TvaE0kQelQlPzBw.NZ9OltNcYbfYNlvkQ5QwuELWd0Spo.PkqE.",
+      "createdAt": "2026-08-26T10:45:32.268Z",
+      "updatedAt": "2026-08-26T10:45:32.268Z"
+    }
+  ]
+}

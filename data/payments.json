@@ -1,0 +1,68 @@
+{
+  "payments": [
+    {
+      "customerName": "3NG",
+      "salesOrderNumber": "SO-07833",
+      "paymentAmount": 62500,
+      "paymentMode": "UPI",
+      "screenshotKey": "payments/public/SO-07833/2026-08-27/1787830442173-8014a700-b992-49bd-ac8b-c584b76cc1b3-b2ce5d63-9dd2-4588-994f-3aeefb618917.png",
+      "screenshotUrl": "/api/r2/view?key=payments%2Fpublic%2FSO-07833%2F2026-08-27%2F1787830442173-8014a700-b992-49bd-ac8b-c584b76cc1b3-b2ce5d63-9dd2-4588-994f-3aeefb618917.png",
+      "screenshotName": "b2ce5d63-9dd2-4588-994f-3aeefb618917.png",
+      "publicDeleteTokenHash": "6d29e614a57ef2cbc746953393b8ce497ad8698ac8a24edcf9605aa401dc7c79",
+      "id": "payment-c1e4f253-899e-4107-aaa4-9a4e9ee2b667",
+      "status": "Payment Received",
+      "createdBy": "public-salesman",
+      "idempotencyKey": "df30c3d7e96440eb9a393caaf9011282",
+      "createdAt": "2026-08-27T11:34:03.638Z",
+      "updatedAt": "2026-08-27T11:35:57.501Z"
+    },
+    {
+      "customerName": "Nepal Jutta Factory Pvt Ltd",
+      "salesOrderNumber": "SO-07812",
+      "paymentAmount": 56200,
+      "paymentMode": "Bank Transfer",
+      "screenshotKey": "payments/public/SO-07812/2026-08-27/1787829420736-e1b4e248-e455-435d-b134-c680b97261e2-WhatsApp-Image-2026-08-27-at-4.43.27-PM.jpg",
+      "screenshotUrl": "/api/r2/view?key=payments%2Fpublic%2FSO-07812%2F2026-08-27%2F1787829420736-e1b4e248-e455-435d-b134-c680b97261e2-WhatsApp-Image-2026-08-27-at-4.43.27-PM.jpg",
+      "screenshotName": "WhatsApp Image 2026-08-27 at 4.43.27 PM.jpeg",
+      "publicDeleteTokenHash": "def384035ed24764475b3f6960d0de1408ee0a92f46e2596604825cdae757421",
+      "id": "payment-06af8d57-9596-4022-80bb-6ff50ce9f3b3",
+      "status": "Payment Received",
+      "createdBy": "public-salesman",
+      "idempotencyKey": "16663d4d9dde46dd91a53bf1ea6d2d5a",
+      "createdAt": "2026-08-27T11:17:02.675Z",
+      "updatedAt": "2026-08-27T11:36:02.892Z"
+    },
+    {
+      "customerName": "KC ARTS",
+      "salesOrderNumber": "SO-07832",
+      "paymentAmount": 5000,
+      "paymentMode": "UPI",
+      "screenshotKey": "payments/public/SO-07832/2026-08-27/1787829367979-c6007822-b847-44df-92af-4ec9bd50bf61-6554f0fd-0ac6-480e-a22f-c3a10ab7cdae.jpg",
+      "screenshotUrl": "/api/r2/view?key=payments%2Fpublic%2FSO-07832%2F2026-08-27%2F1787829367979-c6007822-b847-44df-92af-4ec9bd50bf61-6554f0fd-0ac6-480e-a22f-c3a10ab7cdae.jpg",
+      "screenshotName": "6554f0fd-0ac6-480e-a22f-c3a10ab7cdae.jpg",
+      "publicDeleteTokenHash": "d27ee87b8a448e8bd04af0a79f481df3e53e70b4179569c398eef3aeffec098a",
+      "id": "payment-085a98a6-216a-4e02-8a5e-88f79a39b54f",
+      "status": "Pending",
+      "createdBy": "public-salesman",
+      "idempotencyKey": "2829a02a94354ac4a60a9d9c8352c0f2",
+      "createdAt": "2026-08-27T11:16:09.650Z",
+      "updatedAt": "2026-08-27T11:16:09.650Z"
+    },
+    {
+      "customerName": "ROSEUS PRIVATE LIMITED",
+      "salesOrderNumber": "SO-07830",
+      "paymentAmount": 17110,
+      "paymentMode": "Bank Transfer",
+      "screenshotKey": "payments/public/SO-07830/2026-08-27/1787828731972-16bd1cc7-db12-4b58-853b-eba3143cea91-26ac5221-9620-420c-8c82-bd51c443a930.jpg",
+      "screenshotUrl": "/api/r2/view?key=payments%2Fpublic%2FSO-07830%2F2026-08-27%2F1787828731972-16bd1cc7-db12-4b58-853b-eba3143cea91-26ac5221-9620-420c-8c82-bd51c443a930.jpg",
+      "screenshotName": "26ac5221-9620-420c-8c82-bd51c443a930.jpg",
+      "publicDeleteTokenHash": "518ea4a2783b14421de0bce2c8df72078988dc882a3964c251d32b92a5e33028",
+      "id": "payment-5d0df1b6-d878-401a-afcb-09d4749de6b7",
+      "status": "Payment Received",
+      "createdBy": "public-salesman",
+      "idempotencyKey": "eba9da216072492c860144102d105488",
+      "createdAt": "2026-08-27T11:05:33.349Z",
+      "updatedAt": "2026-08-27T11:36:45.259Z"
+    }
+  ]
+}

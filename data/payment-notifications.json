@@ -1,0 +1,92 @@
+{
+  "notifications": [
+    {
+      "id": "payment-notification-d447759c-7822-4dac-be81-777d25d3b63c",
+      "type": "payment-created",
+      "recipientUserId": "u-admin",
+      "paymentId": "payment-c1e4f253-899e-4107-aaa4-9a4e9ee2b667",
+      "salesOrderNumber": "SO-07833",
+      "customerName": "3NG",
+      "paymentAmount": 62500,
+      "createdAt": "2026-08-27T11:34:04.837Z",
+      "readAt": null
+    },
+    {
+      "id": "payment-notification-8d681eb9-0f32-485a-8ce5-6b35496f9f40",
+      "type": "payment-created",
+      "recipientUserId": "u-accounts",
+      "paymentId": "payment-c1e4f253-899e-4107-aaa4-9a4e9ee2b667",
+      "salesOrderNumber": "SO-07833",
+      "customerName": "3NG",
+      "paymentAmount": 62500,
+      "createdAt": "2026-08-27T11:34:04.837Z",
+      "readAt": "2026-08-29T05:44:42.165Z"
+    },
+    {
+      "id": "payment-notification-c0042538-56b9-462d-bbde-4429afeaa5cf",
+      "type": "payment-created",
+      "recipientUserId": "u-admin",
+      "paymentId": "payment-06af8d57-9596-4022-80bb-6ff50ce9f3b3",
+      "salesOrderNumber": "SO-07812",
+      "customerName": "Nepal Jutta Factory Pvt Ltd",
+      "paymentAmount": 56200,
+      "createdAt": "2026-08-27T11:17:03.958Z",
+      "readAt": null
+    },
+    {
+      "id": "payment-notification-a6d7f198-6a4e-4769-bddc-9230fa37975a",
+      "type": "payment-created",
+      "recipientUserId": "u-accounts",
+      "paymentId": "payment-06af8d57-9596-4022-80bb-6ff50ce9f3b3",
+      "salesOrderNumber": "SO-07812",
+      "customerName": "Nepal Jutta Factory Pvt Ltd",
+      "paymentAmount": 56200,
+      "createdAt": "2026-08-27T11:17:03.958Z",
+      "readAt": "2026-08-29T05:44:42.165Z"
+    },
+    {
+      "id": "payment-notification-bf57577e-0272-4783-ae16-56dc54257b6b",
+      "type": "payment-created",
+      "recipientUserId": "u-admin",
+      "paymentId": "payment-085a98a6-216a-4e02-8a5e-88f79a39b54f",
+      "salesOrderNumber": "SO-07832",
+      "customerName": "KC ARTS",
+      "paymentAmount": 5000,
+      "createdAt": "2026-08-27T11:16:10.792Z",
+      "readAt": null
+    },
+    {
+      "id": "payment-notification-67c8eede-9de6-4b13-8eff-c36518061b46",
+      "type": "payment-created",
+      "recipientUserId": "u-accounts",
+      "paymentId": "payment-085a98a6-216a-4e02-8a5e-88f79a39b54f",
+      "salesOrderNumber": "SO-07832",
+      "customerName": "KC ARTS",
+      "paymentAmount": 5000,
+      "createdAt": "2026-08-27T11:16:10.792Z",
+      "readAt": "2026-08-29T05:44:42.165Z"
+    },
+    {
+      "id": "payment-notification-b851e13b-6104-4f41-829a-bfe2a7d62b63",
+      "type": "payment-created",
+      "recipientUserId": "u-admin",
+      "paymentId": "payment-5d0df1b6-d878-401a-afcb-09d4749de6b7",
+      "salesOrderNumber": "SO-07830",
+      "customerName": "ROSEUS PRIVATE LIMITED",
+      "paymentAmount": 17110,
+      "createdAt": "2026-08-27T11:05:34.534Z",
+      "readAt": null
+    },
+    {
+      "id": "payment-notification-ae6debd2-7c19-4f00-9a75-0a7169399968",
+      "type": "payment-created",
+      "recipientUserId": "u-accounts",
+      "paymentId": "payment-5d0df1b6-d878-401a-afcb-09d4749de6b7",
+      "salesOrderNumber": "SO-07830",
+      "customerName": "ROSEUS PRIVATE LIMITED",
+      "paymentAmount": 17110,
+      "createdAt": "2026-08-27T11:05:34.534Z",
+      "readAt": "2026-08-29T05:44:42.165Z"
+    }
+  ]
+}

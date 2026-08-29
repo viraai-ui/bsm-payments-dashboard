@@ -1,0 +1,51 @@
+{
+  "subscriptions": [
+    {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/eNr5vCO5pBo:APA91bGncl1y7kBjiKOYKTQRVE6DQeqt_ol2bgmCeiLPDMxNttAmwSOWFx461yiARMDF2rlXcwoE3jzqbs9e1ow2T-jsbnxYVHtmM6kvkv2KxchAArvCqgMZ6UV-C4Aq4TxDahbraUes",
+      "expirationTime": null,
+      "keys": {
+        "p256dh": "BHXe9uwr9SHNJNCOiOS6yKbcivUNS9C03V5B__AEImKkD_-G1hNiiev8GNtCDeZnTTg5jiLj1l9SdBSvYdahHhg",
+        "auth": "t2_cIvCxPTtA2Q_0udIPwg"
+      },
+      "userId": "u-accounts",
+      "role": "Accounts",
+      "createdAt": "2026-08-27T07:43:12.747Z",
+      "updatedAt": "2026-08-27T07:43:12.747Z"
+    },
+    {
+      "endpoint": "https://web.push.apple.com/QCXs4C84ifybHzjGFnpWfWRDmKhe4S4RqLdxAI47V3sZRAZszP69IEwix_OY5y2S1beZ-PVJXYcKzGxzusQFHuBNWIP6a6rw-EKoVahiZ8a9U8_qrt4tTOnPBiRdP9ABYClYZMlisBpyTWxwtE0CPY0xHWj9eUXGvwU4iLcDrQQ",
+      "keys": {
+        "p256dh": "BFSz-qgORFYhTdlAHIl0UKGtWHiZdvPmPF95cS1L-LRnKxOhoyQqLg0L9fBqRAv9pjA4IqQ_a5i0_6i3xCS5I_I",
+        "auth": "D659jBWdwIwCwaRcZ4BMTw"
+      },
+      "userId": "u-accounts",
+      "role": "Accounts",
+      "createdAt": "2026-08-27T07:41:05.839Z",
+      "updatedAt": "2026-08-27T07:41:05.839Z"
+    },
+    {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/caC3FQFeLjs:APA91bGOWxwZJuSHm7eS-WpkWqSNkL8FZkkCsPL36W7hylngDXZO7U9W0Zd1Fxq2k6dDJAQfKAyQpIoSA05z0WkIz-jiySUPZRL1WjFnbSYdO2pRVlmsOFLf8NBgEB-iwbjN7i_gQRGc",
+      "expirationTime": null,
+      "keys": {
+        "p256dh": "BBdYkhYjckBWrkkH2yD8OlWst7Z3hyOr99j6k11XdZglM1iBzTCxWnDoo76rESqx3t2Q4-Fa9Ez8Ykk7S1vTTZo",
+        "auth": "KeU--IzL2W5ggtEYVqYK7g"
+      },
+      "userId": "u-admin",
+      "role": "Admin",
+      "createdAt": "2026-08-26T11:16:29.817Z",
+      "updatedAt": "2026-08-26T11:16:29.817Z"
+    },
+    {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/fACnZR3ZBLs:APA91bFl-9fHc3q91f7QuG9ycMlh9cKnRZ8JVNUSVfQFs8dnHODP2GcDQQWOaqIIoDRb2sdGF2Q7Nb0sA1_21a_QH7TMLFg4Ca7Te2qYnkyLTw_AQH-yehW_cJFfbGmnfnK_weyNYCPq",
+      "expirationTime": null,
+      "keys": {
+        "p256dh": "BPTqIhGrIUyS9EdyH_oDY9ZIJGLVctZARWCq1-cAIWeigOYWXkh7h-_YbcrIUadr-gD2CkoZdyPQrLH_gBrcuLE",
+        "auth": "hh5mQs7CpQnzdgr0GYP3Ng"
+      },
+      "userId": "u-accounts",
+      "role": "Accounts",
+      "createdAt": "2026-08-26T11:14:49.372Z",
+      "updatedAt": "2026-08-26T11:14:49.372Z"
+    }
+  ]
+}

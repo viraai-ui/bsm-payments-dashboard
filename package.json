@@ -1,0 +1,38 @@
+{
+  "name": "bsm-payments-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
+    "@prisma/client": "^6.19.0",
+    "@types/web-push": "^3.6.4",
+    "bcryptjs": "latest",
+    "clsx": "latest",
+    "date-fns": "latest",
+    "jose": "latest",
+    "jspdf": "^4.2.1",
+    "next": "^16.3.1",
+    "pg": "^8.23.0",
+    "qrcode": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "web-push": "^3.6.7",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "latest",
+    "@types/node": "latest",
+    "@types/pg": "latest",
+    "@types/qrcode": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "prisma": "^6.19.0",
+    "typescript": "^5.9.3"
+  }
+}
