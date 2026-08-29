@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     const suppliedScope = verifyPaymentUploadScope(body.uploadScope)
     const issued = suppliedScope ? { scope: suppliedScope, token: String(body.uploadScope) } : issuePaymentUploadScope()
     const binding = salesOrderNumber ? safe(salesOrderNumber) : `manual/${issued.scope}`
-    const key = `payments/${binding}/${Date.now()}-${crypto.randomUUID()}.${image.extension}`
+    const key = `payments/bsm-payments-dashboard/${binding}/${Date.now()}-${crypto.randomUUID()}.${image.extension}`
     const target = createR2UploadTarget(key, image.mimeType, 900, 3650)
     const cors = await ensureR2BrowserCors(target.uploadUrl)
     if (!cors.corsReady) return apiError(cors.corsError, 503)

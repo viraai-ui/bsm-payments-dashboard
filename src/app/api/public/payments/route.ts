@@ -90,8 +90,8 @@ export async function POST(request: Request) {
     const seen = new Set<string>()
     for (const rawItem of requested) {
       const item = rawItem && typeof rawItem === 'object' ? rawItem as Record<string, unknown> : {}; const key = value(item.key)
-      if (!key || seen.has(key) || !/^payments\/public\/[a-zA-Z0-9._/-]{1,400}$/.test(key)) return publicApiHeaders(apiError('Invalid or duplicate payment proof', 400))
-      seen.add(key); const metadata = await verifyR2Object(key, { prefixes: ['payments/public/'], expectedTypes: PAYMENT_PROOF_MIME_TYPES, maxBytes: PUBLIC_PAYMENT_SCREENSHOT_MAX_BYTES, order: linked ? order!.salesOrderNumber : `manual/${manualScope}` })
+      if (!key || seen.has(key) || !/^payments\/bsm-payments-dashboard\/public\/[a-zA-Z0-9._/-]{1,400}$/.test(key)) return publicApiHeaders(apiError('Invalid or duplicate payment proof', 400))
+      seen.add(key); const metadata = await verifyR2Object(key, { prefixes: ['payments/bsm-payments-dashboard/public/'], expectedTypes: PAYMENT_PROOF_MIME_TYPES, maxBytes: PUBLIC_PAYMENT_SCREENSHOT_MAX_BYTES, order: linked ? order!.salesOrderNumber : `manual/${manualScope}` })
       attachments.push({ key, url: `/api/r2/view?key=${encodeURIComponent(key)}`, name: value(item.name).slice(0, 180) || 'Payment proof', contentType: metadata.contentType, size: metadata.contentLength })
     }
     const first = attachments[0]

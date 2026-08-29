@@ -10,7 +10,7 @@ export type R2UploadTarget = {
 
 const REGION = 'auto'
 const SERVICE = 's3'
-const CORS_ORIGIN = 'https://dispatch.bsmindia.com'
+const CORS_ORIGIN = 'https://bsm-payments-dashboard.vercel.app'
 const R2_REQUEST_TIMEOUT_MS = 10_000
 let corsRepairInFlight: Promise<void> | null = null
 let corsReadyUntil = 0
@@ -101,7 +101,7 @@ async function putR2Cors() {
   const host = new URL(endpoint).host
   const canonicalUri = `/${bucket}`
   const credentialScope = `${dateStamp}/${REGION}/${SERVICE}/aws4_request`
-  const body = `<CORSConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><CORSRule><AllowedOrigin>https://dispatch.bsmindia.com</AllowedOrigin><AllowedOrigin>https://bsm-dispatch-dashboard.vercel.app</AllowedOrigin><AllowedOrigin>http://localhost:3000</AllowedOrigin><AllowedMethod>GET</AllowedMethod><AllowedMethod>PUT</AllowedMethod><AllowedMethod>HEAD</AllowedMethod><AllowedHeader>*</AllowedHeader><ExposeHeader>ETag</ExposeHeader><MaxAgeSeconds>3600</MaxAgeSeconds></CORSRule></CORSConfiguration>`
+  const body = `<CORSConfiguration xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><CORSRule><AllowedOrigin>https://dispatch.bsmindia.com</AllowedOrigin><AllowedOrigin>https://bsm-dispatch-dashboard.vercel.app</AllowedOrigin><AllowedOrigin>https://bsm-payments-dashboard.vercel.app</AllowedOrigin><AllowedOrigin>http://localhost:3000</AllowedOrigin><AllowedMethod>GET</AllowedMethod><AllowedMethod>PUT</AllowedMethod><AllowedMethod>HEAD</AllowedMethod><AllowedHeader>*</AllowedHeader><ExposeHeader>ETag</ExposeHeader><MaxAgeSeconds>3600</MaxAgeSeconds></CORSRule></CORSConfiguration>`
   const payloadHash = sha256Hex(body)
   const canonicalQuery = 'cors='
   const canonicalHeaders = `host:${host}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${amzDate}\n`
