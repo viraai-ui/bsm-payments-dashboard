@@ -743,7 +743,8 @@ export function PaymentsClient({
         ) : (
           <div className="ledger-empty">
             <strong>No matching payments</strong>
-            <span>Adjust the search or filters.</span>
+            <span className="empty-copy-desktop">Adjust the search or filters.</span>
+            <span className="empty-copy-native">Try a different search.</span>
           </div>
         )}
       </div>
