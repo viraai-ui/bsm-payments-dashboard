@@ -1,6 +1,48 @@
 {
   "notifications": [
     {
+      "id": "notification-479e4b43-294f-4563-832b-cd9aace317f9",
+      "dedupeKey": "created:payment-c4e400db-f737-4342-92ca-2f57e59de178:u-admin",
+      "type": "pending-created",
+      "recipientUserId": "u-admin",
+      "paymentId": "payment-c4e400db-f737-4342-92ca-2f57e59de178",
+      "salesOrderNumber": "SO-07976",
+      "customerName": "V.S. ENTERPRISES",
+      "paymentAmount": 52545,
+      "submitterName": "Admin",
+      "message": "New pending receipt for SO-07976: V.S. ENTERPRISES, 52545, submitted by Admin.",
+      "createdAt": "2026-09-18T09:25:40.466Z",
+      "readAt": null
+    },
+    {
+      "id": "notification-55cf077b-afe4-4834-b0a0-2f3c9924ac10",
+      "dedupeKey": "created:payment-c4e400db-f737-4342-92ca-2f57e59de178:u-accounts",
+      "type": "pending-created",
+      "recipientUserId": "u-accounts",
+      "paymentId": "payment-c4e400db-f737-4342-92ca-2f57e59de178",
+      "salesOrderNumber": "SO-07976",
+      "customerName": "V.S. ENTERPRISES",
+      "paymentAmount": 52545,
+      "submitterName": "Admin",
+      "message": "New pending receipt for SO-07976: V.S. ENTERPRISES, 52545, submitted by Admin.",
+      "createdAt": "2026-09-18T09:25:40.466Z",
+      "readAt": null
+    },
+    {
+      "id": "notification-85c5fdee-4f73-4df1-ad05-f8dfac37bcc8",
+      "dedupeKey": "created:payment-c4e400db-f737-4342-92ca-2f57e59de178:u-sales1",
+      "type": "pending-created",
+      "recipientUserId": "u-sales1",
+      "paymentId": "payment-c4e400db-f737-4342-92ca-2f57e59de178",
+      "salesOrderNumber": "SO-07976",
+      "customerName": "V.S. ENTERPRISES",
+      "paymentAmount": 52545,
+      "submitterName": "Admin",
+      "message": "New pending receipt for SO-07976: V.S. ENTERPRISES, 52545, submitted by Admin.",
+      "createdAt": "2026-09-18T09:25:40.466Z",
+      "readAt": null
+    },
+    {
       "id": "notification-7b0ed14c-372b-4c3a-927a-a81e2c8b1621",
       "dedupeKey": "claim:payment-4ead3cf0-82bf-4b49-b292-9fe9702186f5:u-admin",
       "type": "unauthorised-claimed",
