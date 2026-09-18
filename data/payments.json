@@ -12,7 +12,7 @@
       "id": "payment-4ead3cf0-82bf-4b49-b292-9fe9702186f5",
       "paymentDate": "2026-09-18",
       "createdAt": "2026-09-18T09:10:33.971Z",
-      "updatedAt": "2026-09-18T09:10:33.971Z",
+      "updatedAt": "2026-09-18T09:10:34.838Z",
       "audit": [
         {
           "id": "audit-5286c0bc-403c-4521-b4ed-8ce8ebae7af2",
@@ -21,7 +21,8 @@
           "at": "2026-09-18T09:10:33.971Z",
           "to": "Unauthorised"
         }
-      ]
+      ],
+      "attachments": []
     }
   ]
 }
