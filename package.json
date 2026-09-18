@@ -17,7 +17,8 @@
     "verify:responsive": "node scripts/verify-responsive.cjs",
     "verify:ui-interactions": "node scripts/verify-responsive.cjs",
     "verify:mobile-app": "node scripts/verify-mobile-app.cjs && node scripts/verify-responsive.cjs",
-    "verify:zoho-orders": "node --experimental-strip-types scripts/verify-zoho-payment-orders.mjs"
+    "verify:zoho-orders": "node --experimental-strip-types scripts/verify-zoho-payment-orders.mjs",
+    "verify:zoho-orders:live": "node --env-file=.env.local --experimental-strip-types scripts/verify-zoho-payment-orders-live.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
