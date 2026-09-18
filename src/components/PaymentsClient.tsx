@@ -14,6 +14,7 @@ import type { Payment } from "@/lib/payments";
 import { PAYMENT_MODES } from "@/lib/payment-domain";
 import {
   orderSummary,
+  paymentOutstandingById,
   paymentMatchesSearch,
   paymentStatusLabel,
   pendingOrderSummaries,
@@ -87,6 +88,7 @@ const money = (n: number) =>
     currency: "INR",
     maximumFractionDigits: 2,
   }).format(n);
+const salesperson = (p: Payment) => p.salespersonName || (p.addedBy && !/^u[-_]/i.test(p.addedBy) ? p.addedBy : "—");
 const date = (v?: string) => {
   if (!v) return "—";
   const d = new Date(v.length === 10 ? `${v}T00:00:00` : v);
@@ -230,6 +232,7 @@ export function PaymentsClient({
       ),
     [payments],
   );
+  const rowOutstanding = useMemo(() => paymentOutstandingById(payments), [payments]);
   const people = useMemo(
     () =>
       Array.from(
@@ -342,7 +345,7 @@ export function PaymentsClient({
     setSaving(false);submitBusy.current=false;
     if(!r.ok){setError(j.error || (r.status===401 ? "Your session has expired. Please log in again." : "Could not save payment. Please try again."));requestAnimationFrame(()=>{addErrorRef.current?.scrollIntoView({block:"nearest"});addErrorRef.current?.focus()});return}
     setPayments((p) => sortPayments([j.data.payment, ...p.filter(x=>x.id!==j.data.payment.id)]));
-    setError("");setOpen(false);
+    setError("");setForm(emptyForm());setProofs([]);submissionKey.current="";setOpen(false);
   }
   async function patch(body: object) {
     const r = await fetch("/api/payments", {
@@ -622,7 +625,7 @@ export function PaymentsClient({
                     <th>Date</th>
                     <th>Company / Sales Order</th>
                     <th>Order Total</th>
-                    <th>Received</th>
+                    <th>Receipt</th>
                     <th>Outstanding</th>
                     <th>Salesperson</th>
                     <th>Status</th>
@@ -636,6 +639,7 @@ export function PaymentsClient({
                     <DesktopRow
                       key={p.id}
                       p={p}
+                      outstanding={rowOutstanding.get(p.id)}
                       summary={
                         p.salesOrderNumber
                           ? summaries.get(p.salesOrderNumber)
@@ -665,6 +669,7 @@ export function PaymentsClient({
                 <MobileCard
                   key={p.id}
                   p={p}
+                  outstanding={rowOutstanding.get(p.id)}
                   summary={
                     p.salesOrderNumber
                       ? summaries.get(p.salesOrderNumber)
@@ -1494,7 +1499,7 @@ function PaymentDetails({
           </div>
           <div>
             <dt>Salesperson</dt>
-            <dd>{p.addedBy || p.createdBy || "—"}</dd>
+            <dd>{salesperson(p)}</dd>
           </div>
           {p.utrReference && (
             <div>
@@ -1512,12 +1517,8 @@ function PaymentDetails({
             <strong>{total === undefined ? "—" : money(total)}</strong>
           </div>
           <div>
-            <span>Payment Received</span>
-            <strong>
-              {s?.received === undefined
-                ? money(p.paymentAmount)
-                : money(s.received)}
-            </strong>
+            <span>Receipt</span>
+            <strong>{money(p.paymentAmount)}</strong>
           </div>
           <div>
             <span>Outstanding</span>
@@ -1586,6 +1587,7 @@ function StatusControl({
 }
 function DesktopRow({
   p,
+  outstanding,
   summary: s,
   role,
   userId,
@@ -1627,20 +1629,12 @@ function DesktopRow({
           : money(s.orderTotal)}
       </td>
       <td className="money-cell received-cell">
-        <strong>
-          {s?.received === undefined
-            ? money(p.paymentAmount)
-            : money(s.received)}
-        </strong>
+        <strong>{money(p.paymentAmount)}</strong>
       </td>
       <td className="money-cell">
-        {s?.outstanding === undefined
-          ? "—"
-          : money(
-              role === "Salesperson" ? s.provisionalOutstanding : s.outstanding,
-            )}
+        {outstanding === undefined ? "—" : money(outstanding)}
       </td>
-      <td>{p.addedBy || p.createdBy || "—"}</td>
+      <td>{salesperson(p)}</td>
       <td
         className="status-cell"
         onClick={(e) => e.stopPropagation()}
@@ -1668,6 +1662,7 @@ function DesktopRow({
 }
 function MobileCard({
   p,
+  outstanding,
   summary: s,
   role,
   userId,
@@ -1730,13 +1725,7 @@ function MobileCard({
         <div>
           <dt>Outstanding</dt>
           <dd>
-            {s?.outstanding === undefined
-              ? "—"
-              : money(
-                  role === "Salesperson"
-                    ? s.provisionalOutstanding
-                    : s.outstanding,
-                )}
+            {outstanding === undefined ? "—" : money(outstanding)}
           </dd>
         </div>
       </dl>

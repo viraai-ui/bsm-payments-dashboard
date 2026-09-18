@@ -41,6 +41,25 @@ export function orderSummary(payments:SettlementPayment[], so:string, orderTotal
   return {orderTotal:total,salesOrderDate,advanceReceived:submittedAmount,pendingPayment:provisionalOutstanding,received:confirmedReceived,confirmedReceived,submittedAmount,outstanding:confirmedOutstanding,confirmedOutstanding,provisionalOutstanding,receivedPercent,outstandingPercent:total&&confirmedOutstanding!==undefined?Math.round(confirmedOutstanding/total*100):0,settled:total!==undefined&&total>0&&confirmedOutstanding===0,hasConfirmedReceipt:linked.some(p=>p.status==='Payment Received')}
 }
 
+/** Balance immediately after each receipt in accounting order (oldest first).
+ * The UI may render newest first; the latest row therefore carries the latest balance.
+ * IDs are de-duplicated defensively, while separate receipts always remain separate. */
+export function paymentOutstandingById(payments:SettlementPayment[]){
+  const result=new Map<string,number|undefined>(),seen=new Set<string>(),received=new Map<string,number>()
+  const chronological=[...payments].sort((a,b)=>(a.createdAt||a.paymentDate||'').localeCompare(b.createdAt||b.paymentDate||'')||(a.id||'').localeCompare(b.id||''))
+  for(const payment of chronological){
+    if(!payment.id||seen.has(payment.id))continue
+    seen.add(payment.id)
+    const order=payment.salesOrderId?`id:${payment.salesOrderId}`:`so:${normalizedOrder(payment.salesOrderNumber)}`
+    if(order==='so:'){result.set(payment.id,undefined);continue}
+    const prior=received.get(order)||0
+    const cumulative=prior+((payment.status==='Pending'||payment.status==='Payment Received')?toPaise(payment.paymentAmount):0)
+    received.set(order,cumulative)
+    result.set(payment.id,payment.orderTotal===undefined?undefined:fromPaise(Math.max(0,toPaise(payment.orderTotal)-cumulative)))
+  }
+  return result
+}
+
 export function pendingOrderSummaries(payments:SettlementPayment[]){
   const orders=new Map<string,{salesOrderNumber:string;customerName:string}>()
   for(const payment of payments)if(payment.salesOrderNumber&&payment.orderTotal&&!orders.has(payment.salesOrderNumber))orders.set(payment.salesOrderNumber,{salesOrderNumber:payment.salesOrderNumber,customerName:payment.customerName})
