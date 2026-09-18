@@ -1,6 +1,19 @@
 {
   "notifications": [
     {
+      "id": "notification-935dbc38-7667-474e-bbfc-cd9bd12abd6e",
+      "dedupeKey": "status:payment-c4e400db-f737-4342-92ca-2f57e59de178:Payment Received:2026-09-18T09:29:23.752Z:u-sales1",
+      "type": "status-received",
+      "recipientUserId": "u-sales1",
+      "paymentId": "payment-c4e400db-f737-4342-92ca-2f57e59de178",
+      "salesOrderNumber": "SO-07976",
+      "customerName": "V.S. ENTERPRISES",
+      "paymentAmount": 52545,
+      "message": "Your receipt for SO-07976 was received.",
+      "createdAt": "2026-09-18T09:29:24.691Z",
+      "readAt": null
+    },
+    {
       "id": "notification-3f28192f-2e82-4efd-a064-672fefd48185",
       "dedupeKey": "status:payment-c4e400db-f737-4342-92ca-2f57e59de178:Pending:2026-09-18T09:26:15.483Z:u-sales1",
       "type": "status-pending",
