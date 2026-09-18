@@ -11,7 +11,7 @@
       "paymentAmount": 555,
       "message": "New bank receipt for Unidentified customer (555) is ready to claim.",
       "createdAt": "2026-09-18T09:10:35.592Z",
-      "readAt": null
+      "readAt": "2026-09-18T09:12:02.775Z"
     },
     {
       "id": "notification-f157144f-c51a-42ab-8068-5f15981f88b8",
