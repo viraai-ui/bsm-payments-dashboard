@@ -20,6 +20,7 @@
     "verify:notifications": "tsx scripts/verify-payment-notifications.mjs",
     "verify:admin-contract": "node scripts/verify-admin-contract.cjs",
     "verify:responsive": "node scripts/verify-responsive.cjs",
+    "verify:tablet": "TABLET_ONLY=1 node scripts/verify-responsive.cjs",
     "verify:ui-interactions": "node scripts/verify-responsive.cjs",
     "verify:mobile-app": "node scripts/verify-mobile-app.cjs && node scripts/verify-responsive.cjs",
     "verify:zoho-orders": "node --experimental-strip-types scripts/verify-zoho-payment-orders.mjs",

@@ -210,7 +210,7 @@ export function PaymentsClient({
       window.history[history === "push" ? "pushState" : "replaceState"]({ paymentTab: next, status: statusFilter || "" }, "", url);
     }
     window.dispatchEvent(new CustomEvent("payment:tab-changed", { detail: next }));
-    requestAnimationFrame(() => document.querySelector(".payments-page")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    if (history === "push") requestAnimationFrame(() => document.querySelector(".payments-page")?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }, []);
   useEffect(() => {
     const fromUrl = (): Tab => {
@@ -535,7 +535,7 @@ export function PaymentsClient({
           })}
         </div>
       )}
-      {userRole !== "Viewer" && (
+      {(
         <div className="payment-command">
           <label className="payment-search">
             <span className="sr-only">Search payments</span>
@@ -549,17 +549,18 @@ export function PaymentsClient({
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search SO, company, amount, mode, remarks or added by"
+              placeholder="Search payments"
             />
+            {search && <button className="payment-search-clear" type="button" aria-label="Clear search" onClick={() => setSearch("")}>×</button>}
           </label>
-          <button
+          {userRole !== "Viewer" && <button
             className={`filter-toggle ${activeFilters ? "active" : ""}`}
             type="button"
             aria-expanded={filtersOpen}
             onClick={() => setFiltersOpen((v) => !v)}
           >
             Filters {activeFilters > 0 && <b>{activeFilters}</b>}
-          </button>
+          </button>}
         </div>
       )}
       {userRole !== "Viewer" && filtersOpen && (

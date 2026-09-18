@@ -12,6 +12,13 @@ export function NavIcon({ icon }: { icon?: NavItem['icon'] }) {
   return null
 }
 
+function PaymentTabIcon({ tab, selected }: { tab: 'all' | 'unauthorised' | 'pending'; selected: boolean }) {
+  const common = { className: 'nav-icon', viewBox: '0 0 24 24', fill: selected ? 'currentColor' : 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true };
+  if (tab === 'unauthorised') return <svg {...common}><path d="M12 3 4.5 6.2v5.2c0 4.7 3.2 8.1 7.5 9.6 4.3-1.5 7.5-4.9 7.5-9.6V6.2L12 3Z"/><path d="M12 8v4.2m0 3.3h.01" fill="none"/></svg>;
+  if (tab === 'pending') return <svg {...common}><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 1.8" fill="none"/></svg>;
+  return <svg {...common}><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 9h18M7 15h4" fill="none"/></svg>;
+}
+
 export function MobileMenu({ active, onLogout, user }: { nav: NavItem[]; utilityNav?: NavItem[]; active: string; onLogout: () => void | Promise<void>; readyCount?: number | null; user: SafeUser }) {
   const [accountOpen, setAccountOpen] = useState(false)
   const [paymentTab, setPaymentTab] = useState<'all' | 'unauthorised' | 'pending'>('all')
@@ -46,13 +53,17 @@ export function MobileMenu({ active, onLogout, user }: { nav: NavItem[]; utility
     </header>
     {accountOpen && <div className="mobile-sheet-layer" role="presentation" onClick={() => setAccountOpen(false)}>
       <section className="mobile-account-sheet" role="dialog" aria-modal="true" aria-label="Account" onClick={e => e.stopPropagation()}>
-        <div className="sheet-handle"/><button className="mobile-sheet-close" type="button" aria-label="Close account menu" onClick={() => setAccountOpen(false)}>×</button><header><div className="account-avatar">{(user.name || user.role).slice(0,2).toUpperCase()}</div><div><strong>{user.name || user.role}</strong><span>{user.email}</span></div></header><p>{user.role} account</p>
-        <button type="button" onClick={() => void onLogout()}>Sign out</button>
+        <div className="sheet-handle"/><button className="mobile-sheet-close" type="button" aria-label="Close account menu" onClick={() => setAccountOpen(false)}>×</button><header><div className="account-avatar">{(user.name || user.role).slice(0,2).toUpperCase()}</div><div><strong>{user.name || user.role}</strong><span>{user.email}</span></div></header><p>{user.role}</p>
+        <div className="account-sheet-actions">
+          {user.role === 'Admin' && <a href="/settings" className="account-settings-link"><NavIcon icon="settings"/><span>Settings</span><b aria-hidden="true">›</b></a>}
+          <button className="account-logout" type="button" onClick={() => void onLogout()}>Log out</button>
+        </div>
       </section>
     </div>}
     <nav className="mobile-bottom-nav" aria-label="Payment navigation">
-      {active === 'Payments' ? destinations.map(([key,label]) => <button type="button" key={key} aria-label={label} className={paymentTab===key?'active':''} aria-current={paymentTab===key?'page':undefined} onClick={() => window.dispatchEvent(new CustomEvent('payment:select-tab',{detail:key}))}><span className="nav-icon-box"><NavIcon icon="payments"/></span><span>{label}</span></button>) : <a href="/payments" aria-label="Regular Payments"><span className="nav-icon-box"><NavIcon icon="payments"/></span><span>Payments</span></a>}
-      {user.role === 'Admin' && <a href="/settings" aria-label="Settings" className={active==='Settings'?'active':''} aria-current={active==='Settings'?'page':undefined}><span className="nav-icon-box"><NavIcon icon="settings"/></span><span>Settings</span></a>}
+      {destinations.map(([key,label]) => active === 'Payments'
+        ? <button type="button" key={key} aria-label={label} className={paymentTab===key?'active':''} aria-current={paymentTab===key?'page':undefined} onClick={() => window.dispatchEvent(new CustomEvent('payment:select-tab',{detail:key}))}><span className="nav-icon-box"><PaymentTabIcon tab={key} selected={paymentTab===key}/></span><span>{key === 'all' ? 'Regular' : label}</span></button>
+        : <a key={key} href={`/payments${key === 'all' ? '' : `?view=${key}`}`} aria-label={label}><span className="nav-icon-box"><PaymentTabIcon tab={key} selected={false}/></span><span>{key === 'all' ? 'Regular' : label}</span></a>)}
     </nav>
   </>
 }
