@@ -17,7 +17,7 @@ let corsReadyUntil = 0
 export const R2_VIDEO_MAX_BYTES = 250 * 1024 * 1024
 export const R2_DOCUMENT_MAX_BYTES = 15 * 1024 * 1024
 export type R2ObjectMetadata = { exists: boolean; contentType: string; contentLength: number; etag: string | null }
-const ALLOWED_PREFIXES = ['media-proof/', 'payments/'] as const
+const ALLOWED_PREFIXES = ['media-proof/', 'payments/', 'payment-proofs/', 'app-data/'] as const
 
 /** Allows persisted legacy spaces while rejecting traversal and unsafe bytes. */
 export function isSafeR2Key(key: string, prefixes: readonly string[] = ALLOWED_PREFIXES) {
@@ -85,6 +85,24 @@ export async function uploadBufferToR2(key: string, contentType: string, buffer:
   })
   if (!response.ok) throw new Error(`Cloudflare R2 upload failed: HTTP ${response.status}`)
   return target
+}
+
+/** Private object primitives for JSON state; conditional PUT provides optimistic concurrency. */
+export async function getR2Object(key: string) {
+  if (!isSafeR2Key(key)) throw new Error('Invalid R2 object key')
+  const response = await fetch(createR2SignedUrl(key, 'GET', 60), { cache: 'no-store', signal: AbortSignal.timeout(R2_REQUEST_TIMEOUT_MS) })
+  if (response.status === 404) return null
+  if (!response.ok) throw new Error(`Cloudflare R2 read failed: HTTP ${response.status}`)
+  return { bytes: Buffer.from(await response.arrayBuffer()), etag: response.headers.get('etag') }
+}
+
+export async function putR2Object(key: string, contentType: string, bytes: Buffer, condition?: { etag?: string; createOnly?: boolean }) {
+  if (!isSafeR2Key(key)) throw new Error('Invalid R2 object key')
+  const target = createR2UploadTarget(key, contentType)
+  const response = await fetch(target.uploadUrl, { method: 'PUT', headers: { 'content-type': contentType, ...(condition?.etag ? { 'if-match': condition.etag } : condition?.createOnly ? { 'if-none-match': '*' } : {}) }, body: new Uint8Array(bytes), cache: 'no-store', signal: AbortSignal.timeout(R2_REQUEST_TIMEOUT_MS) })
+  if (response.status === 409 || response.status === 412) return false
+  if (!response.ok) throw new Error(`Cloudflare R2 write failed: HTTP ${response.status}`)
+  return true
 }
 
 export async function ensureR2Cors() {

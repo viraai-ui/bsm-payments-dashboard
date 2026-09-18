@@ -12,6 +12,7 @@
     "verify:auth": "node scripts/verify-auth-roles.cjs",
     "verify:salesperson-ownership": "node scripts/verify-salesperson-ownership.cjs",
     "verify:proofs": "node scripts/verify-payment-proofs.cjs",
+    "verify:github-store": "node --experimental-strip-types scripts/verify-github-data-store.mjs",
     "verify:viewer-metrics": "node scripts/verify-viewer-metrics.cjs",
     "verify:payment-actions": "node scripts/verify-payment-actions.cjs",
     "verify:admin-contract": "node scripts/verify-admin-contract.cjs",
