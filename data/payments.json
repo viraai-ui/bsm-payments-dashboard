@@ -1,33 +1,6 @@
 {
   "payments": [
     {
-      "customerName": "SILVER SHEEN ENTERPRISES PVT LTD",
-      "salesOrderId": "1154219000037104003",
-      "salesOrderNumber": "SO-07975",
-      "orderTotal": 62540,
-      "salesOrderDate": "2026-09-18",
-      "paymentAmount": 62540,
-      "paymentMode": "Bank Transfer",
-      "createdBy": "u-sales1",
-      "ownerUserId": "u-sales1",
-      "addedBy": "anujkumar",
-      "idempotencyKey": "f9681a19-ad44-4890-8f6f-0c7d8d486f20",
-      "id": "payment-a4ea13be-def3-43c8-aec3-3358bc42aa4c",
-      "status": "Pending",
-      "paymentDate": "2026-09-18",
-      "createdAt": "2026-09-18T09:14:17.629Z",
-      "updatedAt": "2026-09-18T09:14:17.629Z",
-      "audit": [
-        {
-          "id": "audit-aa1cb1bc-0c25-4d38-b681-15762779b385",
-          "type": "created",
-          "actor": "u-sales1",
-          "at": "2026-09-18T09:14:17.629Z",
-          "to": "Pending"
-        }
-      ]
-    },
-    {
       "customerName": "V.S. ENTERPRISES",
       "utrReference": "123",
       "paymentAmount": 555,
