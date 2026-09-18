@@ -1,18 +1,17 @@
 {
   "payments": [
     {
-      "customerName": "Unidentified customer",
+      "customerName": "V.S. ENTERPRISES",
       "utrReference": "123",
       "paymentAmount": 555,
       "paymentMode": "Bank Transfer",
-      "status": "Unauthorised",
-      "createdBy": "u-admin",
-      "addedBy": "Admin",
+      "status": "Payment Received",
+      "createdBy": "u-sales1",
       "idempotencyKey": "f0e5f34b-0d4f-49f0-908b-62c8b3b1a12e",
       "id": "payment-4ead3cf0-82bf-4b49-b292-9fe9702186f5",
       "paymentDate": "2026-09-18",
       "createdAt": "2026-09-18T09:10:33.971Z",
-      "updatedAt": "2026-09-18T09:10:34.838Z",
+      "updatedAt": "2026-09-18T09:12:28.868Z",
       "audit": [
         {
           "id": "audit-5286c0bc-403c-4521-b4ed-8ce8ebae7af2",
@@ -20,9 +19,25 @@
           "actor": "u-admin",
           "at": "2026-09-18T09:10:33.971Z",
           "to": "Unauthorised"
+        },
+        {
+          "id": "audit-4aecdffd-030e-4a6a-90a9-63a55bff600a",
+          "type": "claimed",
+          "actor": "u-sales1",
+          "at": "2026-09-18T09:12:28.868Z",
+          "from": "Unauthorised",
+          "to": "Payment Received"
         }
       ],
-      "attachments": []
+      "attachments": [],
+      "salesOrderId": "1154219000037120001",
+      "salesOrderNumber": "SO-07976",
+      "orderTotal": 53100,
+      "salesOrderDate": "2026-09-18",
+      "ownerUserId": "u-sales1",
+      "claimedBy": "u-sales1",
+      "claimedAt": "2026-09-18T09:12:28.868Z",
+      "confirmedAt": "2026-09-18T09:12:28.868Z"
     }
   ]
 }
