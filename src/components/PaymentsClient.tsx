@@ -27,6 +27,7 @@ import {
 } from "@/components/PaymentProofViewer";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { normalizePaymentAmountInput } from "@/lib/payment-amount";
+import { managementPaymentMetrics } from "@/lib/management-payment-metrics";
 
 type Tab = "all" | "unauthorised" | "pending";
 type Order = {
@@ -194,13 +195,16 @@ export function PaymentsClient({
       window.dispatchEvent(new CustomEvent("payment:open", { detail: id }));
     }
   }, []);
-  const selectTab = useCallback((next: Tab, history: "push" | "replace" | "none" = "push") => {
+  const selectTab = useCallback((next: Tab, history: "push" | "replace" | "none" = "push", statusFilter?: string) => {
     setTab(next);
+    setFilters((current) => ({ ...current, status: statusFilter ?? (next === "all" ? current.status : "") }));
     if (history !== "none") {
       const url = new URL(window.location.href);
       if (next === "all") url.searchParams.delete("view");
       else url.searchParams.set("view", next);
-      window.history[history === "push" ? "pushState" : "replaceState"]({ paymentTab: next }, "", url);
+      if (statusFilter) url.searchParams.set("status", statusFilter);
+      else if (next !== "all" || statusFilter === "") url.searchParams.delete("status");
+      window.history[history === "push" ? "pushState" : "replaceState"]({ paymentTab: next, status: statusFilter || "" }, "", url);
     }
     window.dispatchEvent(new CustomEvent("payment:tab-changed", { detail: next }));
     requestAnimationFrame(() => document.querySelector(".payments-page")?.scrollIntoView({ behavior: "smooth", block: "start" }));
@@ -212,9 +216,13 @@ export function PaymentsClient({
       if (value === "unauthorised" && userRole !== "Viewer") return "unauthorised";
       return "all";
     };
-    selectTab(fromUrl(), "replace");
-    const selected = (event: Event) => selectTab((event as CustomEvent<Tab>).detail);
-    const popped = () => selectTab(fromUrl(), "none");
+    const restore = (history: "replace" | "none") => {
+      const status = new URL(window.location.href).searchParams.get("status");
+      selectTab(fromUrl(), history, status === "Pending" || status === "Payment Received" ? status : "");
+    };
+    restore("replace");
+    const selected = (event: Event) => selectTab((event as CustomEvent<Tab>).detail, "push", "");
+    const popped = () => restore("none");
     window.addEventListener("payment:select-tab", selected);
     window.addEventListener("popstate", popped);
     return () => { window.removeEventListener("payment:select-tab", selected); window.removeEventListener("popstate", popped); };
@@ -234,10 +242,7 @@ export function PaymentsClient({
   );
   const rowOutstanding = useMemo(() => paymentOutstandingById(payments), [payments]);
   const people = useMemo(
-    () =>
-      Array.from(
-        new Set(payments.map((p) => p.addedBy || p.createdBy).filter(Boolean)),
-      ).sort(),
+    () => Array.from(new Set(payments.map(salesperson).filter((name) => name !== "—"))).sort(),
     [payments],
   );
   const filtered = useMemo(
@@ -261,7 +266,7 @@ export function PaymentsClient({
           if (filters.mode && p.paymentMode !== filters.mode) return false;
           if (
             filters.salesperson &&
-            (p.addedBy || p.createdBy) !== filters.salesperson
+            salesperson(p) !== filters.salesperson
           )
             return false;
 
@@ -284,6 +289,7 @@ export function PaymentsClient({
     pending: pending.length,
   };
   const metrics = useMemo(() => viewerPaymentMetrics(payments), [payments]);
+  const managementMetrics = useMemo(() => managementPaymentMetrics(payments), [payments]);
   const activeFilters = Object.values(filters).filter(Boolean).length;
   function selectOrder(order: Order, target: "add" | "claim") {
     const outstanding = order.settlement.pendingPayment;
@@ -408,7 +414,11 @@ export function PaymentsClient({
   }
   async function editPayment(e: React.FormEvent) {
     e.preventDefault();
-    if (!editing) return;
+    if (!editing || submitBusy.current) return;
+    setError("");
+    if (proofs.length > 5) return setError("Attach up to 5 images or PDFs.");
+    if (proofs.some((file) => !file.size || file.size > 10 * 1024 * 1024)) return setError("Each proof must be non-empty and no larger than 10 MB.");
+    submitBusy.current = true;
     setSaving(true);
     const body = new FormData();
     body.set("id", editing.id);
@@ -417,14 +427,24 @@ export function PaymentsClient({
     body.set("remarks", form.remarks);
     body.set("replaceProofs", String(proofs.length > 0));
     proofs.forEach((f) => body.append("proofs", f));
-    const r = await fetch("/api/payments", { method: "PATCH", body }),
-      j = await r.json().catch(() => ({}));
-    setSaving(false);
-    if (!r.ok) return setError(j.error || "Could not edit payment");
-    setPayments((p) =>
-      sortPayments(p.map((x) => (x.id === editing.id ? j.data.payment : x))),
-    );
-    setEditing(null);
+    try {
+      const r = await fetch("/api/payments", { method: "PATCH", body });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        setError(j.error || "Could not edit payment. Please try again.");
+        requestAnimationFrame(() => addErrorRef.current?.focus());
+        return;
+      }
+      setPayments((current) => sortPayments(current.map((payment) => payment.id === editing.id ? j.data.payment : payment)));
+      setEditing(null);
+      setProofs([]);
+    } catch {
+      setError("Could not edit payment. Check your connection and try again.");
+      requestAnimationFrame(() => addErrorRef.current?.focus());
+    } finally {
+      setSaving(false);
+      submitBusy.current = false;
+    }
   }
   async function deletePayment() {
     if (!deleting) return;
@@ -444,6 +464,7 @@ export function PaymentsClient({
   function beginEdit(p: Payment) {
     setEditing(p);
     setProofs([]);
+    setError("");
     setForm({
       ...emptyForm(),
       salesOrderId: p.salesOrderId || "",
@@ -487,6 +508,26 @@ export function PaymentsClient({
               </small>
             </article>
           ))}
+        </div>
+      )}
+      {userRole !== "Viewer" && (
+        <div className="management-metrics" aria-label="Payment management summary">
+          {managementMetrics.map((metric) => {
+            const active = metric.key === "received" ? tab === "all" && filters.status === "Payment Received"
+              : metric.key === "pending-receipts" ? tab === "all" && filters.status === "Pending"
+              : metric.key === "unauthorised" ? tab === "unauthorised"
+              : tab === "pending";
+            return <button key={metric.key} type="button" className={`management-metric ${active ? "active" : ""}`} aria-pressed={active}
+              onClick={() => {
+                setSearch("");
+                if (metric.key === "received") selectTab("all", "push", "Payment Received");
+                else if (metric.key === "pending-receipts") selectTab("all", "push", "Pending");
+                else if (metric.key === "unauthorised") selectTab("unauthorised", "push", "");
+                else selectTab("pending", "push", "");
+              }}>
+              <span>{metric.label}</span><strong>{money(metric.amount)}</strong>
+            </button>;
+          })}
         </div>
       )}
       {userRole !== "Viewer" && (
@@ -577,11 +618,11 @@ export function PaymentsClient({
       <div className="payment-tabs ledger-tabs" role="tablist">
         {(userRole === "Viewer"
           ? ([
-              ["all", "All Payments"],
+              ["all", "Regular Payments"],
               ["pending", "Pending Payments"],
             ] as const)
           : ([
-              ["all", "All Payments"],
+              ["all", "Regular Payments"],
               ["unauthorised", "Unauthorised Payments"],
               ["pending", "Pending Payments"],
             ] as const)
@@ -599,7 +640,7 @@ export function PaymentsClient({
           </button>
         ))}
       </div>
-      {error && !open && (
+      {error && !open && !editing && (
         <div className="form-error" role="alert">
           {error}
           <button aria-label="Dismiss error" onClick={() => setError("")}>
@@ -952,13 +993,14 @@ export function PaymentsClient({
         <Sheet
           title="Edit payment"
           eyebrow={editing.salesOrderNumber}
-          close={() => setEditing(null)}
+          close={() => { if (!saving) { setEditing(null); setError(""); } }}
         >
           <form
-            className="payment-form add-payment-form"
+            className="payment-form add-payment-form edit-payment-form"
             onSubmit={editPayment}
           >
-            <div className="order-snapshot">
+            <div className="add-payment-form-body add-payment-scroll-body edit-payment-form-body">
+            <div className="order-snapshot" aria-label="Immutable payment identity">
               <div>
                 <span>Sales order</span>
                 <strong>{editing.salesOrderNumber}</strong>
@@ -973,7 +1015,7 @@ export function PaymentsClient({
               </div>
               <div>
                 <span>Owner</span>
-                <strong>{editing.addedBy || editing.createdBy}</strong>
+                <strong>{salesperson(editing)}</strong>
               </div>
             </div>
             <label>
@@ -1020,14 +1062,11 @@ export function PaymentsClient({
               setFiles={setProofs}
               setError={setError}
             />
-            <small>
-              {proofs.length
-                ? "Existing proofs will be replaced."
-                : `${editing.attachments?.length || 0} existing proof(s) will be preserved.`}
-            </small>
+            {error && <p ref={addErrorRef} className="add-payment-error" role="alert" tabIndex={-1}>{error}</p>}
+            </div>
             <Actions
               busy={saving}
-              close={() => setEditing(null)}
+              close={() => { if (!saving) { setEditing(null); setError(""); } }}
               label="Save changes"
             />
           </form>

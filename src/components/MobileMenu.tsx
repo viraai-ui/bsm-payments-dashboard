@@ -29,9 +29,9 @@ export function MobileMenu({ active, onLogout, user }: { nav: NavItem[]; utility
     return () => window.removeEventListener('keydown', close)
   }, [accountOpen])
   const destinations = user.role === 'Viewer'
-    ? ([['all', 'All Payments'], ['pending', 'Pending']] as const)
-    : ([['all', 'All Payments'], ['unauthorised', 'Unauthorised'], ['pending', 'Pending']] as const)
-  const screenLabel = active === 'Settings' ? 'Settings' : destinations.find(([key]) => key === paymentTab)?.[1] || 'All Payments'
+    ? ([['all', 'Regular Payments'], ['pending', 'Pending']] as const)
+    : ([['all', 'Regular Payments'], ['unauthorised', 'Unauthorised'], ['pending', 'Pending']] as const)
+  const screenLabel = active === 'Settings' ? 'Settings' : destinations.find(([key]) => key === paymentTab)?.[1] || 'Regular Payments'
   return <>
     <header className="mobile-appbar" data-mobile-app-header>
       <a className="mobile-brand" href="/payments" aria-label="BSM Payments home">
@@ -51,7 +51,7 @@ export function MobileMenu({ active, onLogout, user }: { nav: NavItem[]; utility
       </section>
     </div>}
     <nav className="mobile-bottom-nav" aria-label="Payment navigation">
-      {active === 'Payments' ? destinations.map(([key,label]) => <button type="button" key={key} aria-label={label} className={paymentTab===key?'active':''} aria-current={paymentTab===key?'page':undefined} onClick={() => window.dispatchEvent(new CustomEvent('payment:select-tab',{detail:key}))}><span className="nav-icon-box"><NavIcon icon="payments"/></span><span>{label}</span></button>) : <a href="/payments" aria-label="All Payments"><span className="nav-icon-box"><NavIcon icon="payments"/></span><span>Payments</span></a>}
+      {active === 'Payments' ? destinations.map(([key,label]) => <button type="button" key={key} aria-label={label} className={paymentTab===key?'active':''} aria-current={paymentTab===key?'page':undefined} onClick={() => window.dispatchEvent(new CustomEvent('payment:select-tab',{detail:key}))}><span className="nav-icon-box"><NavIcon icon="payments"/></span><span>{label}</span></button>) : <a href="/payments" aria-label="Regular Payments"><span className="nav-icon-box"><NavIcon icon="payments"/></span><span>Payments</span></a>}
       {user.role === 'Admin' && <a href="/settings" aria-label="Settings" className={active==='Settings'?'active':''} aria-current={active==='Settings'?'page':undefined}><span className="nav-icon-box"><NavIcon icon="settings"/></span><span>Settings</span></a>}
     </nav>
   </>
