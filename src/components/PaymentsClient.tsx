@@ -152,12 +152,15 @@ export function PaymentsClient({
   useEffect(() => {
     const timer = setInterval(() => {
       if (document.visibilityState === "visible") void refresh();
-    }, 5000);
+    }, 60000);
     const focus = () => void refresh();
+    const visible = () => { if (document.visibilityState === "visible") void refresh(); };
     window.addEventListener("focus", focus);
+    document.addEventListener("visibilitychange", visible);
     return () => {
       clearInterval(timer);
       window.removeEventListener("focus", focus);
+      document.removeEventListener("visibilitychange", visible);
     };
   }, [refresh]);
   useEffect(() => {

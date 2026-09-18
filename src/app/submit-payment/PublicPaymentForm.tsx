@@ -95,10 +95,12 @@ export default function PublicPaymentForm() {
 
   useEffect(() => {
     void refreshPayments()
-    const timer = setInterval(() => { if (document.visibilityState === 'visible') void refreshPayments() }, 5000)
+    const timer = setInterval(() => { if (document.visibilityState === 'visible') void refreshPayments() }, 60000)
     const focus = () => void refreshPayments()
+    const visible = () => { if (document.visibilityState === 'visible') void refreshPayments() }
     window.addEventListener('focus', focus)
-    return () => { clearInterval(timer); window.removeEventListener('focus', focus) }
+    document.addEventListener('visibilitychange', visible)
+    return () => { clearInterval(timer); window.removeEventListener('focus', focus); document.removeEventListener('visibilitychange', visible) }
   }, [refreshPayments])
 
   const resetPaymentForm = useCallback(() => {

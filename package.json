@@ -14,6 +14,7 @@
     "verify:salesperson-ownership": "node scripts/verify-salesperson-ownership.cjs",
     "verify:proofs": "node scripts/verify-payment-proofs.cjs",
     "verify:github-store": "node --experimental-strip-types scripts/verify-github-data-store.mjs",
+    "verify:data-cache": "tsx scripts/verify-data-cache.mjs",
     "verify:viewer-metrics": "node scripts/verify-viewer-metrics.cjs",
     "verify:payment-actions": "node scripts/verify-payment-actions.cjs",
     "verify:admin-contract": "node scripts/verify-admin-contract.cjs",
@@ -48,6 +49,7 @@
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "prisma": "^6.19.0",
+    "tsx": "^4.23.13",
     "typescript": "^5.9.3"
   }
 }
