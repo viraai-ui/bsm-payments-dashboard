@@ -1,3 +1,27 @@
 {
-  "payments": []
+  "payments": [
+    {
+      "customerName": "Unidentified customer",
+      "utrReference": "123",
+      "paymentAmount": 555,
+      "paymentMode": "Bank Transfer",
+      "status": "Unauthorised",
+      "createdBy": "u-admin",
+      "addedBy": "Admin",
+      "idempotencyKey": "f0e5f34b-0d4f-49f0-908b-62c8b3b1a12e",
+      "id": "payment-4ead3cf0-82bf-4b49-b292-9fe9702186f5",
+      "paymentDate": "2026-09-18",
+      "createdAt": "2026-09-18T09:10:33.971Z",
+      "updatedAt": "2026-09-18T09:10:33.971Z",
+      "audit": [
+        {
+          "id": "audit-5286c0bc-403c-4521-b4ed-8ce8ebae7af2",
+          "type": "created",
+          "actor": "u-admin",
+          "at": "2026-09-18T09:10:33.971Z",
+          "to": "Unauthorised"
+        }
+      ]
+    }
+  ]
 }
