@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import { AuthGate, useAuth } from './AuthGate'
-import { MobileMenu, type NavItem } from './MobileMenu'
+import { MobileMenu, NavIcon, type NavItem } from './MobileMenu'
+
 
 const nav: NavItem[] = [
-  { label: 'Payments', href: '/payments' },
+  { label: 'Payments', href: '/payments', icon: 'payments' },
+  { label: 'Settings', href: '/settings', icon: 'settings' },
 ]
 
 const utilityNav: NavItem[] = []
@@ -13,14 +15,14 @@ const utilityNav: NavItem[] = []
 function ShellBody({ children, active }: { children: React.ReactNode; active: string }) {
   const { user, logout } = useAuth()
   const [readyCount, setReadyCount] = useState<number | null>(null)
-  const dispatchOnly = user.role === 'Dispatch'
-  const mediaOnly = user.role === 'Media'
-  const databaseOnly = user.role === 'Database'
+  const dispatchOnly = false
+  const mediaOnly = false
+  const databaseOnly = false
   const accountsOnly = user.role === 'Accounts'
-  const visibleNav = dispatchOnly ? nav.filter((item) => item.href === '/packaging-tv') : mediaOnly ? nav.filter((item) => item.href === '/media-proof') : databaseOnly ? nav.filter((item) => item.href === '/database') : accountsOnly ? nav.filter((item) => item.href === '/payments') : user.role === 'Operations' ? nav.filter((item) => !['/settings', '/media-proof', '/salesman-view', '/payments'].includes(item.href)) : nav
-  const canUseUtilities = user.role === 'Admin' || user.role === 'Operations'
+  const visibleNav = user.role === 'Admin' ? nav : nav.filter(item => item.href === '/payments')
+  const canUseUtilities = user.role === 'Admin'
   const visibleUtilityNav = canUseUtilities ? utilityNav : []
-  const mobileHidden = new Set(['/packaging-tv', '/settings'])
+  const mobileHidden = new Set(['/packaging-tv'])
   const mobileNav = visibleNav.filter((item) => !mobileHidden.has(item.href))
   const singleModule = dispatchOnly
   useEffect(() => {
@@ -33,7 +35,7 @@ function ShellBody({ children, active }: { children: React.ReactNode; active: st
     return () => { active = false }
   }, [user.role])
   return <div className={singleModule ? 'shell dispatch-shell single-module-shell' : 'shell'}>
-    {!singleModule && <MobileMenu nav={mobileNav} utilityNav={visibleUtilityNav} active={active} onLogout={logout} readyCount={readyCount} />}
+    {!singleModule && <MobileMenu nav={mobileNav} utilityNav={visibleUtilityNav} active={active} onLogout={logout} readyCount={readyCount} user={user} />}
     {!singleModule && <aside className="side">
       <div className="brand">
         <img className="logo bsm-brand-logo" src="/brand/bsm-logo.png" alt="BSM" />
@@ -43,7 +45,7 @@ function ShellBody({ children, active }: { children: React.ReactNode; active: st
         </div>
       </div>
       <nav className="nav" aria-label="Dashboard navigation">
-        {visibleNav.map((item) => <a className={`${item.label === active ? 'active' : ''} ${item.href === '/ready-to-ship' ? 'ready-nav-link' : ''}`} href={item.href} key={item.label}><span>{item.label}</span>{item.href === '/ready-to-ship' && readyCount !== null && <em className="ready-nav-count">{readyCount}</em>}</a>)}
+        {visibleNav.map((item) => <a className={`${item.label === active ? 'active' : ''} ${item.href === '/ready-to-ship' ? 'ready-nav-link' : ''}`} href={item.href} key={item.label}><NavIcon icon={item.icon}/><span>{item.label}</span>{item.href === '/ready-to-ship' && readyCount !== null && <em className="ready-nav-count">{readyCount}</em>}</a>)}
       </nav>
       <div className="side-user">
         {visibleUtilityNav.map((item) => <a className={`side-utility-link ${item.href === '/wooden-packing' ? 'wooden-utility-link' : ''} ${item.label === active ? 'active' : ''}`} href={item.href} key={item.label}>{item.label}</a>)}

@@ -1,78 +1,13 @@
-import { githubReadJson, githubRequest } from './workflow-store'
 import { getUserStore } from './auth'
+import { readLocalJson, updateLocalJson } from './local-store'
 import type { Payment } from './payments'
-
-export type PaymentNotification = {
-  id: string
-  type: 'payment-created'
-  recipientUserId: string
-  paymentId: string
-  salesOrderNumber: string
-  customerName: string
-  paymentAmount?: number
-  createdAt: string
-  readAt: string | null
-}
-
-type NotificationStore = { notifications: PaymentNotification[] }
-const STORE_PATH = 'data/payment-notifications.json'
-const EMPTY: NotificationStore = { notifications: [] }
-
-async function updateStore(updater: (items: PaymentNotification[]) => PaymentNotification[]) {
-  let lastError: unknown
-  for (let attempt = 0; attempt < 4; attempt += 1) {
-    const current = await githubReadJson<NotificationStore>(STORE_PATH, EMPTY)
-    const next = { notifications: updater(current.data.notifications || []).slice(0, 1000) }
-    const body: Record<string, string> = {
-      message: 'Update payment notifications',
-      content: Buffer.from(JSON.stringify(next, null, 2)).toString('base64'),
-    }
-    if (current.sha) body.sha = current.sha
-    try {
-      await githubRequest(`/contents/${STORE_PATH}`, { method: 'PUT', body: JSON.stringify(body) })
-      return next.notifications
-    } catch (error) {
-      lastError = error
-      const message = error instanceof Error ? error.message : ''
-      if (!/sha|409|does not match/i.test(message)) break
-      await new Promise((resolve) => setTimeout(resolve, 100 * (attempt + 1)))
-    }
-  }
-  throw lastError instanceof Error ? lastError : new Error('Notification update conflict')
-}
-
-export async function createPaymentNotifications(payment: Payment, creatorUserId: string) {
-  const { users } = await getUserStore()
-  const recipients = users.filter((user) => user.active && (user.role === 'Admin' || user.role === 'Accounts') && user.id !== creatorUserId)
-  if (!recipients.length) return []
-  const createdAt = new Date().toISOString()
-  const created = recipients.map((user) => ({
-    id: `payment-notification-${crypto.randomUUID()}`,
-    type: 'payment-created' as const,
-    recipientUserId: user.id,
-    paymentId: payment.id,
-    salesOrderNumber: payment.salesOrderNumber || 'No Sales Order',
-    customerName: payment.customerName,
-    paymentAmount: payment.paymentAmount,
-    createdAt,
-    readAt: null,
-  }))
-  await updateStore((items) => [...created, ...items])
-  return created
-}
-
-export async function listPaymentNotifications(userId: string) {
-  const { data } = await githubReadJson<NotificationStore>(STORE_PATH, EMPTY)
-  const notifications = (data.notifications || []).filter((item) => item.recipientUserId === userId).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 50)
-  return { notifications, unreadCount: notifications.filter((item) => !item.readAt).length }
-}
-
-export async function markPaymentNotificationsRead(userId: string, id?: string) {
-  const now = new Date().toISOString()
-  await updateStore((items) => items.map((item) => item.recipientUserId === userId && !item.readAt && (!id || item.id === id) ? { ...item, readAt: now } : item))
-  return listPaymentNotifications(userId)
-}
-
-export async function removePaymentNotifications(paymentId: string) {
-  return updateStore((items) => items.filter((item) => item.paymentId !== paymentId))
-}
+export type NotificationType='pending-created'|'status-received'|'status-pending'|'status-void'|'unauthorised-created'|'unauthorised-claimed'
+export type PaymentNotification={id:string;dedupeKey:string;type:NotificationType;recipientUserId:string;paymentId:string;salesOrderNumber:string;customerName:string;paymentAmount?:number;submitterName?:string;message:string;createdAt:string;readAt:string|null}
+type Store={notifications:PaymentNotification[]};const FILE='payment-notifications.json',EMPTY:Store={notifications:[]}
+async function notify(payment:Payment,type:NotificationType,recipients:string[],message:string,eventKey:string,submitterName?:string){const now=new Date().toISOString();let made:PaymentNotification[]=[];await updateLocalJson(FILE,EMPTY,s=>{const existing=new Set(s.notifications.map(n=>n.dedupeKey));made=recipients.map(recipientUserId=>{const dedupeKey=`${eventKey}:${recipientUserId}`;return{id:`notification-${crypto.randomUUID()}`,dedupeKey,type,recipientUserId,paymentId:payment.id,salesOrderNumber:payment.salesOrderNumber||'Unassigned',customerName:payment.customerName,paymentAmount:payment.paymentAmount,submitterName,message,createdAt:now,readAt:null}}).filter(n=>!existing.has(n.dedupeKey));return{notifications:[...made,...s.notifications].slice(0,1000)}});return made}
+export async function createPaymentNotifications(payment:Payment,creator:string){const users=(await getUserStore()).users,creatorUser=users.find(u=>u.id===creator);if(payment.status==='Unauthorised')return notify(payment,'unauthorised-created',users.filter(u=>u.active&&u.role==='Salesperson').map(u=>u.id),`New bank receipt for ${payment.customerName} (${payment.paymentAmount}) is ready to claim.`,`created:${payment.id}`);const recipients=users.filter(u=>u.active&&(u.role==='Accounts'||u.role==='Admin')).map(u=>u.id);if(payment.ownerUserId&&payment.ownerUserId!==creator)recipients.push(payment.ownerUserId);return notify(payment,'pending-created',Array.from(new Set(recipients)),`New pending receipt for ${payment.salesOrderNumber}: ${payment.customerName}, ${payment.paymentAmount}, submitted by ${creatorUser?.name||creator}.`,`created:${payment.id}`,creatorUser?.name)}
+export async function createStatusNotification(payment:Payment,status:'Pending'|'Payment Received'|'Void'){const users=(await getUserStore()).users;const ownerId=payment.ownerUserId||payment.claimedBy||payment.createdBy;const owner=users.find(u=>u.id===ownerId);if(!owner?.active||owner.role!=='Salesperson')return[];const type=status==='Payment Received'?'status-received':status==='Void'?'status-void':'status-pending';const message=status==='Payment Received'?`Your receipt for ${payment.salesOrderNumber} was received.`:status==='Void'?`Your receipt for ${payment.salesOrderNumber} was voided.`:`Your receipt for ${payment.salesOrderNumber} is pending review.`;return notify(payment,type,[owner.id],message,`status:${payment.id}:${status}:${payment.updatedAt}`)}
+export async function createClaimNotification(payment:Payment){const users=(await getUserStore()).users,owner=users.find(u=>u.id===payment.claimedBy);return notify(payment,'unauthorised-claimed',users.filter(u=>u.active&&(u.role==='Accounts'||u.role==='Admin')).map(u=>u.id),`${owner?.name||'A salesperson'} claimed receipt ${payment.paymentAmount} for ${payment.salesOrderNumber}.`,`claim:${payment.id}`,owner?.name)}
+export async function listPaymentNotifications(userId:string,allowedPaymentIds?:Set<string>){const n=(await readLocalJson(FILE,EMPTY)).notifications.filter(x=>x.recipientUserId===userId&&(!allowedPaymentIds||allowedPaymentIds.has(x.paymentId))).sort((a,b)=>b.createdAt.localeCompare(a.createdAt)).slice(0,50);return{notifications:n,unreadCount:n.filter(x=>!x.readAt).length}}
+export async function markPaymentNotificationsRead(userId:string,id?:string){const now=new Date().toISOString();await updateLocalJson(FILE,EMPTY,s=>({notifications:s.notifications.map(n=>n.recipientUserId===userId&&!n.readAt&&(!id||id===n.id)?{...n,readAt:now}:n)}));return listPaymentNotifications(userId)}
+export async function removePaymentNotifications(paymentId:string){return updateLocalJson(FILE,EMPTY,s=>({notifications:s.notifications.filter(n=>n.paymentId!==paymentId)}))}

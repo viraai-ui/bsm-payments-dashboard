@@ -3,7 +3,7 @@ import { listPayments } from '@/lib/payments'
 import { projectPaymentStatuses } from '@/lib/payment-status-projection'
 
 export async function GET() {
-  const auth = await requireUser(['Admin', 'Operations'])
+  const auth = await requireUser(['Admin'])
   if (!auth.ok) {
     auth.response.headers.set('cache-control', 'no-store')
     return auth.response

@@ -12,7 +12,7 @@ const databaseOnlyPath = '/database'
 const accountsOnlyPath = '/payments'
 const mediaAllowedPaths = ['/media-proof']
 const adminOnlyPaths: string[] = ['/salesman-view']
-function homeForRole(role: string) { return role === 'Dispatch' ? dispatchOnlyPath : role === 'Media' ? mediaOnlyPath : role === 'Database' ? databaseOnlyPath : role === 'Accounts' ? accountsOnlyPath : '/' }
+function homeForRole(_role: string) { return '/payments' }
 
 export function useAuth() {
   const value = useContext(AuthContext)
@@ -36,12 +36,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!user) return
-    if (user.role === 'Dispatch' && pathname !== dispatchOnlyPath) router.replace(dispatchOnlyPath)
-    if (user.role === 'Media' && !mediaAllowedPaths.includes(pathname)) router.replace(mediaOnlyPath)
-    if (user.role === 'Database' && pathname !== databaseOnlyPath) router.replace(databaseOnlyPath)
-    if (user.role === 'Accounts' && pathname !== accountsOnlyPath) router.replace(accountsOnlyPath)
-    if (user.role === 'Operations' && (pathname === '/settings' || pathname === '/media-proof')) router.replace('/')
-    if (adminOnlyPaths.includes(pathname) && user.role !== 'Admin') router.replace(homeForRole(user.role))
+    if (pathname === '/settings' && user.role !== 'Admin') router.replace('/payments')
   }, [pathname, router, user])
 
   async function refreshSession() {
@@ -93,10 +88,6 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     </main>
   }
 
-  if (user.role === 'Dispatch' && pathname !== dispatchOnlyPath) return null
-  if (user.role === 'Media' && !mediaAllowedPaths.includes(pathname)) return null
-  if (user.role === 'Database' && pathname !== databaseOnlyPath) return null
-  if (user.role === 'Accounts' && pathname !== accountsOnlyPath) return null
-  if (adminOnlyPaths.includes(pathname) && user.role !== 'Admin') return null
+  if (pathname === '/settings' && user.role !== 'Admin') return null
   return <AuthContext.Provider value={{ user, logout }}>{children}</AuthContext.Provider>
 }

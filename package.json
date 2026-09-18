@@ -6,7 +6,18 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "verify:payments": "node scripts/verify-payment-lifecycle.cjs",
+    "verify:auth": "node scripts/verify-auth-roles.cjs",
+    "verify:salesperson-ownership": "node scripts/verify-salesperson-ownership.cjs",
+    "verify:proofs": "node scripts/verify-payment-proofs.cjs",
+    "verify:viewer-metrics": "node scripts/verify-viewer-metrics.cjs",
+    "verify:payment-actions": "node scripts/verify-payment-actions.cjs",
+    "verify:admin-contract": "node scripts/verify-admin-contract.cjs",
+    "verify:responsive": "node scripts/verify-responsive.cjs",
+    "verify:ui-interactions": "node scripts/verify-responsive.cjs",
+    "verify:mobile-app": "node scripts/verify-mobile-app.cjs && node scripts/verify-responsive.cjs",
+    "verify:zoho-orders": "node --experimental-strip-types scripts/verify-zoho-payment-orders.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

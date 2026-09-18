@@ -1,32 +1,21 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { jwtVerify } from 'jose'
+import { authKey, SESSION_COOKIE_NAME } from './lib/auth-config'
 
-const cookieName = 'bsm_payments_session'
-const accountsOnly = '/payments'
-const protectedRoutes = ['/', '/payments']
+const protectedRoutes = ['/', '/payments', '/settings']
 const explicitlyPublicRoutes = ['/submit-payment']
-
-function secretKey() {
-  const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'bsm-payments-dashboard-local-secret-change-me'
-  return new TextEncoder().encode(secret)
-}
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
   if (explicitlyPublicRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`))) return NextResponse.next()
   if (!protectedRoutes.some((route) => pathname === route || (route !== '/' && pathname.startsWith(`${route}/`)))) return NextResponse.next()
-  const token = request.cookies.get(cookieName)?.value
+  const token = request.cookies.get(SESSION_COOKIE_NAME)?.value
   if (!token) return NextResponse.next()
   try {
-    const { payload } = await jwtVerify(token, secretKey())
-
-    if (payload.role === 'Accounts' && pathname !== accountsOnly) {
-      return NextResponse.redirect(new URL(accountsOnly, request.url))
-    }
-
+    await jwtVerify(token, authKey())
   } catch {
     const response = NextResponse.next()
-    response.cookies.set(cookieName, '', { path: '/', maxAge: 0 })
+    response.cookies.set(SESSION_COOKIE_NAME, '', { path: '/', maxAge: 0 })
     return response
   }
   return NextResponse.next()

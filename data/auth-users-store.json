@@ -3,68 +3,121 @@
     {
       "id": "u-admin",
       "name": "Admin",
-      "email": "admin@bsmindia.com",
+      "email": "admin@bsm.local",
       "username": "admin",
       "role": "Admin",
       "active": true,
-      "passwordHash": "$2b$10$9UqkjLsbHybne/9W/B2m2.0FGI4klBojKhE.F4AusmOfSD01vWXz6",
-      "createdAt": "2026-07-20T07:37:30.313Z",
-      "updatedAt": "2026-07-20T07:37:30.313Z"
-    },
-    {
-      "id": "u-ops",
-      "name": "Operations",
-      "email": "operations@bsmindia.com",
-      "username": "operations",
-      "role": "Operations",
-      "active": true,
-      "passwordHash": "$2b$10$uH6TkLtMkao9nO9NWvqhSeIipo3ABm8tcdDI64JUZWnItj01Bkm0C",
-      "createdAt": "2026-07-20T07:37:30.313Z",
-      "updatedAt": "2026-07-20T07:37:30.573Z"
-    },
-    {
-      "id": "u-dispatch",
-      "name": "Dispatch",
-      "email": "dispatch@bsmindia.com",
-      "username": "dispatch",
-      "role": "Dispatch",
-      "active": true,
-      "passwordHash": "$2b$10$qa4uN2fLbKgVJ4H7KKyWquarCo4GOaqGdvBW4.eAkgw0VqEe3mJl2",
-      "createdAt": "2026-07-20T07:37:30.313Z",
-      "updatedAt": "2026-07-28T07:52:43.085Z"
-    },
-    {
-      "id": "u-media",
-      "name": "Media",
-      "email": "media@bsmindia.com",
-      "username": "media",
-      "role": "Media",
-      "active": true,
-      "passwordHash": "$2b$10$t.efofyhWBo/SpKJrj4jIu2ZA8JdmDxiwsjSl.It3D0O1kAgbQD4y",
-      "createdAt": "2026-07-20T07:37:30.313Z",
-      "updatedAt": "2026-07-28T07:52:50.031Z"
-    },
-    {
-      "id": "u-database",
-      "name": "Database",
-      "email": "database@bsmindia.com",
-      "username": "database",
-      "role": "Database",
-      "active": true,
-      "passwordHash": "$2b$10$1.5Wpf9UHJCKIb7XaIkYjuepE.2rR6xGnzFYBRJdqvi1pSa21ClOa",
-      "createdAt": "2026-07-29T07:46:51.851Z",
-      "updatedAt": "2026-07-29T07:46:51.851Z"
+      "passwordHash": "$2b$10$Jhmi06OVrRKJ4mnKyj4rkOAzKkwUwK5nbY7BdQ/K1GsBVMKdGRdOq",
+      "createdAt": "2026-09-07T11:25:26.451Z",
+      "updatedAt": "2026-09-07T12:54:47.364Z"
     },
     {
       "id": "u-accounts",
       "name": "Accounts",
-      "email": "accounts@bsmindia.com",
-      "username": "account",
+      "email": "Accounts@bsmindia.com",
+      "username": "accounts",
       "role": "Accounts",
       "active": true,
-      "passwordHash": "$2b$10$29TvaE0kQelQlPzBw.NZ9OltNcYbfYNlvkQ5QwuELWd0Spo.PkqE.",
-      "createdAt": "2026-08-26T10:45:32.268Z",
-      "updatedAt": "2026-08-26T10:45:32.268Z"
+      "passwordHash": "$2b$10$88Zh6CrLVZI5zbpCia27BOTY.0UFVZ4tQjoPy9rZ56PlUcdM9VGg2",
+      "createdAt": "2026-09-07T11:25:26.451Z",
+      "updatedAt": "2026-09-08T09:54:38.768Z"
+    },
+    {
+      "id": "u-sales1",
+      "name": "Anuj Kumar",
+      "email": "Anujkumar@bsmindia.com",
+      "username": "anujkumar",
+      "role": "Salesperson",
+      "active": true,
+      "passwordHash": "$2b$10$MfxsnpBSWPeMWYxgJD7agus3oK1.M2S1Iwhk47QBDghUtLrCaMPKq",
+      "createdAt": "2026-09-07T11:25:26.451Z",
+      "updatedAt": "2026-09-16T08:40:42.513Z"
+    },
+    {
+      "id": "u-sales2",
+      "name": "Ram Bali",
+      "email": "Ram@bsmindia.com",
+      "username": "rambali",
+      "role": "Salesperson",
+      "active": true,
+      "passwordHash": "$2b$10$7ijaEDAOIONFyrUU38M.y.LPx5CH77f8QHh5EIP56DUM4vsKfBF0C",
+      "createdAt": "2026-09-07T11:25:26.451Z",
+      "updatedAt": "2026-09-08T09:52:27.570Z"
+    },
+    {
+      "id": "u-sales3",
+      "name": "Deepak",
+      "email": "Deepak@bsmindia.com",
+      "username": "deepak",
+      "role": "Salesperson",
+      "active": true,
+      "passwordHash": "$2b$10$BS364da3BsKOpPyc6nJKr.McHdIZhAa3xz9EklQPj0JYG20ib5Q1u",
+      "createdAt": "2026-09-07T11:25:26.451Z",
+      "updatedAt": "2026-09-08T09:52:55.912Z"
+    },
+    {
+      "id": "u-sales4",
+      "name": "Karan Singh",
+      "email": "karan@bsmindia.com",
+      "username": "karan",
+      "role": "Salesperson",
+      "active": true,
+      "passwordHash": "$2b$10$FBcoObggyp8qgpvXBzepk..2onRRXsnmpLVU1PMI22VVr.zvNdM1.",
+      "createdAt": "2026-09-07T11:25:26.451Z",
+      "updatedAt": "2026-09-08T09:53:18.822Z"
+    },
+    {
+      "id": "u-sales5",
+      "name": "Shivani Kumari",
+      "email": "Shivani@bsmindia.com",
+      "username": "shivani",
+      "role": "Salesperson",
+      "active": true,
+      "passwordHash": "$2b$10$EjpRMj7k0QI7WyC5.pt3M.QcBCb5wa6QcjCyvJXbRR6plyr50/vP.",
+      "createdAt": "2026-09-07T11:25:26.451Z",
+      "updatedAt": "2026-09-08T09:53:51.031Z"
+    },
+    {
+      "id": "u-eb86002f-067d-4642-83c4-4c35a102cc30",
+      "name": "Manisha",
+      "email": "manisha@bsmindia.com",
+      "username": "manisha",
+      "role": "Salesperson",
+      "active": true,
+      "passwordHash": "$2b$10$Q5OgO0pzLWaU8vBDv9eGVe/GdCLEptHMZkIxWD4vFq4Ios5T4slxW",
+      "createdAt": "2026-09-08T09:54:12.307Z",
+      "updatedAt": "2026-09-08T09:54:12.307Z"
+    },
+    {
+      "id": "u-499d1e9c-1fbc-43d9-891e-0a412646ee0f",
+      "name": "View User",
+      "email": "viewer@bsm.local",
+      "username": "viewer",
+      "role": "Viewer",
+      "active": true,
+      "passwordHash": "$2b$10$WuQm4wAtg8HX9QE2bD3t3uzh7SaS6HNkohtNJYYFCqgVEv4EGoOU.",
+      "createdAt": "2026-09-09T12:54:56.203Z",
+      "updatedAt": "2026-09-16T09:33:52.141Z"
     }
-  ]
+  ],
+  "permissions": {
+    "Salesperson": [
+      "payments.view",
+      "payments.create",
+      "payments.claim"
+    ],
+    "Accounts": [
+      "payments.view",
+      "payments.create",
+      "payments.approve"
+    ],
+    "Admin": [
+      "payments.view",
+      "payments.create",
+      "payments.approve",
+      "payments.claim",
+      "users.manage",
+      "roles.manage"
+    ]
+  }
 }

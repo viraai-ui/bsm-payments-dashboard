@@ -1,124 +1,36 @@
-import { githubReadJson, githubRequest } from './workflow-store'
-
-export type PaymentStatus = 'Pending' | 'Payment Received'
-export type PaymentMode = 'Bank Transfer' | 'UPI' | 'Cash' | 'Credit Card' | 'Debit Card' | 'Other'
-export const PAYMENT_ADDED_BY_USERS = ['Anuj', 'Deepak', 'Ram', 'Karan', 'Shivani', 'Manisha', 'Sonia'] as const
-export type PaymentAddedBy = typeof PAYMENT_ADDED_BY_USERS[number]
-export function isPaymentAddedBy(value: unknown): value is PaymentAddedBy {
-  return typeof value === 'string' && PAYMENT_ADDED_BY_USERS.includes(value as PaymentAddedBy)
-}
-export type PaymentAttachment = { key: string; url: string; name: string; contentType: string; size: number }
-export type Payment = {
-  id: string
-  customerName: string
-  /** Absent for a manually entered customer payment. */
-  salesOrderNumber?: string
-  /** Optional only for records created before payment details were introduced. */
-  paymentAmount?: number
-  /** Optional only for records created before payment details were introduced. */
-  paymentMode?: PaymentMode
-  screenshotUrl?: string
-  screenshotKey?: string
-  screenshotName?: string
-  /** Canonical proof collection. Legacy screenshot fields remain readable. */
-  attachments?: PaymentAttachment[]
-  remarks?: string
-  /** Explicitly selected submitter. Optional only for legacy records. */
-  addedBy?: PaymentAddedBy
-  status: PaymentStatus
-  createdBy: string
-  /** Server-generated deduplication key for public submissions; never returned by public APIs. */
-  idempotencyKey?: string
-  /** SHA-256 verifier for a public device deletion capability. Never expose publicly. */
-  publicDeleteTokenHash?: string
-  createdAt: string
-  updatedAt: string
-}
-
-type PaymentStore = { payments: Payment[] }
-const STORE_PATH = 'data/payments.json'
-
-export function sortPayments(payments: Payment[]) {
-  return [...payments].sort((a, b) => {
-    const statusOrder = Number(a.status === 'Payment Received') - Number(b.status === 'Payment Received')
-    return statusOrder || b.createdAt.localeCompare(a.createdAt)
-  })
-}
-
-export function paymentAttachments(payment: Payment): PaymentAttachment[] {
-  if (Array.isArray(payment.attachments) && payment.attachments.length) return payment.attachments.slice(0, 10)
-  if (!payment.screenshotKey && !payment.screenshotUrl) return []
-  return [{ key: payment.screenshotKey || '', url: payment.screenshotUrl || '', name: payment.screenshotName || 'Payment proof', contentType: '', size: 0 }]
-}
-
-export async function listPayments() {
-  const { data } = await githubReadJson<PaymentStore>(STORE_PATH, { payments: [] })
-  return sortPayments(data.payments || [])
-}
-
-async function updateStore(updater: (payments: Payment[]) => Payment[]) {
-  let lastError: unknown
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const current = await githubReadJson<PaymentStore>(STORE_PATH, { payments: [] })
-    const next = { payments: updater(current.data.payments || []) }
-    const body: Record<string, string> = {
-      message: 'Update payments store',
-      content: Buffer.from(JSON.stringify(next, null, 2)).toString('base64'),
-    }
-    if (current.sha) body.sha = current.sha
-    try {
-      await githubRequest(`/contents/${STORE_PATH}`, { method: 'PUT', body: JSON.stringify(body) })
-      return next.payments
-    } catch (error) {
-      lastError = error
-      const message = error instanceof Error ? error.message : ''
-      if (!message.includes('sha') && !message.includes('409') && !message.includes('does not match')) break
-    }
-  }
-  throw lastError instanceof Error ? lastError : new Error('Payment update conflict')
-}
-
-export async function createPayment(input: Omit<Payment, 'id' | 'status' | 'createdAt' | 'updatedAt'>) {
-  const now = new Date().toISOString()
-  const payment: Payment = { ...input, id: `payment-${crypto.randomUUID()}`, status: 'Pending', createdAt: now, updatedAt: now }
-  await updateStore((payments) => [payment, ...payments])
-  return payment
-}
-
-/** Creates once per key in the payment store, including across client retries. */
-export async function createPublicPayment(input: Omit<Payment, 'id' | 'status' | 'createdAt' | 'updatedAt' | 'createdBy' | 'idempotencyKey'>, idempotencyKey: string) {
-  let result: Payment | undefined
-  let duplicate = false
-  await updateStore((payments) => {
-    const existing = payments.find((payment) => payment.idempotencyKey === idempotencyKey)
-    if (existing) { result = existing; duplicate = true; return payments }
-    const now = new Date().toISOString()
-    result = { ...input, id: `payment-${crypto.randomUUID()}`, status: 'Pending', createdBy: 'public-salesman', idempotencyKey, createdAt: now, updatedAt: now }
-    return [result, ...payments]
-  })
-  if (!result) throw new Error('Could not create payment')
-  return { payment: result, duplicate }
-}
-
-export async function deletePendingPublicPayment(id: string) {
-  let deleted: Payment | null = null
-  let outcome: 'deleted' | 'not-found' | 'received' = 'not-found'
-  await updateStore((payments) => {
-    const payment = payments.find((item) => item.id === id)
-    if (!payment) return payments
-    if (payment.status !== 'Pending') { outcome = 'received'; return payments }
-    deleted = payment; outcome = 'deleted'
-    return payments.filter((item) => item.id !== id)
-  })
-  return { outcome: outcome as 'deleted' | 'not-found' | 'received', payment: deleted }
-}
-
-export async function updatePaymentStatus(id: string, status: PaymentStatus) {
-  let updated: Payment | null = null
-  await updateStore((payments) => payments.map((payment) => {
-    if (payment.id !== id) return payment
-    updated = { ...payment, status, updatedAt: new Date().toISOString() }
-    return updated
-  }))
-  return updated
-}
+import { readLocalJson, updateLocalJson } from './local-store'
+import { orderSummary, sortPayments, toPaise } from './payment-settlement'
+import type { PaymentMode, PaymentStatus } from './payment-domain'
+import type { SafeUser } from './auth'
+export { PAYMENT_MODES } from './payment-domain'
+export type { PaymentMode, PaymentStatus } from './payment-domain'
+export { orderSummary, pendingOrderSummaries } from './payment-settlement'
+export const PAYMENT_ADDED_BY_USERS=['Sales One','Sales Two','Sales Three','Sales Four','Sales Five','Accounts','Admin'] as const
+export type PaymentAddedBy=typeof PAYMENT_ADDED_BY_USERS[number]
+export function isPaymentAddedBy(v:unknown):v is PaymentAddedBy{return typeof v==='string'&&PAYMENT_ADDED_BY_USERS.includes(v as PaymentAddedBy)}
+export type PaymentAttachment={key:string;url:string;name:string;contentType:string;size:number}
+export type AuditEvent={id:string;type:'created'|'claimed'|'status_changed'|'edited'|'voided'|'delete_attempted';actor:string;at:string;from?:PaymentStatus;to?:PaymentStatus;reason?:string;changedFields?:string[]}
+export type PaymentTombstone={id:string;type:'deleted';actor:string;at:string;reason:string;payment:Payment}
+export type Payment={id:string;customerName:string;utrReference?:string;salesOrderId?:string;salesOrderNumber?:string;orderTotal?:number;salesOrderDate?:string;paymentAmount:number;paymentMode?:PaymentMode;paymentDate:string;attachments?:PaymentAttachment[];remarks?:string;addedBy?:string;ownerUserId?:string;status:PaymentStatus;createdBy:string;claimedBy?:string;claimedAt?:string;confirmedAt?:string;voidedAt?:string;voidReason?:string;publicDeleteTokenHash?:string;publicDeviceHash?:string;idempotencyKey?:string;audit?:AuditEvent[];createdAt:string;updatedAt:string}
+type Store={payments:Payment[]};const FILE='payments.json',EMPTY:Store={payments:[]}
+const event=(type:AuditEvent['type'],actor:string,at:string,extra:Partial<AuditEvent>={}):AuditEvent=>({id:`audit-${crypto.randomUUID()}`,type,actor,at,...extra})
+export function paymentAttachments(p:Payment){return p.attachments||[]}
+export async function listPayments(){return sortPayments((await readLocalJson(FILE,EMPTY)).payments)}
+const normalized=(value?:string)=>String(value||'').trim().toLocaleLowerCase().replace(/[^a-z0-9]+/g,'')
+export function isPaymentOwnedBy(payment:Payment,user:Pick<SafeUser,'id'|'name'|'email'|'username'>){const stable=payment.ownerUserId||payment.claimedBy;if(stable)return stable===user.id;if(payment.createdBy===user.id)return true;const legacy=[payment.createdBy,payment.addedBy].map(normalized).filter(Boolean);return [user.name,user.email,user.username].map(normalized).some(value=>value&&legacy.includes(value))}
+/** Salespeople receive their own records plus the shared unauthorised claim queue. */
+export async function listPaymentsForUser(user:SafeUser){const all=await listPayments();return user.role==='Salesperson'?all.filter(p=>p.status==='Unauthorised'||isPaymentOwnedBy(p,user)):all}
+export async function createPayment(input:Omit<Payment,'id'|'status'|'paymentDate'|'createdAt'|'updatedAt'> & {status?:PaymentStatus;paymentDate?:string}){const now=new Date().toISOString();const payment:Payment={...input,id:`payment-${crypto.randomUUID()}`,status:input.status||'Pending',paymentDate:input.paymentDate||now.slice(0,10),createdAt:now,updatedAt:now,audit:[event('created',input.createdBy,now,{to:input.status||'Pending'})]};await updateLocalJson(FILE,EMPTY,s=>({payments:[payment,...s.payments]}));return payment}
+export async function createLinkedPayment(input:Omit<Payment,'id'|'status'|'paymentDate'|'createdAt'|'updatedAt'>,key:string):Promise<{payment:Payment;duplicate:boolean}>{let result!: {payment:Payment;duplicate:boolean};await updateLocalJson(FILE,EMPTY,s=>{const existing=s.payments.find(p=>p.idempotencyKey===key);if(existing){result={payment:existing,duplicate:true};return s}const summary=orderSummary(s.payments,input.salesOrderNumber!,input.orderTotal);if(typeof summary.provisionalOutstanding==='number'&&Math.round(input.paymentAmount*100)>Math.round(summary.provisionalOutstanding*100))throw new Error('Payment Received Amount cannot exceed the provisional outstanding balance');const now=new Date().toISOString(),payment:Payment={...input,idempotencyKey:key,id:`payment-${crypto.randomUUID()}`,status:'Pending',paymentDate:now.slice(0,10),createdAt:now,updatedAt:now,audit:[event('created',input.createdBy,now,{to:'Pending'})]};result={payment,duplicate:false};return{payments:[payment,...s.payments]}});return result}
+export async function createPublicPayment(input:any,key:string):Promise<{payment:Payment;duplicate:boolean}>{let result={} as {payment:Payment;duplicate:boolean};await updateLocalJson(FILE,EMPTY,s=>{const existing=s.payments.find(p=>p.idempotencyKey===key);if(existing){result={payment:existing,duplicate:true};return s}const now=new Date().toISOString();const payment:Payment={...input,id:`payment-${crypto.randomUUID()}`,status:'Pending',paymentDate:now.slice(0,10),createdBy:'public-salesman',idempotencyKey:key,createdAt:now,updatedAt:now,audit:[event('created','public-salesman',now,{to:'Pending'})]};result={payment,duplicate:false};return{payments:[payment,...s.payments]}});return result!}
+export async function deletePendingPublicPayment(id:string){let deleted:Payment|null=null,outcome:'deleted'|'not-found'|'received'='not-found';await updateLocalJson(FILE,EMPTY,s=>({payments:s.payments.filter(p=>{if(p.id!==id)return true;if(p.status!=='Pending'){outcome='received';return true}deleted=p;outcome='deleted';return false})}));return{outcome:outcome as 'deleted'|'not-found'|'received',payment:deleted}}
+/** Financial records are never hard-deleted: this API records an auditable void. */
+export async function voidPayment(id:string,actor:string,reason:string){let updated:Payment|null=null;await updateLocalJson(FILE,EMPTY,s=>({payments:s.payments.map(p=>{if(p.id!==id)return p;const now=new Date().toISOString();return updated={...p,status:'Void',voidedAt:now,voidReason:reason,updatedAt:now,audit:[...(p.audit||[]),event('voided',actor,now,{from:p.status,to:'Void',reason})]}})}));return updated}
+export async function deletePayment(id:string){let deleted:Payment|null=null;await updateLocalJson(FILE,EMPTY,s=>({payments:s.payments.filter(p=>{if(p.id===id){deleted=p;return false}return true})}));return deleted}
+export function canMutatePayment(payment:Payment,user:Pick<SafeUser,'id'|'name'|'email'|'username'|'role'>){return (user.role==='Admin'&&!payment.ownerUserId)||(user.role==='Salesperson'&&payment.status==='Pending'&&isPaymentOwnedBy(payment,user))}
+export function canDeletePayment(payment:Payment,user:Pick<SafeUser,'id'|'name'|'email'|'username'|'role'>){return (user.role==='Admin'&&!payment.ownerUserId)||(user.role==='Salesperson'&&payment.status==='Pending'&&isPaymentOwnedBy(payment,user))}
+export async function updatePayment(id:string,user:SafeUser,input:{paymentAmount:number;paymentMode:PaymentMode;remarks?:string;attachments?:PaymentAttachment[]},authoritativeTotal:number){let updated:Payment|null=null;await updateLocalJson(FILE,EMPTY,s=>{const target=s.payments.find(p=>p.id===id);if(!target)throw new Error('Payment not found');if(!canMutatePayment(target,user))throw new Error('You cannot edit this payment');if(!target.salesOrderNumber)throw new Error('Only linked payments can be edited');const others=s.payments.filter(p=>p.id!==id);const summary=orderSummary(others,target.salesOrderNumber,authoritativeTotal);if(typeof summary.outstanding==='number'&&input.paymentAmount>summary.outstanding)throw new Error('Payment Received Amount cannot exceed the authoritative outstanding balance');const changedFields=(['paymentAmount','paymentMode','remarks','attachments'] as const).filter(k=>input[k]!==undefined&&JSON.stringify(target[k])!==JSON.stringify(input[k]));const now=new Date().toISOString();return{payments:s.payments.map(p=>p.id===id?(updated={...p,...input,updatedAt:now,audit:[...(p.audit||[]),event('edited',user.id,now,{changedFields})]}):p)}});return updated}
+export async function deletePaymentWithTombstone(id:string,user:SafeUser,reason:string){let deleted:Payment|null=null;await updateLocalJson(FILE,EMPTY,async s=>{const target=s.payments.find(p=>p.id===id);if(!target)throw new Error('Payment not found');if(!canDeletePayment(target,user))throw new Error('You cannot delete this payment');const at=new Date().toISOString();const tombstone:PaymentTombstone={id:`tombstone-${crypto.randomUUID()}`,type:'deleted',actor:user.id,at,reason,payment:structuredClone(target)};await updateLocalJson<{tombstones:PaymentTombstone[]}>('payment-tombstones.json',{tombstones:[]},t=>({tombstones:[tombstone,...t.tombstones]}));deleted=target;return{payments:s.payments.filter(p=>p.id!==id)}});return deleted}
+export async function setPaymentAttachments(id:string,attachments:PaymentAttachment[]){let updated:Payment|null=null;await updateLocalJson(FILE,EMPTY,s=>({payments:s.payments.map(p=>p.id===id?(updated={...p,attachments,updatedAt:new Date().toISOString()}):p)}));return updated}
+export async function updatePaymentStatus(id:string,status:'Pending'|'Payment Received'|'Void',actor='system',reason?:string){let updated:Payment|null=null;await updateLocalJson(FILE,EMPTY,s=>{const target=s.payments.find(p=>p.id===id);if(!target||target.status==='Unauthorised')return s;const remaining=target.salesOrderNumber?orderSummary(s.payments,target.salesOrderNumber).outstanding:undefined;if(status==='Payment Received'&&target.status!=='Payment Received'&&typeof remaining==='number'&&target.paymentAmount>remaining)throw new Error('Receipt exceeds the remaining order balance');const now=new Date().toISOString();return{payments:s.payments.map(p=>p.id===id?(updated={...p,status,confirmedAt:status==='Payment Received'?now:undefined,voidedAt:status==='Void'?now:undefined,voidReason:status==='Void'?reason:undefined,updatedAt:now,audit:[...(p.audit||[]),event(status==='Void'?'voided':'status_changed',actor,now,{from:p.status,to:status,reason})]}):p)}});return updated}
+export async function claimPayment(id:string,userId:string,userName:string,order:{id:string;salesOrderNumber:string;customerName:string;orderTotal:number;orderDate:string}){let updated:Payment|null=null;await updateLocalJson(FILE,EMPTY,s=>{const existing=s.payments.find(p=>p.id===id);if(existing&&existing.status!=='Unauthorised'){if(existing.claimedBy===userId&&existing.salesOrderId===order.id){updated=existing;return s}throw new Error('This receipt has already been claimed')}const target=existing?.status==='Unauthorised'?existing:undefined;if(!target)return s;const available=orderSummary(s.payments,order.salesOrderNumber,order.orderTotal).provisionalOutstanding;const receiptPaise=toPaise(target.paymentAmount),availablePaise=available===undefined?undefined:toPaise(available);if(availablePaise!==undefined&&receiptPaise>availablePaise){const format=(paise:number)=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(paise/100);throw new Error(`Receipt ${format(receiptPaise)} exceeds the selected order’s available balance of ${format(availablePaise)}. Choose another order or reconcile its pending receipts.`)}const now=new Date().toISOString();return{payments:s.payments.map(p=>p.id===id?(updated={...p,customerName:order.customerName,salesOrderId:order.id,salesOrderNumber:order.salesOrderNumber,orderTotal:order.orderTotal,salesOrderDate:order.orderDate,status:'Payment Received',createdBy:userId,ownerUserId:userId,addedBy:isPaymentAddedBy(userName)?userName:undefined,claimedBy:userId,claimedAt:now,confirmedAt:now,updatedAt:now,audit:[...(p.audit||[]),event('claimed',userId,now,{from:'Unauthorised',to:'Payment Received'})]}):p)}});return updated}

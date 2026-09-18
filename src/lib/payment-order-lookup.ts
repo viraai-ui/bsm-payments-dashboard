@@ -7,11 +7,12 @@ const KNOWN_OPEN = new Set(['open', 'draft', 'confirmed', 'partially shipped', '
 export function paymentOrderStatus(rawStatus: unknown): PaymentOrderDisplayStatus {
   const normalized = String(rawStatus || '').trim().toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ')
   if (!normalized) return 'Status unknown'
+  if (KNOWN_OPEN.has(normalized)) return 'Open'
   const words = normalized.split(' ')
   // Zoho commonly returns negative invoice/shipment states such as
   // `not_invoiced`; those must not be mistaken for terminal orders.
   if (words.some((word, index) => TERMINAL.has(word) && words[index - 1] !== 'not')) return 'Closed'
-  if (KNOWN_OPEN.has(normalized) || words.some((word) => KNOWN_OPEN.has(word))) return 'Open'
+  if (words.some((word) => KNOWN_OPEN.has(word))) return 'Open'
   return 'Status unknown'
 }
 

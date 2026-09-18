@@ -4,7 +4,9 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 're
 import styles from './submit-payment.module.css'
 import { normalizePaymentScreenshotFile } from '@/lib/payment-screenshot'
 import { PaymentProofViewer, type ViewerProof } from '@/components/PaymentProofViewer'
-import { PAYMENT_ADDED_BY_USERS, type PaymentAddedBy } from '@/lib/payments'
+import { isValidPaymentAmount, normalizePaymentAmountInput } from '@/lib/payment-amount'
+const PAYMENT_ADDED_BY_USERS = ['Sales One','Sales Two','Sales Three','Sales Four','Sales Five','Accounts','Admin'] as const
+type PaymentAddedBy = typeof PAYMENT_ADDED_BY_USERS[number]
 
 type Order = { id: string; salesOrderNumber: string; customerName: string; status: 'Open' | 'Closed' | 'Status unknown'; rawStatus: string }
 type Receipt = { id: string; salesOrderNumber?: string; paymentAmount: number; status: 'Pending' }
@@ -83,7 +85,7 @@ export default function PublicPaymentForm() {
     if (polling.current) return
     polling.current = true
     try {
-      const response = await fetch('/api/public/payments', { cache: 'no-store' })
+      const response = await fetch('/api/public/payments', { cache: 'no-store', headers: { 'x-payment-capabilities': JSON.stringify(readCapabilities()) } })
       const json: Api<{ payments: Payment[] }> = await response.json()
       if (!response.ok || !json.data) throw new Error(json.error || 'Could not load payments')
       setPayments(json.data.payments)
@@ -110,7 +112,7 @@ export default function PublicPaymentForm() {
     try {
       if (!candidates.length) throw new Error('Folders cannot be attached. Choose images or PDFs.')
       const normalized = candidates.map(normalizePaymentScreenshotFile)
-      setFiles((current) => { const keys = new Set(current.map((file) => `${file.name}:${file.size}:${file.lastModified}`)); const additions = normalized.filter((file) => !keys.has(`${file.name}:${file.size}:${file.lastModified}`)); if (current.length + additions.length > 10) { setError('You can attach up to 10 files.'); return current } return [...current, ...additions] })
+      setFiles((current) => { const keys = new Set(current.map((file) => `${file.name}:${file.size}:${file.lastModified}`)); const additions = normalized.filter((file) => !keys.has(`${file.name}:${file.size}:${file.lastModified}`)); if (current.length + additions.length > 5) { setError('You can attach up to 5 files.'); return current } return [...current, ...additions] })
       setError(''); setFileAnnouncement(`${normalized.length} file${normalized.length === 1 ? '' : 's'} attached.`)
       if (fileInputRef.current) fileInputRef.current.value = ''
       return true
@@ -195,24 +197,18 @@ export default function PublicPaymentForm() {
     const linked = Boolean(selected && query === selected.salesOrderNumber)
     const manualCustomer = customerName.trim()
     if (!manualCustomer || manualCustomer.length > 120 || /[\u0000-\u001f\u007f-\u009f<>]/u.test(manualCustomer)) return setError('Enter a valid customer name (maximum 120 characters).')
-    if (!/^\d{1,10}(\.\d{1,2})?$/.test(amount) || Number(amount) <= 0) return setError('Enter a valid amount with up to 2 decimal places.')
+    if (!isValidPaymentAmount(amount)) return setError('Enter a valid amount with up to 2 decimal places.')
     if (!mode) return setError('Select a payment mode.')
     if (!addedBy) return setError('Select who added the payment.')
-    if (files.length < 1 || files.length > 10) return setError('Attach between 1 and 10 payment proofs.')
+    if (files.length > 5) return setError('Attach up to 5 payment proofs.')
     setBusy(true)
     try {
-      const uploaded: { key: string; name: string }[] = []
-      let uploadScope = ''
-      const uploadOne = async (file: File) => {
-        const targetResponse = await fetch('/api/public/payments/upload-target', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: file.name, type: file.type, size: file.size, salesOrderNumber: linked ? selected!.salesOrderNumber : '', uploadScope, submissionToken: token }) })
-        const targetJson: Api<{ key: string; uploadUrl: string; uploadContentType: string; uploadScope: string }> = await targetResponse.json().catch(() => ({} as Api<never>))
-        if (!targetResponse.ok || !targetJson.data) throw new Error(targetJson.error || 'Could not prepare proof upload')
-        const upload = await fetch(targetJson.data.uploadUrl, { method: 'PUT', headers: { 'content-type': targetJson.data.uploadContentType }, body: file }).catch(() => null)
-        if (!upload?.ok) throw new Error(`Upload failed for ${file.name}. Check your connection and retry.`)
-        uploadScope = targetJson.data.uploadScope; uploaded.push({ key: targetJson.data.key, name: file.name })
-      }
-      for (const file of files) await uploadOne(file)
-      const response = await fetch('/api/public/payments', { method: 'POST', headers: { 'content-type': 'application/json', 'idempotency-key': crypto.randomUUID().replaceAll('-', '') }, body: JSON.stringify({ ...(linked ? { salesOrderId: selected!.id, salesOrderNumber: selected!.salesOrderNumber } : {}), customerName: linked ? selected!.customerName : manualCustomer, paymentAmount: amount, paymentMode: mode, addedBy, attachments: uploaded, uploadScope, remarks, submissionToken: token, website: '' }) })
+      const body = new FormData()
+      if (linked) { body.set('salesOrderId', selected!.id); body.set('salesOrderNumber', selected!.salesOrderNumber) }
+      body.set('customerName', linked ? selected!.customerName : manualCustomer)
+      body.set('paymentAmount', amount); body.set('paymentMode', mode); body.set('addedBy', addedBy); body.set('remarks', remarks); body.set('submissionToken', token)
+      files.forEach((file) => body.append('proofs', file))
+      const response = await fetch('/api/public/payments', { method: 'POST', headers: { 'idempotency-key': crypto.randomUUID().replaceAll('-', '') }, body })
       const json: Api<{ receipt: Receipt; deleteToken?: string }> = await response.json()
       if (!response.ok || !json.data) throw new Error(json.error || 'Payment could not be submitted')
       if (json.data.deleteToken) {
@@ -275,10 +271,10 @@ export default function PublicPaymentForm() {
       {receipt ? <div className={styles.success}><button className={styles.close} onClick={close} aria-label="Close">×</button><div className={styles.successIcon}>✓</div><h2>Payment submitted</h2><p>Your payment is safely queued for approval.</p><dl><div><dt>Sales Order</dt><dd>{receipt.salesOrderNumber || 'No Sales Order'}</dd></div><div><dt>Amount</dt><dd>{money(receipt.paymentAmount)}</dd></div><div><dt>Status</dt><dd><span className={styles.pending}>Pending</span></dd></div></dl><button className={styles.add} onClick={again}>Submit another payment</button></div> : <><header className={styles.modalHead}><div><p className={styles.eyebrow}>New record</p><h2 id="add-payment-title">Add Payment</h2></div><button className={styles.close} type="button" onClick={close} disabled={busy} aria-label="Close">×</button></header><form onSubmit={submit} noValidate>
         <label>Sales Order (optional)</label><div className={styles.searchWrap}><div className={styles.orderInputRow}><input role="combobox" aria-expanded={suggestionsOpen} aria-controls="public-payment-order-options" value={query} onFocus={showSuggestions} onClick={showSuggestions} onKeyDown={(event) => { if (event.key === 'Escape') setSuggestionsOpen(false) }} onChange={(e) => { setOrderInteracted(true); setQuery(e.target.value); setSelected(null); setCustomerName(''); setSuggestionsOpen(true) }} placeholder="Search by SO number or customer" autoComplete="off" />{selected && <><span className={`${styles.orderStatus} ${selected.status === 'Closed' ? styles.orderClosed : selected.status === 'Open' ? styles.orderOpen : styles.orderUnknown}`} title={selected.rawStatus || selected.status}>{selected.status}</span><button type="button" aria-label="Clear selected sales order" onClick={clearOrder}>×</button></>}</div>{suggestionsOpen && !selected && <div id="public-payment-order-options" className={styles.suggestions}>{ordersLoading ? <p>Loading sales orders…</p> : matches.length ? matches.map((order) => <button type="button" key={order.id} onClick={() => choose(order)}><span><strong>{order.salesOrderNumber}</strong><small>{order.customerName}</small></span><em className={`${styles.orderStatus} ${order.status === 'Closed' ? styles.orderClosed : order.status === 'Open' ? styles.orderOpen : styles.orderUnknown}`} title={order.rawStatus || order.status}>{order.status}</em></button>) : error ? <p>Could not load orders. <button type="button" onClick={() => void loadForm(true)}>Retry</button></p> : <p>No matching sales orders.</p>}</div>}<small>No sales order? Leave this blank and enter the customer name.</small></div>
         <label htmlFor="customer-name">Customer Name<span>*</span></label><input id="customer-name" required maxLength={120} readOnly={Boolean(selected)} value={customerName} onChange={(event) => setCustomerName(event.target.value)} placeholder={selected ? 'Linked to selected sales order' : 'Enter customer name'} />
-        <label htmlFor="amount">Payment Amount<span>*</span></label><div className={styles.amount}><b>₹</b><input id="amount" type="text" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="0.00" /></div>
+        <label htmlFor="amount">Payment Amount<span>*</span></label><div className={styles.amount}><b>₹</b><input id="amount" type="text" inputMode="decimal" pattern="[0-9]+(?:[.][0-9]{1,2})?" autoComplete="off" value={amount} onChange={(e) => setAmount(normalizePaymentAmountInput(e.target.value))} placeholder="0.00" /></div>
         <label htmlFor="mode">Payment Mode<span>*</span></label><select id="mode" value={mode} onChange={(e) => setMode(e.target.value)}><option value="">Select payment mode</option>{['Bank Transfer', 'UPI', 'Cash', 'Credit Card', 'Debit Card', 'Other'].map((item) => <option key={item}>{item}</option>)}</select>
         <label htmlFor="added-by">Added by<span>*</span></label><div className={styles.selectWrap}><select id="added-by" required value={addedBy} onChange={(e) => setAddedBy(e.target.value as PaymentAddedBy | '')}><option value="">Select user</option>{PAYMENT_ADDED_BY_USERS.map((user) => <option key={user} value={user}>{user}</option>)}</select></div>
-        <label htmlFor="shot">Payment Proof<span>*</span></label><label className={`${styles.upload} ${files.length ? styles.uploadSuccess : ''}`} htmlFor="shot"><b>{files.length ? `✓ ${files.length}/10 selected` : 'Add images or PDFs'}</b><small>Up to 10 images or PDFs • 10 MB each</small></label><input ref={fileInputRef} className={styles.file} id="shot" type="file" required multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.pdf" onChange={(e) => attachPaymentProof(Array.from(e.target.files || []))} />{files.length > 0 && <div className={styles.fileQueue}>{files.map((item, index) => <div key={`${item.name}-${item.size}-${item.lastModified}`}><span title={item.name}>{item.name} · {(item.size / 1048576).toFixed(1)} MB</span><button type="button" aria-label={`Remove ${item.name}`} onClick={() => setFiles((current) => current.filter((_, itemIndex) => itemIndex !== index))}>×</button></div>)}</div>}
+        <label htmlFor="shot">Proof (optional, up to 5)</label><label className={`${styles.upload} ${files.length ? styles.uploadSuccess : ''}`} htmlFor="shot"><b>{files.length ? `✓ ${files.length}/5 selected` : 'Add images or PDFs'}</b><small>Up to 5 images or PDFs • 10 MB each</small></label><input ref={fileInputRef} className={styles.file} id="shot" type="file" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.pdf" onChange={(e) => attachPaymentProof(Array.from(e.target.files || []))} />{files.length > 0 && <div className={styles.fileQueue}>{files.map((item, index) => <div key={`${item.name}-${item.size}-${item.lastModified}`}><span title={item.name}>{item.name} · {(item.size / 1048576).toFixed(1)} MB</span><button type="button" aria-label={`Remove ${item.name}`} onClick={() => setFiles((current) => current.filter((_, itemIndex) => itemIndex !== index))}>×</button></div>)}</div>}
         <label htmlFor="remarks">Remarks <em>Optional</em></label><textarea id="remarks" maxLength={500} rows={3} value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Add any payment details or notes…" />{remarks.length >= 400 && <small>{remarks.length}/500</small>}
         <input className={styles.trap} name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" />{error && <p className={styles.error} role="alert">{error}</p>}<div className={styles.actions}><button type="button" className={styles.cancel} onClick={close}>Cancel</button><button className={styles.add} disabled={busy || !token}>{busy ? 'Submitting…' : 'Submit Payment'}</button></div>
       </form></>}
