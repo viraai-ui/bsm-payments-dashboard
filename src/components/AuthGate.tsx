@@ -57,16 +57,23 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       const json = await response.json().catch(() => ({}))
       if (!response.ok || !json.ok) throw new Error(json.error || 'Invalid login')
       setUser(json.user)
+      // Login changes the server's view of this request. A replace by itself can
+      // reuse the anonymous RSC payload, so force its role/id/data to hydrate
+      // again from the newly-set HttpOnly session cookie.
       router.replace(homeForRole(json.user.role))
+      router.refresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Invalid login')
     } finally { setSubmitting(false) }
   }
 
   async function logout() {
-    await fetch('/api/auth/logout', { method: 'POST' })
+    await fetch('/api/auth/logout', { method: 'POST' }).catch(() => undefined)
+    // Unmount authenticated children before invalidating all server data tied to
+    // the old session (including role, payment ownership and user lists).
     setUser(null)
     router.replace('/')
+    router.refresh()
   }
 
   if (!ready) return null

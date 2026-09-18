@@ -340,7 +340,7 @@ export function PaymentsClient({
     try { r=await fetch("/api/payments",{method:"POST",body});j=await r.json().catch(()=>({error:"Could not save payment"})); }
     catch { setSaving(false);submitBusy.current=false;setError("Could not save payment");return; }
     setSaving(false);submitBusy.current=false;
-    if(!r.ok){setError(j.error);requestAnimationFrame(()=>{addErrorRef.current?.scrollIntoView({block:"nearest"});addErrorRef.current?.focus()});return}
+    if(!r.ok){setError(j.error || (r.status===401 ? "Your session has expired. Please log in again." : "Could not save payment. Please try again."));requestAnimationFrame(()=>{addErrorRef.current?.scrollIntoView({block:"nearest"});addErrorRef.current?.focus()});return}
     setPayments((p) => sortPayments([j.data.payment, ...p.filter(x=>x.id!==j.data.payment.id)]));
     setError("");setOpen(false);
   }

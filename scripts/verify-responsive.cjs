@@ -48,9 +48,14 @@ async function browser(width, role, test) {
     const call=(method,params={})=>new Promise((resolve,reject)=>{const id=++seq;pending.set(id,m=>m.error?reject(new Error(JSON.stringify(m.error))):resolve(m.result));ws.send(JSON.stringify({id,method,params}))});
     const evaljs=async expression=>{const r=await call('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});if(r.exceptionDetails)throw new Error(r.exceptionDetails.exception?.description||r.exceptionDetails.text);return r.result.value};
     await call('Page.enable'); await call('Runtime.enable'); await call('Network.enable'); await call('Emulation.setDeviceMetricsOverride',{width,height:900,deviceScaleFactor:1,mobile:width<600});
-    await call('Page.navigate',{url:base+'/'}); await sleep(250);
-    const login=await evaljs(`fetch('/api/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({login:${JSON.stringify(role)},password:${JSON.stringify(password)}})}).then(async r=>({ok:r.ok,status:r.status,text:await r.text()}))`); assert.equal(login.ok,true,`${role} login ${login.status}: ${login.text}`);
-    await call('Page.navigate',{url:base+'/payments'});
+    await call('Page.navigate',{url:base+'/payments'}); await sleep(250);
+    // Exercise the real fresh-cookie login form. This is intentionally not an
+    // API-seeded session: it regresses the anonymous RSC -> authenticated RSC
+    // transition that previously left Admin/empty-user props mounted.
+    const loginFormReady=await evaljs(`!!document.querySelector('.login-card form')`);
+    assert.equal(loginFormReady,true,`${role} visible login form`);
+    const submitted=await evaljs(`(()=>{const inputs=document.querySelectorAll('.login-card input'),set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;if(inputs.length!==2)return false;set.call(inputs[0],${JSON.stringify(role)});inputs[0].dispatchEvent(new Event('input',{bubbles:true}));set.call(inputs[1],${JSON.stringify(password)});inputs[1].dispatchEvent(new Event('input',{bubbles:true}));document.querySelector('.login-card form').requestSubmit();return true})()`);
+    assert.equal(submitted,true,`${role} submits visible login form`);
     for(let i=0;i<80;i++){if(await evaljs(`!!document.querySelector('.ledger-page')`))break;await sleep(100)}
     assert.equal(await evaljs(`!!document.querySelector('.ledger-page')`),true,`${role} dashboard loaded`);
     await test({evaljs,call});
