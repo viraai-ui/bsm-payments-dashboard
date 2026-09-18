@@ -2,6 +2,33 @@
   "payments": [
     {
       "customerName": "V.S. ENTERPRISES",
+      "salesOrderId": "1154219000037120001",
+      "salesOrderNumber": "SO-07976",
+      "orderTotal": 53100,
+      "salesOrderDate": "2026-09-18",
+      "paymentAmount": 52545,
+      "paymentMode": "Bank Transfer",
+      "createdBy": "u-admin",
+      "ownerUserId": "u-sales1",
+      "addedBy": "Anuj Kumar",
+      "idempotencyKey": "968e800a-d61b-4304-80f0-7caf29f040ac",
+      "id": "payment-c4e400db-f737-4342-92ca-2f57e59de178",
+      "status": "Pending",
+      "paymentDate": "2026-09-18",
+      "createdAt": "2026-09-18T09:25:37.791Z",
+      "updatedAt": "2026-09-18T09:25:37.791Z",
+      "audit": [
+        {
+          "id": "audit-dcf16204-d743-4a65-8f58-eeccd90470d3",
+          "type": "created",
+          "actor": "u-admin",
+          "at": "2026-09-18T09:25:37.791Z",
+          "to": "Pending"
+        }
+      ]
+    },
+    {
+      "customerName": "V.S. ENTERPRISES",
       "utrReference": "123",
       "paymentAmount": 555,
       "paymentMode": "Bank Transfer",
