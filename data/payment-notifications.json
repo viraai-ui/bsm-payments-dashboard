@@ -1,3 +1,82 @@
 {
-  "notifications": []
+  "notifications": [
+    {
+      "id": "notification-3d61ee4e-b441-49c2-b6d7-044f2218408c",
+      "dedupeKey": "created:payment-4ead3cf0-82bf-4b49-b292-9fe9702186f5:u-sales1",
+      "type": "unauthorised-created",
+      "recipientUserId": "u-sales1",
+      "paymentId": "payment-4ead3cf0-82bf-4b49-b292-9fe9702186f5",
+      "salesOrderNumber": "Unassigned",
+      "customerName": "Unidentified customer",
+      "paymentAmount": 555,
+      "message": "New bank receipt for Unidentified customer (555) is ready to claim.",
+      "createdAt": "2026-09-18T09:10:35.592Z",
+      "readAt": null
+    },
+    {
+      "id": "notification-f157144f-c51a-42ab-8068-5f15981f88b8",
+      "dedupeKey": "created:payment-4ead3cf0-82bf-4b49-b292-9fe9702186f5:u-sales2",
+      "type": "unauthorised-created",
+      "recipientUserId": "u-sales2",
+      "paymentId": "payment-4ead3cf0-82bf-4b49-b292-9fe9702186f5",
+      "salesOrderNumber": "Unassigned",
+      "customerName": "Unidentified customer",
+      "paymentAmount": 555,
+      "message": "New bank receipt for Unidentified customer (555) is ready to claim.",
+      "createdAt": "2026-09-18T09:10:35.592Z",
+      "readAt": null
+    },
+    {
+      "id": "notification-1cff6276-01a1-4621-8190-a3221188886b",
+      "dedupeKey": "created:payment-4ead3cf0-82bf-4b49-b292-9fe9702186f5:u-sales3",
+      "type": "unauthorised-created",
+      "recipientUserId": "u-sales3",
+      "paymentId": "payment-4ead3cf0-82bf-4b49-b292-9fe9702186f5",
+      "salesOrderNumber": "Unassigned",
+      "customerName": "Unidentified customer",
+      "paymentAmount": 555,
+      "message": "New bank receipt for Unidentified customer (555) is ready to claim.",
+      "createdAt": "2026-09-18T09:10:35.592Z",
+      "readAt": null
+    },
+    {
+      "id": "notification-61e845d5-04ae-46db-968f-c079988c0bb9",
+      "dedupeKey": "created:payment-4ead3cf0-82bf-4b49-b292-9fe9702186f5:u-sales4",
+      "type": "unauthorised-created",
+      "recipientUserId": "u-sales4",
+      "paymentId": "payment-4ead3cf0-82bf-4b49-b292-9fe9702186f5",
+      "salesOrderNumber": "Unassigned",
+      "customerName": "Unidentified customer",
+      "paymentAmount": 555,
+      "message": "New bank receipt for Unidentified customer (555) is ready to claim.",
+      "createdAt": "2026-09-18T09:10:35.592Z",
+      "readAt": null
+    },
+    {
+      "id": "notification-9d056748-5b24-485f-a94a-0292b9c07566",
+      "dedupeKey": "created:payment-4ead3cf0-82bf-4b49-b292-9fe9702186f5:u-sales5",
+      "type": "unauthorised-created",
+      "recipientUserId": "u-sales5",
+      "paymentId": "payment-4ead3cf0-82bf-4b49-b292-9fe9702186f5",
+      "salesOrderNumber": "Unassigned",
+      "customerName": "Unidentified customer",
+      "paymentAmount": 555,
+      "message": "New bank receipt for Unidentified customer (555) is ready to claim.",
+      "createdAt": "2026-09-18T09:10:35.592Z",
+      "readAt": null
+    },
+    {
+      "id": "notification-0706ba65-ed5a-45b8-ab1c-62ec4656e361",
+      "dedupeKey": "created:payment-4ead3cf0-82bf-4b49-b292-9fe9702186f5:u-eb86002f-067d-4642-83c4-4c35a102cc30",
+      "type": "unauthorised-created",
+      "recipientUserId": "u-eb86002f-067d-4642-83c4-4c35a102cc30",
+      "paymentId": "payment-4ead3cf0-82bf-4b49-b292-9fe9702186f5",
+      "salesOrderNumber": "Unassigned",
+      "customerName": "Unidentified customer",
+      "paymentAmount": 555,
+      "message": "New bank receipt for Unidentified customer (555) is ready to claim.",
+      "createdAt": "2026-09-18T09:10:35.592Z",
+      "readAt": null
+    }
+  ]
 }
