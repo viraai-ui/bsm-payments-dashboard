@@ -37,7 +37,7 @@ type Order = {
   orderDate: string;
   orderTotal: number;
   currency: string;
-  settlement: { confirmedReceived: number; submittedAmount: number; confirmedOutstanding: number; provisionalOutstanding: number };
+  settlement: { advanceReceived: number; pendingPayment: number; confirmedReceived: number; submittedAmount: number; confirmedOutstanding: number; provisionalOutstanding: number };
 };
 type Form = {
   salesOrderId: string;
@@ -283,14 +283,14 @@ export function PaymentsClient({
   const metrics = useMemo(() => viewerPaymentMetrics(payments), [payments]);
   const activeFilters = Object.values(filters).filter(Boolean).length;
   function selectOrder(order: Order, target: "add" | "claim") {
-    const outstanding = order.settlement.provisionalOutstanding;
+    const outstanding = order.settlement.pendingPayment;
     const value = {
       salesOrderId: order.id,
       salesOrderNumber: order.salesOrderNumber,
       customerName: order.customerName,
       orderTotal: String(order.orderTotal),
       confirmedReceived: String(order.settlement.confirmedReceived),
-      submittedAmount: String(order.settlement.submittedAmount),
+      submittedAmount: String(order.settlement.advanceReceived),
       provisionalOutstanding: String(outstanding),
     };
     if (target === "add")
@@ -1344,11 +1344,10 @@ function OrderSnapshot({
   form: Form;
   payments?: Payment[];
 }) {
-  const local = orderSummary(payments || [], form.salesOrderNumber, Number(form.orderTotal));
+  const local = orderSummary(payments || [], form.salesOrderNumber, Number(form.orderTotal), form.salesOrderId);
   const authoritative = form.provisionalOutstanding !== "";
-  const confirmedReceived = authoritative ? Number(form.confirmedReceived) : local.confirmedReceived;
-  const submittedAmount = authoritative ? Number(form.submittedAmount) : local.submittedAmount;
-  const provisionalOutstanding = authoritative ? Number(form.provisionalOutstanding) : local.provisionalOutstanding;
+  const advanceReceived = authoritative ? Number(form.submittedAmount) : local.advanceReceived;
+  const pendingPayment = authoritative ? Number(form.provisionalOutstanding) : local.pendingPayment;
   return (
     <div className="order-snapshot">
       <div>
@@ -1360,16 +1359,12 @@ function OrderSnapshot({
         <strong>{money(Number(form.orderTotal))}</strong>
       </div>
       <div>
-        <span>Confirmed received</span>
-        <strong>{money(confirmedReceived)}</strong>
+        <span>Advance Received</span>
+        <strong>{money(advanceReceived)}</strong>
       </div>
       <div>
-        <span>Submitted (Pending + Received)</span>
-        <strong>{money(submittedAmount)}</strong>
-      </div>
-      <div>
-        <span>Available to submit</span>
-        <strong>{money(provisionalOutstanding || 0)}</strong>
+        <span>Pending Payment</span>
+        <strong>{money(pendingPayment || 0)}</strong>
       </div>
     </div>
   );
@@ -1435,7 +1430,7 @@ function Actions({
       <button type="button" className="btn" onClick={close}>
         Cancel
       </button>
-      <button className="btn red" disabled={busy || disabled}>
+      <button type="submit" className="btn red" disabled={busy || disabled} aria-busy={busy}>
         {busy ? "Saving…" : label}
       </button>
     </div>

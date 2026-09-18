@@ -1,6 +1,7 @@
 import { mkdir, readFile, rm, unlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import type { PaymentAttachment } from './payments'
+import { deleteR2Object, r2Configured, uploadBufferToR2 } from './r2'
 
 export const MAX_PAYMENT_PROOFS = 5
 export const MAX_PAYMENT_PROOF_BYTES = 10 * 1024 * 1024
@@ -36,8 +37,9 @@ export async function storeProofFiles(paymentId:string, files:File[]):Promise<Pa
     for(const file of files){
       const bytes=new Uint8Array(await file.arrayBuffer()); const actual=detectedMime(bytes)
       if (!actual || (actual!==file.type && !(actual==='image/heic' && file.type==='image/heif'))) throw new Error('A proof file does not match its declared image/PDF type.')
-      const key=`${paymentId}/${crypto.randomUUID()}.${MIME_EXT[file.type]}`
-      await writeFile(path.join(ROOT,key),bytes,{mode:0o600,flag:'wx'})
+      const localKey=`${paymentId}/${crypto.randomUUID()}.${MIME_EXT[file.type]}`
+      const key=r2Configured()?`payments/${localKey}`:localKey
+      if(r2Configured())await uploadBufferToR2(key,file.type,Buffer.from(bytes));else await writeFile(path.join(ROOT,key),bytes,{mode:0o600,flag:'wx'})
       saved.push({key,url:`/api/payments/${encodeURIComponent(paymentId)}/proof?index=${saved.length}`,name:path.basename(file.name).slice(0,180)||'Payment proof',contentType:file.type,size:file.size})
     }
     return saved
@@ -49,4 +51,4 @@ export async function readProof(key:string){
   try{return await readFile(target)}catch{return null}
 }
 export async function deletePaymentProofs(paymentId:string){if(/^[a-zA-Z0-9-]+$/.test(paymentId))await rm(path.join(ROOT,paymentId),{recursive:true,force:true})}
-export async function deleteProofAttachments(attachments:PaymentAttachment[]){await Promise.all(attachments.map(async a=>{if(!/^[a-zA-Z0-9-]+\/[a-f0-9-]+\.(?:pdf|jpg|png|gif|webp|heic|heif)$/.test(a.key))return;const target=path.resolve(ROOT,a.key);if(target.startsWith(`${ROOT}${path.sep}`))await unlink(target).catch(()=>{})}))}
+export async function deleteProofAttachments(attachments:PaymentAttachment[]){await Promise.all(attachments.map(async a=>{if(a.key.startsWith('payments/'))return deleteR2Object(a.key).catch(()=>{});if(!/^[a-zA-Z0-9-]+\/[a-f0-9-]+\.(?:pdf|jpg|png|gif|webp|heic|heif)$/.test(a.key))return;const target=path.resolve(ROOT,a.key);if(target.startsWith(`${ROOT}${path.sep}`))await unlink(target).catch(()=>{})}))}

@@ -1,6 +1,6 @@
 import { apiError, apiOk } from '@/lib/api'
 import { getUserStore, requirePermission } from '@/lib/auth'
-import { claimPayment, createLinkedPayment, createPayment, deletePayment, deletePaymentWithTombstone, isPaymentAddedBy, listPayments, listPaymentsForUser, setPaymentAttachments, updatePayment, updatePaymentStatus } from '@/lib/payments'
+import { claimPayment, createLinkedPayment, createUnlinkedPayment, deletePayment, deletePaymentWithTombstone, isPaymentAddedBy, listPayments, listPaymentsForUser, setPaymentAttachments, updatePayment, updatePaymentStatus } from '@/lib/payments'
 import { orderSummary } from '@/lib/payment-settlement'
 import { cleanCustomer, cleanRemarks, isPaymentMode, parsePaymentAmount } from '@/lib/payment-domain'
 import { searchPaymentOrders, validatePaymentOrder } from '@/lib/payment-order-search'
@@ -16,10 +16,11 @@ export async function POST(request:Request){
  if(initial.user.role==='Accounts'&&kind!=='unauthorised')return apiError('Accounts can only add unauthorised payments',403)
  const unauthorised=kind==='unauthorised';const auth=await requirePermission(unauthorised?'payments.createUnauthorised':'payments.createLinked');if(!auth.ok)return auth.response
  const amount=parsePaymentAmount(b.paymentAmount),files=form.getAll('proofs').filter((v):v is File=>v instanceof File);try{validateProofFiles(files)}catch(e){return apiError(e instanceof Error?e.message:'Invalid proofs',400)}
+ const suppliedKey=text(b.idempotencyKey);if(suppliedKey&&!/^[a-zA-Z0-9_-]{16,100}$/.test(suppliedKey))return apiError('A valid submission key is required',400);const key=suppliedKey||crypto.randomUUID()
  let payment
  if(unauthorised){
   const utr=text(b.utrReference),rawCustomer=text(b.customerName),customer=rawCustomer?cleanCustomer(rawCustomer):'Unidentified customer',remarks=cleanRemarks(b.remarks);if(!utr||utr.length>120||!customer||amount===null||remarks===null)return apiError('UTR / Reference Number and a valid amount are required',400)
-  payment=await createPayment({customerName:customer,utrReference:utr,paymentAmount:amount,paymentMode:isPaymentMode(b.paymentMode)?b.paymentMode:'Other',remarks:remarks||undefined,status:'Unauthorised',createdBy:auth.user.id,addedBy:isPaymentAddedBy(auth.user.name)?auth.user.name:undefined})
+  try{const created=await createUnlinkedPayment({customerName:customer,utrReference:utr,paymentAmount:amount,paymentMode:isPaymentMode(b.paymentMode)?b.paymentMode:'Other',remarks:remarks||undefined,status:'Unauthorised',createdBy:auth.user.id,addedBy:isPaymentAddedBy(auth.user.name)?auth.user.name:undefined},key);payment=created.payment;if(created.duplicate)return apiOk({payment,duplicate:true})}catch(e){return apiError(e instanceof Error?e.message:'Could not save payment',500)}
  }else{
   const customer=cleanCustomer(b.customerName),remarks=cleanRemarks(b.remarks);if(!customer||amount===null||remarks===null||!isPaymentMode(b.paymentMode))return apiError('Valid linked payment fields are required',400)
   const order=await selectedOrder(b.salesOrderId,b.salesOrderNumber);if(!order)return apiError('Select a valid authoritative sales order',400)
@@ -28,7 +29,7 @@ export async function POST(request:Request){
   // Never consume client-provided owner/name fields for Salesperson requests.
   // Admin alone may select an active salesperson to submit on their behalf.
   const ownerLabel=auth.user.role==='Salesperson'?(auth.user.username||auth.user.name):(owner.name||owner.username)
-  const suppliedKey=text(b.idempotencyKey);if(suppliedKey&&!/^[a-zA-Z0-9_-]{16,100}$/.test(suppliedKey))return apiError('A valid submission key is required',400);const key=suppliedKey||crypto.randomUUID()
+
   try{const created=await createLinkedPayment({customerName:order.customerName,salesOrderId:order.id,salesOrderNumber:order.salesOrderNumber,orderTotal:order.orderTotal,salesOrderDate:order.orderDate,paymentAmount:amount,paymentMode:b.paymentMode,remarks:remarks||undefined,createdBy:auth.user.id,ownerUserId:owner.id,addedBy:ownerLabel},key);payment=created.payment;if(created.duplicate)return apiOk({payment,duplicate:true})}catch(e){return apiError(e instanceof Error?e.message:'Could not save payment',400)}
  }
  try{const attachments=files.length?await storeProofFiles(payment.id,files):[];const saved=await setPaymentAttachments(payment.id,attachments);await createPaymentNotifications(saved!,auth.user.id).catch(()=>{});return apiOk({payment:saved})}catch(e){await deletePayment(payment.id);return apiError(e instanceof Error?e.message:'Could not save proofs',400)}
@@ -39,4 +40,4 @@ export async function PATCH(request:Request){
  const auth=await requirePermission('payments.approve');if(!auth.ok)return auth.response;const status=text(b.status) as 'Pending'|'Payment Received'|'Void';if(!['Pending','Payment Received','Void'].includes(status))return apiError('Invalid status',400)
  try{const before=(await listPayments()).find(p=>p.id===text(b.id));const p=await updatePaymentStatus(text(b.id),status,auth.user.id,text(b.reason)||undefined);if(p&&before?.status!==status)await createStatusNotification(p,status).catch(()=>{});return p?apiOk({payment:p}):apiError('Payment not found or transition not allowed',404)}catch(e){return apiError(e instanceof Error?e.message:'Could not update payment',400)}
 }
-export async function DELETE(request:Request){const auth=await requirePermission('payments.delete');if(!auth.ok)return auth.response;const body=await request.json().catch(()=>({})),id=text(body.id)||text(new URL(request.url).searchParams.get('id')),reason=cleanRemarks(body.reason);if(!id)return apiError('Payment id is required',400);if(reason===null)return apiError('Deletion reason must be 500 characters or fewer',400);try{const payment=await deletePaymentWithTombstone(id,auth.user,reason||'Deleted by user');if(!payment)return apiError('Payment not found',404);await Promise.all([deletePaymentProofs(id),removePaymentNotifications(id)]);return apiOk({deleted:true,id})}catch(e){const message=e instanceof Error?e.message:'Could not delete payment';return apiError(message,message.includes('cannot delete')?403:message==='Payment not found'?404:400)}}
+export async function DELETE(request:Request){const auth=await requirePermission('payments.delete');if(!auth.ok)return auth.response;const body=await request.json().catch(()=>({})),id=text(body.id)||text(new URL(request.url).searchParams.get('id')),reason=cleanRemarks(body.reason);if(!id)return apiError('Payment id is required',400);if(reason===null)return apiError('Deletion reason must be 500 characters or fewer',400);try{const before=(await listPayments()).find(p=>p.id===id);const payment=await deletePaymentWithTombstone(id,auth.user,reason||'Deleted by user');if(!payment)return apiError('Payment not found',404);await Promise.all([deletePaymentProofs(id),deleteProofAttachments(before?.attachments||[]),removePaymentNotifications(id)]);return apiOk({deleted:true,id})}catch(e){const message=e instanceof Error?e.message:'Could not delete payment';return apiError(message,message.includes('cannot delete')?403:message==='Payment not found'?404:400)}}

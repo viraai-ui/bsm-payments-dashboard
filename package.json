@@ -8,6 +8,7 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "verify:payments": "node scripts/verify-payment-lifecycle.cjs",
+    "verify:settlement": "node --experimental-strip-types scripts/verify-payment-settlement.mjs",
     "verify:auth": "node scripts/verify-auth-roles.cjs",
     "verify:salesperson-ownership": "node scripts/verify-salesperson-ownership.cjs",
     "verify:proofs": "node scripts/verify-payment-proofs.cjs",
