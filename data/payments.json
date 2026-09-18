@@ -2,33 +2,6 @@
   "payments": [
     {
       "customerName": "V.S. ENTERPRISES",
-      "salesOrderId": "1154219000037120001",
-      "salesOrderNumber": "SO-07976",
-      "orderTotal": 53100,
-      "salesOrderDate": "2026-09-18",
-      "paymentAmount": 52545,
-      "paymentMode": "Bank Transfer",
-      "createdBy": "u-admin",
-      "ownerUserId": "u-sales3",
-      "addedBy": "Deepak",
-      "idempotencyKey": "66ff469f-16a8-4cb0-b0ea-be7383a7fcb8",
-      "id": "payment-6ba075ca-9dbd-4259-97a4-d73c2b088f9f",
-      "status": "Pending",
-      "paymentDate": "2026-09-18",
-      "createdAt": "2026-09-18T09:24:04.247Z",
-      "updatedAt": "2026-09-18T09:24:04.247Z",
-      "audit": [
-        {
-          "id": "audit-e793ec3e-b5b6-405f-9917-b099ad026194",
-          "type": "created",
-          "actor": "u-admin",
-          "at": "2026-09-18T09:24:04.247Z",
-          "to": "Pending"
-        }
-      ]
-    },
-    {
-      "customerName": "V.S. ENTERPRISES",
       "utrReference": "123",
       "paymentAmount": 555,
       "paymentMode": "Bank Transfer",
