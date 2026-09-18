@@ -16,7 +16,7 @@
       "status": "Pending",
       "paymentDate": "2026-09-18",
       "createdAt": "2026-09-18T09:25:37.791Z",
-      "updatedAt": "2026-09-18T09:25:37.791Z",
+      "updatedAt": "2026-09-18T09:25:38.584Z",
       "audit": [
         {
           "id": "audit-dcf16204-d743-4a65-8f58-eeccd90470d3",
@@ -25,7 +25,8 @@
           "at": "2026-09-18T09:25:37.791Z",
           "to": "Pending"
         }
-      ]
+      ],
+      "attachments": []
     },
     {
       "customerName": "V.S. ENTERPRISES",
