@@ -378,6 +378,8 @@ export function PaymentsClient({
     p: Payment,
     next: "Pending" | "Payment Received" | "Void",
   ) {
+    if (p.status === "Payment Received" && next === "Pending" &&
+        !window.confirm("Change this received receipt back to Payment Pending?")) return;
     setUpdating(p.id);
     await patch({ id: p.id, status: next });
     setUpdating(null);
@@ -1501,7 +1503,7 @@ function PaymentDetails({
   const total = s?.orderTotal ?? p.orderTotal;
   return (
     <div className="payment-details payment-details-modal">
-      {role === "Admin" && p.status !== "Unauthorised" && (
+      {(role === "Admin" || role === "Accounts") && p.status !== "Unauthorised" && (
         <label className="detail-status">
           Status
           <select
