@@ -1,6 +1,19 @@
 {
   "notifications": [
     {
+      "id": "notification-3f28192f-2e82-4efd-a064-672fefd48185",
+      "dedupeKey": "status:payment-c4e400db-f737-4342-92ca-2f57e59de178:Pending:2026-09-18T09:26:15.483Z:u-sales1",
+      "type": "status-pending",
+      "recipientUserId": "u-sales1",
+      "paymentId": "payment-c4e400db-f737-4342-92ca-2f57e59de178",
+      "salesOrderNumber": "SO-07976",
+      "customerName": "V.S. ENTERPRISES",
+      "paymentAmount": 52545,
+      "message": "Your receipt for SO-07976 is pending review.",
+      "createdAt": "2026-09-18T09:26:16.299Z",
+      "readAt": null
+    },
+    {
       "id": "notification-b983f348-72b4-478a-bb76-aadadcabf57b",
       "dedupeKey": "status:payment-c4e400db-f737-4342-92ca-2f57e59de178:Payment Received:2026-09-18T09:26:08.941Z:u-sales1",
       "type": "status-received",
