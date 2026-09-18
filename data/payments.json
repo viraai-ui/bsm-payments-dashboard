@@ -13,10 +13,10 @@
       "addedBy": "Anuj Kumar",
       "idempotencyKey": "968e800a-d61b-4304-80f0-7caf29f040ac",
       "id": "payment-c4e400db-f737-4342-92ca-2f57e59de178",
-      "status": "Payment Received",
+      "status": "Pending",
       "paymentDate": "2026-09-18",
       "createdAt": "2026-09-18T09:25:37.791Z",
-      "updatedAt": "2026-09-18T09:26:08.941Z",
+      "updatedAt": "2026-09-18T09:26:15.483Z",
       "audit": [
         {
           "id": "audit-dcf16204-d743-4a65-8f58-eeccd90470d3",
@@ -32,10 +32,17 @@
           "at": "2026-09-18T09:26:08.941Z",
           "from": "Pending",
           "to": "Payment Received"
+        },
+        {
+          "id": "audit-7d8f8589-96e7-4bb6-8468-2740ccfc08c8",
+          "type": "status_changed",
+          "actor": "u-admin",
+          "at": "2026-09-18T09:26:15.483Z",
+          "from": "Payment Received",
+          "to": "Pending"
         }
       ],
-      "attachments": [],
-      "confirmedAt": "2026-09-18T09:26:08.941Z"
+      "attachments": []
     },
     {
       "customerName": "V.S. ENTERPRISES",
