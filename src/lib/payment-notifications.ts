@@ -1,13 +1,96 @@
-import { getUserStore } from './auth'
+import { getUserStore, type AppRole } from './auth'
 import { readLocalJson, updateLocalJson } from './local-store'
-import type { Payment } from './payments'
-export type NotificationType='pending-created'|'status-received'|'status-pending'|'status-void'|'unauthorised-created'|'unauthorised-claimed'
-export type PaymentNotification={id:string;dedupeKey:string;type:NotificationType;recipientUserId:string;paymentId:string;salesOrderNumber:string;customerName:string;paymentAmount?:number;submitterName?:string;message:string;createdAt:string;readAt:string|null}
-type Store={notifications:PaymentNotification[]};const FILE='payment-notifications.json',EMPTY:Store={notifications:[]}
-async function notify(payment:Payment,type:NotificationType,recipients:string[],message:string,eventKey:string,submitterName?:string){const now=new Date().toISOString();let made:PaymentNotification[]=[];await updateLocalJson(FILE,EMPTY,s=>{const existing=new Set(s.notifications.map(n=>n.dedupeKey));made=recipients.map(recipientUserId=>{const dedupeKey=`${eventKey}:${recipientUserId}`;return{id:`notification-${crypto.randomUUID()}`,dedupeKey,type,recipientUserId,paymentId:payment.id,salesOrderNumber:payment.salesOrderNumber||'Unassigned',customerName:payment.customerName,paymentAmount:payment.paymentAmount,submitterName,message,createdAt:now,readAt:null}}).filter(n=>!existing.has(n.dedupeKey));return{notifications:[...made,...s.notifications].slice(0,1000)}});return made}
-export async function createPaymentNotifications(payment:Payment,creator:string){const users=(await getUserStore()).users,creatorUser=users.find(u=>u.id===creator);if(payment.status==='Unauthorised')return notify(payment,'unauthorised-created',users.filter(u=>u.active&&u.role==='Salesperson').map(u=>u.id),`New bank receipt for ${payment.customerName} (${payment.paymentAmount}) is ready to claim.`,`created:${payment.id}`);const recipients=users.filter(u=>u.active&&(u.role==='Accounts'||u.role==='Admin')).map(u=>u.id);if(payment.ownerUserId&&payment.ownerUserId!==creator)recipients.push(payment.ownerUserId);return notify(payment,'pending-created',Array.from(new Set(recipients)),`New pending receipt for ${payment.salesOrderNumber}: ${payment.customerName}, ${payment.paymentAmount}, submitted by ${creatorUser?.name||'A salesperson'}.`,`created:${payment.id}`,creatorUser?.name)}
-export async function createStatusNotification(payment:Payment,status:'Pending'|'Payment Received'|'Void'){const users=(await getUserStore()).users;const ownerId=payment.ownerUserId||payment.claimedBy||payment.createdBy;const owner=users.find(u=>u.id===ownerId);if(!owner?.active||owner.role!=='Salesperson')return[];const type=status==='Payment Received'?'status-received':status==='Void'?'status-void':'status-pending';const message=status==='Payment Received'?`Your receipt for ${payment.salesOrderNumber} was received.`:status==='Void'?`Your receipt for ${payment.salesOrderNumber} was voided.`:`Your receipt for ${payment.salesOrderNumber} is pending review.`;return notify(payment,type,[owner.id],message,`status:${payment.id}:${status}:${payment.updatedAt}`)}
-export async function createClaimNotification(payment:Payment){const users=(await getUserStore()).users,owner=users.find(u=>u.id===payment.claimedBy);return notify(payment,'unauthorised-claimed',users.filter(u=>u.active&&(u.role==='Accounts'||u.role==='Admin')).map(u=>u.id),`${owner?.name||'A salesperson'} claimed receipt ${payment.paymentAmount} for ${payment.salesOrderNumber}.`,`claim:${payment.id}`,owner?.name)}
-export async function listPaymentNotifications(userId:string,allowedPaymentIds?:Set<string>){const n=(await readLocalJson(FILE,EMPTY)).notifications.filter(x=>x.recipientUserId===userId&&(!allowedPaymentIds||allowedPaymentIds.has(x.paymentId))).sort((a,b)=>b.createdAt.localeCompare(a.createdAt)).slice(0,50);return{notifications:n,unreadCount:n.filter(x=>!x.readAt).length}}
-export async function markPaymentNotificationsRead(userId:string,id?:string){const now=new Date().toISOString();await updateLocalJson(FILE,EMPTY,s=>({notifications:s.notifications.map(n=>n.recipientUserId===userId&&!n.readAt&&(!id||id===n.id)?{...n,readAt:now}:n)}));return listPaymentNotifications(userId)}
-export async function removePaymentNotifications(paymentId:string){return updateLocalJson(FILE,EMPTY,s=>({notifications:s.notifications.filter(n=>n.paymentId!==paymentId)}))}
+import type { Payment, PaymentStatus } from './payments'
+import { sendPaymentPushNotifications } from './payment-push'
+
+export type NotificationType = 'payment-created' | 'status-received' | 'status-pending' | 'status-void'
+export type PaymentNotification = {
+  id: string
+  eventId: string
+  dedupeKey: string
+  type: NotificationType
+  recipientUserId: string
+  recipientRole: AppRole
+  paymentId: string
+  salesOrderNumber?: string
+  customerName: string
+  paymentAmount: number
+  title: string
+  body: string
+  message: string
+  url: string
+  createdAt: string
+  readAt: string | null
+}
+type Store = { notifications: PaymentNotification[] }
+const FILE = 'payment-notifications.json'
+const EMPTY: Store = { notifications: [] }
+
+export function formatPaymentAmount(amount: number) {
+  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(amount).replace(/^₹\s*/, '₹')
+}
+function paymentSummary(payment: Payment) {
+  const base = `${formatPaymentAmount(payment.paymentAmount)} from ${payment.customerName}`
+  return payment.salesOrderNumber ? `${base} • ${payment.salesOrderNumber}` : base
+}
+
+async function notify(payment: Payment, type: NotificationType, recipients: Array<{ id: string; role: AppRole }>, title: string, body: string, eventId: string) {
+  const now = new Date().toISOString()
+  let made: PaymentNotification[] = []
+  await updateLocalJson(FILE, EMPTY, store => {
+    const existing = new Set(store.notifications.map(item => item.dedupeKey))
+    made = recipients.map(recipient => {
+      const dedupeKey = `${eventId}:${recipient.id}`
+      return {
+        id: `notification-${crypto.randomUUID()}`, eventId, dedupeKey, type,
+        recipientUserId: recipient.id, recipientRole: recipient.role, paymentId: payment.id,
+        salesOrderNumber: payment.salesOrderNumber, customerName: payment.customerName,
+        paymentAmount: payment.paymentAmount, title, body, message: body,
+        url: `/payments?payment=${encodeURIComponent(payment.id)}`, createdAt: now, readAt: null,
+      }
+    }).filter(item => !existing.has(item.dedupeKey))
+    return { notifications: [...made, ...store.notifications].slice(0, 2000) }
+  })
+  if (made.length) await sendPaymentPushNotifications(made).catch(error => console.error('Payment push dispatch failed', error))
+  return made
+}
+
+/** New regular and unauthorised payments are visible only to active Admin/Accounts recipients. */
+export async function createPaymentNotifications(payment: Payment, _creator: string) {
+  const users = (await getUserStore()).users
+  const recipients = users.filter(user => user.active && (user.role === 'Admin' || user.role === 'Accounts'))
+  return notify(payment, 'payment-created', recipients, 'New payment added', paymentSummary(payment), `payment-created:${payment.id}`)
+}
+
+/** Status events are private to the stable salesperson owner/claimant. */
+export async function createStatusNotification(payment: Payment, status: 'Pending' | 'Payment Received' | 'Void', previousStatus?: PaymentStatus) {
+  if (status === 'Pending' && previousStatus !== 'Payment Received') return []
+  const ownerId = payment.ownerUserId || payment.claimedBy || payment.createdBy
+  const owner = (await getUserStore()).users.find(user => user.id === ownerId && user.active && user.role === 'Salesperson')
+  if (!owner) return []
+  const amountCompany = `${formatPaymentAmount(payment.paymentAmount)} from ${payment.customerName}${payment.salesOrderNumber ? ` • ${payment.salesOrderNumber}` : ''}`
+  const copy = status === 'Payment Received'
+    ? { type: 'status-received' as const, title: 'Payment received', body: `Your payment of ${amountCompany} has been received.` }
+    : status === 'Void'
+      ? { type: 'status-void' as const, title: 'Payment voided', body: `Your payment of ${amountCompany} was marked void.` }
+      : { type: 'status-pending' as const, title: 'Payment moved to pending', body: `Your payment of ${amountCompany} was moved to pending.` }
+  return notify(payment, copy.type, [owner], copy.title, copy.body, `status:${payment.id}:${previousStatus || 'unknown'}:${status}:${payment.updatedAt}`)
+}
+
+/** Claiming establishes ownership but intentionally emits no notification. */
+export async function createClaimNotification(_payment: Payment) { return [] as PaymentNotification[] }
+
+export async function listPaymentNotifications(userId: string, allowedPaymentIds?: Set<string>) {
+  const items = (await readLocalJson(FILE, EMPTY)).notifications
+    .filter(item => Boolean(item.eventId && item.title && item.body) && item.recipientUserId === userId && (!allowedPaymentIds || allowedPaymentIds.has(item.paymentId)))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 50)
+  return { notifications: items, unreadCount: items.filter(item => !item.readAt).length }
+}
+export async function markPaymentNotificationsRead(userId: string, id?: string) {
+  const now = new Date().toISOString()
+  await updateLocalJson(FILE, EMPTY, store => ({ notifications: store.notifications.map(item => item.recipientUserId === userId && !item.readAt && (!id || id === item.id) ? { ...item, readAt: now } : item) }))
+  return listPaymentNotifications(userId)
+}
+export async function removePaymentNotifications(paymentId: string) {
+  return updateLocalJson(FILE, EMPTY, store => ({ notifications: store.notifications.filter(item => item.paymentId !== paymentId) }))
+}

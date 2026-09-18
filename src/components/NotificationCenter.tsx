@@ -25,7 +25,7 @@ export function NotificationCenter(){
    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>{unread>0&&<span className="notification-count">{unread>99?'99+':unread}</span>}
   </button>
   {open&&<section className="notification-panel" aria-label="Notification center"><header><strong>Notifications</strong>{unread>0&&<button type="button" onClick={()=>void mark()}>Mark all read</button>}</header>
-   {items.length===0?<p className="notification-empty">No notifications yet.</p>:<div className="notification-list">{items.map(n=><button type="button" key={n.id} className={n.readAt?'':'unread'} onClick={()=>{if(!n.readAt)void mark(n.id);setOpen(false);if(n.paymentId){if(location.pathname==='/payments')window.dispatchEvent(new CustomEvent('payment:open',{detail:n.paymentId}));else{sessionStorage.setItem('openPaymentId',n.paymentId);location.assign('/payments')}}}}><span>{messageFor(n)}</span><time dateTime={n.createdAt}>{when(n.createdAt)}</time></button>)}</div>}
+   {items.length===0?<p className="notification-empty">No notifications yet.</p>:<div className="notification-list">{items.map(n=><button type="button" key={n.id} className={n.readAt?'':'unread'} onClick={()=>{if(!n.readAt)void mark(n.id);setOpen(false);if(n.paymentId){if(location.pathname==='/payments')window.dispatchEvent(new CustomEvent('payment:open',{detail:n.paymentId}));else{sessionStorage.setItem('openPaymentId',n.paymentId);location.assign('/payments')}}}}><strong>{n.title}</strong><span>{messageFor(n)}</span><time dateTime={n.createdAt}>{when(n.createdAt)}</time></button>)}</div>}
   </section>}
  </div>
 }

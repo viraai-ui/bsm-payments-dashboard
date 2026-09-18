@@ -97,6 +97,7 @@ export function SettingsClient() {
         <div><strong>{activeCount}</strong><span>Active</span></div>
         <div><strong>{users.length - activeCount}</strong><span>Inactive</span></div>
       </div>
+      <div className="settings-list-card notification-settings-card"><div className="settings-list-head"><div><h3>Device notifications</h3><p>If notifications are blocked, allow this site in browser or device settings, then return here.</p></div><button className="btn" type="button" onClick={() => window.dispatchEvent(new Event('payment-notifications:settings'))}>Notification settings</button></div></div>
       <div className="settings-list-card">
         <div className="settings-list-head"><h3>Workspace users</h3><span>{users.length} {users.length === 1 ? 'person' : 'people'}</span></div>
         <div className="settings-user-table-wrap">

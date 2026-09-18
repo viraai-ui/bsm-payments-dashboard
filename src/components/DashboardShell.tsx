@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { AuthGate, useAuth } from './AuthGate'
 import { MobileMenu, NavIcon, type NavItem } from './MobileMenu'
+import { NotificationOnboarding } from './NotificationOnboarding'
 
 
 const nav: NavItem[] = [
@@ -59,6 +60,7 @@ function ShellBody({ children, active }: { children: React.ReactNode; active: st
     </aside>}
     {singleModule && <button className="dispatch-floating-logout" aria-label="Logout" title="Logout" onClick={logout}>⏻</button>}
     <main className="main">{children}</main>
+    <NotificationOnboarding user={user} />
   </div>
 }
 
