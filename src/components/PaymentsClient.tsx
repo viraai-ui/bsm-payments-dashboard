@@ -31,6 +31,7 @@ import { managementPaymentMetrics } from "@/lib/management-payment-metrics";
 import { mergePaymentSnapshot } from "@/lib/payment-live-sync";
 
 type Tab = "all" | "unauthorised" | "pending";
+type PendingView = "grid" | "list";
 type Order = {
   id: string;
   salesOrderNumber: string;
@@ -122,6 +123,7 @@ export function PaymentsClient({
     [viewer, setViewer] = useState<ViewerProof[] | null>(null),
     [error, setError] = useState("");
   const [claimError, setClaimError] = useState("");
+  const [pendingView, setPendingView] = useState<PendingView>("grid");
   const [open, setOpen] = useState(false),
     [paymentType, setPaymentType] = useState<"unauthorised" | "regular">(
       "unauthorised",
@@ -237,6 +239,14 @@ export function PaymentsClient({
     window.addEventListener("popstate", popped);
     return () => { window.removeEventListener("payment:select-tab", selected); window.removeEventListener("popstate", popped); };
   }, [selectTab, userRole]);
+  useEffect(() => {
+    const saved = window.localStorage.getItem("bsm.pending-view");
+    if (saved === "grid" || saved === "list") setPendingView(saved);
+  }, []);
+  const choosePendingView = (view: PendingView) => {
+    setPendingView(view);
+    window.localStorage.setItem("bsm.pending-view", view);
+  };
   const pending = useMemo(() => pendingOrderSummaries(payments), [payments]);
   const summaries = useMemo(
     () =>
@@ -676,10 +686,16 @@ export function PaymentsClient({
           {tab === "pending" ? pending.length : filtered.length} results
         </strong>
         {activeFilters > 0 && <span>{activeFilters} filters applied</span>}
+        {tab === "pending" && (
+          <div className="pending-view-toggle" role="group" aria-label="Pending payments view">
+            <button type="button" aria-label="Grid view" aria-pressed={pendingView === "grid"} onClick={() => choosePendingView("grid")}><GridIcon /></button>
+            <button type="button" aria-label="List view" aria-pressed={pendingView === "list"} onClick={() => choosePendingView("list")}><ListIcon /></button>
+          </div>
+        )}
       </div>
       <div className="card payments-card ledger-card">
         {tab === "pending" ? (
-          <PendingList orders={pending} role={userRole} onAdd={startAdd} />
+          <PendingList orders={pending} role={userRole} onAdd={startAdd} view={pendingView} />
         ) : filtered.length ? (
           <>
             <div className="payments-table-wrap">
@@ -998,6 +1014,7 @@ export function PaymentsClient({
             selected.salesOrderNumber || selected.utrReference || "Unassigned"
           }
           close={() => setSelected(null)}
+          variant="details"
         >
           <PaymentDetails
             p={selected}
@@ -1101,8 +1118,10 @@ export function PaymentsClient({
           title="Delete payment?"
           eyebrow="This cannot be undone"
           close={() => setDeleting(null)}
+          variant="delete"
         >
-          <div className="void-confirm">
+          <div className="void-confirm delete-confirm">
+            <div className="delete-confirm-icon" aria-hidden="true">!</div>
             <p>
               The receipt, proofs and related notifications will be removed. A
               permanent audit tombstone will remain.
@@ -1130,7 +1149,7 @@ export function PaymentsClient({
               />
             </label>
             <div className="modal-actions">
-              <button className="btn" onClick={() => setDeleting(null)}>
+              <button type="button" className="btn" onClick={() => setDeleting(null)}>
                 Cancel
               </button>
               <button
@@ -1150,6 +1169,10 @@ export function PaymentsClient({
     </section>
   );
 }
+
+const statusClass = (status: Payment["status"]) => status === "Payment Received" ? "received" : status === "Void" ? "void" : status === "Pending" ? "pending" : "unauthorised";
+function GridIcon() { return <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2.5" y="2.5" width="6" height="6" rx="1"/><rect x="11.5" y="2.5" width="6" height="6" rx="1"/><rect x="2.5" y="11.5" width="6" height="6" rx="1"/><rect x="11.5" y="11.5" width="6" height="6" rx="1"/></svg>; }
+function ListIcon() { return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 4h14M3 10h14M3 16h14"/></svg>; }
 
 function Filter({
   label,
@@ -1526,6 +1549,7 @@ function PaymentDetails({
         <label className="detail-status">
           Status
           <select
+            className={`detail-status-select status-${statusClass(p.status)}`}
             value={p.status}
             disabled={busy}
             onChange={(e) =>
@@ -1626,7 +1650,7 @@ function StatusControl({
     p.status !== "Unauthorised" && (role === "Accounts" || role === "Admin");
   return can ? (
     <select
-      className={`ledger-status-select ${p.status === "Payment Received" ? "received" : ""}`}
+      className={`ledger-status-select status-${statusClass(p.status)}`}
       aria-label={`Status for ${p.salesOrderNumber || p.customerName}`}
       value={p.status}
       disabled={busy}
@@ -1673,7 +1697,7 @@ function DesktopRow({
       data-payment-id={p.id}
       tabIndex={0}
       aria-label={`View payment details for ${p.salesOrderNumber || p.customerName}`}
-      className={`payment-data-row ${p.status === "Payment Received" ? "ledger-received-row" : ""} ${highlight ? "payment-highlight" : ""}`}
+      className={`payment-data-row payment-${statusClass(p.status)}-row ${highlight ? "payment-highlight" : ""}`}
       onClick={onOpen}
       onKeyDown={activate}
     >
@@ -1749,7 +1773,7 @@ function MobileCard({
       data-payment-id={p.id}
       tabIndex={0}
       aria-label={`View payment details for ${p.salesOrderNumber || p.customerName}`}
-      className={`ledger-mobile-card payment-data-row ${p.status === "Payment Received" ? "ledger-received-row" : ""} ${highlight ? "payment-highlight" : ""}`}
+      className={`ledger-mobile-card payment-data-row payment-${statusClass(p.status)}-row ${highlight ? "payment-highlight" : ""}`}
       onClick={onOpen}
       onKeyDown={activate}
     >
@@ -1946,10 +1970,12 @@ function PendingList({
   orders,
   role,
   onAdd,
+  view,
 }: {
   orders: any[];
   role: AppRole;
   onAdd: (s: string) => void;
+  view: PendingView;
 }) {
   if (!orders.length)
     return (
@@ -1959,7 +1985,7 @@ function PendingList({
       </div>
     );
   return (
-    <div className="pending-grid">
+    <div className={`pending-grid pending-${view}`} data-view={view}>
       {orders.map((s) => (
         <article className="pending-card" key={s.salesOrderNumber}>
           <header>
@@ -2022,7 +2048,7 @@ function Sheet({
   eyebrow?: string;
   close: () => void;
   children: React.ReactNode;
-  variant?: "claim";
+  variant?: "claim" | "details" | "delete";
 }) {
   const ref = useRef<HTMLElement>(null);
   const closeRef = useRef(close);
@@ -2068,7 +2094,7 @@ function Sheet({
     >
       <section
         ref={ref}
-        className={`card payment-modal ledger-modal add-payment-modal ${variant === "claim" ? "claim-payment-modal" : ""}`}
+        className={`card payment-modal ledger-modal add-payment-modal ${variant ? `${variant}-payment-modal` : ""}`}
         role="dialog"
         aria-modal="true"
         aria-label={title}
