@@ -12,8 +12,8 @@ export function NavIcon({ icon }: { icon?: NavItem['icon'] }) {
   return null
 }
 
-function PaymentTabIcon({ tab, selected }: { tab: 'all' | 'unauthorised' | 'pending'; selected: boolean }) {
-  const common = { className: 'nav-icon', viewBox: '0 0 24 24', fill: selected ? 'currentColor' : 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true };
+function PaymentTabIcon({ tab }: { tab: 'all' | 'unauthorised' | 'pending' }) {
+  const common = { className: 'nav-icon', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true };
   if (tab === 'unauthorised') return <svg {...common}><path d="M12 3 4.5 6.2v5.2c0 4.7 3.2 8.1 7.5 9.6 4.3-1.5 7.5-4.9 7.5-9.6V6.2L12 3Z"/><path d="M12 8v4.2m0 3.3h.01" fill="none"/></svg>;
   if (tab === 'pending') return <svg {...common}><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 1.8" fill="none"/></svg>;
   return <svg {...common}><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 9h18M7 15h4" fill="none"/></svg>;
@@ -62,8 +62,8 @@ export function MobileMenu({ active, onLogout, user }: { nav: NavItem[]; utility
     </div>}
     <nav className="mobile-bottom-nav" aria-label="Payment navigation">
       {destinations.map(([key,label]) => active === 'Payments'
-        ? <button type="button" key={key} aria-label={label} className={paymentTab===key?'active':''} aria-current={paymentTab===key?'page':undefined} onClick={() => window.dispatchEvent(new CustomEvent('payment:select-tab',{detail:key}))}><span className="nav-icon-box"><PaymentTabIcon tab={key} selected={paymentTab===key}/></span><span>{key === 'all' ? 'Regular' : label}</span></button>
-        : <a key={key} href={`/payments${key === 'all' ? '' : `?view=${key}`}`} aria-label={label}><span className="nav-icon-box"><PaymentTabIcon tab={key} selected={false}/></span><span>{key === 'all' ? 'Regular' : label}</span></a>)}
+        ? <button type="button" key={key} aria-label={label} className={paymentTab===key?'active':''} aria-current={paymentTab===key?'page':undefined} onClick={() => window.dispatchEvent(new CustomEvent('payment:select-tab',{detail:key}))}><span className="nav-icon-box"><PaymentTabIcon tab={key}/></span><span>{key === 'all' ? 'Regular' : label}</span></button>
+        : <a key={key} href={`/payments${key === 'all' ? '' : `?view=${key}`}`} aria-label={label}><span className="nav-icon-box"><PaymentTabIcon tab={key}/></span><span>{key === 'all' ? 'Regular' : label}</span></a>)}
     </nav>
   </>
 }
