@@ -89,7 +89,8 @@ const money = (n: number) =>
   new Intl.NumberFormat("en-IN", {
     style: "currency",
     currency: "INR",
-    maximumFractionDigits: 2,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   }).format(n);
 const salesperson = (p: Payment) => p.salespersonName || (p.addedBy && !/^u[-_]/i.test(p.addedBy) ? p.addedBy : "—");
 const date = (v?: string) => {
@@ -1822,7 +1823,7 @@ function MobileCard({
               : money(s.orderTotal)}
           </dd>
         </div>
-        <div>
+        <div className="payment-received-amount">
           <dt>Receipt</dt>
           <dd>{money(p.paymentAmount)}</dd>
         </div>

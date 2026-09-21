@@ -14,7 +14,7 @@ function requestNotifications(){
 export function NotificationCenter(){
  const [items,setItems]=useState<PaymentNotification[]>([]),[unread,setUnread]=useState(0),[open,setOpen]=useState(false)
  const ref=useRef<HTMLDivElement>(null)
- const amount=(value:number)=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(value).replace(/^₹\s*/,'₹')
+ const amount=(value:number)=>new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',minimumFractionDigits:0,maximumFractionDigits:0}).format(value).replace(/^₹\s*/,'₹')
  const when=(value:string)=>new Intl.DateTimeFormat('en-GB',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(value))
  async function load(){const data=await requestNotifications();if(!data)return;setItems(data.notifications);setUnread(data.unreadCount)}
  useEffect(()=>{void load();const visible=()=>{if(document.visibilityState==='visible')void load()};const timer=setInterval(visible,4000);window.addEventListener('focus',visible);document.addEventListener('visibilitychange',visible);return()=>{clearInterval(timer);window.removeEventListener('focus',visible);document.removeEventListener('visibilitychange',visible)}},[])

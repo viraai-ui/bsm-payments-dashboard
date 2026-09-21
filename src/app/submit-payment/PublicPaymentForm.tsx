@@ -15,7 +15,7 @@ type Api<T> = { ok: boolean; data?: T; error?: string }
 type Capabilities = Record<string, string>
 const CAPABILITY_KEY = 'bsm-public-payment-delete-capabilities-v1'
 const normalizeListSearch = (value: unknown) => String(value ?? '').trim().replace(/\s+/g, ' ').toLocaleLowerCase()
-const money = (amount: number | null) => amount == null ? '—' : new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount)
+const money = (amount: number | null) => amount == null ? '—' : new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount)
 const date = (value: string) => new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(value))
 
 function readCapabilities(): Capabilities {

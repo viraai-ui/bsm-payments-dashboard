@@ -27,7 +27,7 @@ const FILE = 'payment-notifications.json'
 const EMPTY: Store = { notifications: [] }
 
 export function formatPaymentAmount(amount: number) {
-  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(amount).replace(/^₹\s*/, '₹')
+  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount).replace(/^₹\s*/, '₹')
 }
 function paymentSummary(payment: Payment) {
   const base = `${formatPaymentAmount(payment.paymentAmount)} from ${payment.customerName}`
