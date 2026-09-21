@@ -272,7 +272,7 @@ div.payment-command{display:grid!important;grid-template-columns:minmax(0,1fr) 1
   .add-payment-form>.modal-actions .btn.red{background:#c8102e!important;color:#fff!important;border-color:#c8102e!important}
   .details-payment-modal>header{padding-right:64px!important;padding-left:64px!important;text-align:center!important}
   .details-payment-modal>header h2,.details-payment-modal>header .eyebrow{text-align:center!important}
-  .details-payment-modal>.payment-details-modal{box-sizing:border-box!important;display:grid!important;width:calc(100% - 32px)!important;max-width:560px!important;margin:0 auto!important;padding:14px 0 calc(22px + env(safe-area-inset-bottom))!important;justify-items:stretch!important;text-align:left!important}
+  .details-payment-modal>.payment-details-modal{box-sizing:border-box!important;display:grid!important;align-self:stretch!important;width:auto!important;max-width:none!important;margin:0 16px!important;padding:14px 0 calc(22px + env(safe-area-inset-bottom))!important;justify-items:stretch!important;text-align:left!important}
   .details-payment-modal .payment-details-modal section,.details-payment-modal .payment-details-modal dl,.details-payment-modal .payment-details-modal dl>div,.details-payment-modal .detail-summary,.details-payment-modal .detail-summary>div,.details-payment-modal .proof-remarks{box-sizing:border-box!important;width:100%!important;margin-left:0!important;margin-right:0!important;text-align:left!important}
   .details-payment-modal .payment-details-modal dl{grid-template-columns:repeat(2,minmax(0,1fr))!important}
   .details-payment-modal .detail-summary{grid-template-columns:repeat(2,minmax(0,1fr))!important}
