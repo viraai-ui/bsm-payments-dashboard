@@ -46,7 +46,6 @@ export function MobileMenu({ active, onLogout, user }: { nav: NavItem[]; utility
         <strong>{screenLabel}</strong>
       </a>
       <div className="mobile-app-actions">
-        {active === 'Payments' && user.role !== 'Viewer' && <button className="mobile-add-action" type="button" aria-label="Add payment" onClick={() => window.dispatchEvent(new Event('payment:add'))}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>}
         <NotificationCenter />
         <button className="mobile-avatar" type="button" aria-label="Open account menu" aria-expanded={accountOpen} onClick={() => setAccountOpen(true)}>{(user.name || user.email || user.role).slice(0,2).toUpperCase()}</button>
       </div>

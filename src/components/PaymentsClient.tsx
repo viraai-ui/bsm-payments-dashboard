@@ -562,6 +562,15 @@ export function PaymentsClient({
           })}
         </div>
       )}
+      {tab === "all" && userRole !== "Viewer" && userRole !== "Accounts" && (
+        <button
+          className="btn red mobile-regular-add"
+          type="button"
+          onClick={() => startAdd()}
+        >
+          Add Payment
+        </button>
+      )}
       {(
         <div className="payment-command">
           <label className="payment-search">
