@@ -996,7 +996,9 @@ export function PaymentsClient({
                 onSelect={(o) => { setClaimError(""); selectOrder(o, "claim"); }}
                 onClear={() => { setForm(emptyForm()); setClaimError(""); }}
               />
-              {form.salesOrderId && <OrderSnapshot form={form} />}
+              {form.salesOrderId && (
+                <OrderSnapshot form={form} claimAmount={claiming.paymentAmount} />
+              )}
               {claimError && <p className="claim-validation" role="alert" tabIndex={-1}>{claimError}</p>}
             </div>
             <Actions
@@ -1120,7 +1122,7 @@ export function PaymentsClient({
           close={() => setDeleting(null)}
           variant="delete"
         >
-          <div className="void-confirm delete-confirm">
+          <div className="void-confirm delete-confirm-body">
             <div className="delete-confirm-icon" aria-hidden="true">!</div>
             <p>
               The receipt, proofs and related notifications will be removed. A
@@ -1431,14 +1433,18 @@ function OrderCombobox({
 function OrderSnapshot({
   form,
   payments,
+  claimAmount = 0,
 }: {
   form: Form;
   payments?: Payment[];
+  claimAmount?: number;
 }) {
   const local = orderSummary(payments || [], form.salesOrderNumber, Number(form.orderTotal), form.salesOrderId);
   const authoritative = form.provisionalOutstanding !== "";
-  const advanceReceived = authoritative ? Number(form.submittedAmount) : local.advanceReceived;
-  const pendingPayment = authoritative ? Number(form.provisionalOutstanding) : local.pendingPayment;
+  const currentAdvance = authoritative ? Number(form.submittedAmount) : local.advanceReceived;
+  const currentPending = authoritative ? Number(form.provisionalOutstanding) : local.pendingPayment;
+  const advanceReceived = currentAdvance + claimAmount;
+  const pendingPayment = Math.max(0, (currentPending || 0) - claimAmount);
   return (
     <div className="order-snapshot">
       <div>
@@ -1610,7 +1616,9 @@ function PaymentDetails({
           <div>
             <span>Outstanding</span>
             <strong>
-              {s?.outstanding === undefined ? "—" : money(s.outstanding)}
+              {s?.provisionalOutstanding === undefined
+                ? "—"
+                : money(s.provisionalOutstanding)}
             </strong>
           </div>
         </div>
