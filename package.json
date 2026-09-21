@@ -18,6 +18,7 @@
     "verify:viewer-metrics": "node scripts/verify-viewer-metrics.cjs",
     "verify:payment-actions": "node scripts/verify-payment-actions.cjs",
     "verify:notifications": "tsx scripts/verify-payment-notifications.mjs",
+    "verify:live-sync": "tsx scripts/verify-live-sync.mjs",
     "verify:admin-contract": "node scripts/verify-admin-contract.cjs",
     "verify:responsive": "node scripts/verify-responsive.cjs",
     "verify:tablet": "TABLET_ONLY=1 node scripts/verify-responsive.cjs",

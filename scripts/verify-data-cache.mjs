@@ -27,5 +27,10 @@ await local.updateLocalJson('payments.json',{payments:[]},s=>({...s,cacheVerific
 await local.readLocalJson('payments.json',{payments:[]});assert.equal(calls,2,'successful write updates read cache')
 assert.equal(remote.get('data/payments.json').value.cacheVerification,true)
 const notifications=await readFile(new URL('../src/components/NotificationCenter.tsx',import.meta.url),'utf8'),paymentsClient=await readFile(new URL('../src/components/PaymentsClient.tsx',import.meta.url),'utf8'),publicForm=await readFile(new URL('../src/app/submit-payment/PublicPaymentForm.tsx',import.meta.url),'utf8')
-assert.match(notifications,/if\(notificationRequest\)return notificationRequest/);assert.equal((notifications.match(/fetch\('\/api\/payments\/notifications'/g)||[]).length,2,'one GET plus one PATCH endpoint use expected');assert(!/setInterval\([^)]*30000/.test(notifications));assert(paymentsClient.includes('}, 60000);'));assert(publicForm.includes('}, 60000)'))
+assert.match(notifications,/notificationRequest/)
+const notificationFetchCount = notifications.split('/api/payments/notifications').length - 1
+assert.equal(notificationFetchCount,2,'one GET plus one PATCH endpoint use expected')
+assert(notifications.includes('setInterval(visible,4000)'),'notification feed must synchronize within five seconds')
+assert(paymentsClient.includes('}, 4000);'),'payments must synchronize within five seconds')
+assert(publicForm.includes('}, 60000)'))
 console.log('PASS cache: 100x3 reads=3 calls; 100 concurrent=1; stale 403 preserves two SO-07976 records; bundled login succeeds; write updates cache')

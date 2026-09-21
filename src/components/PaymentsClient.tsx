@@ -28,6 +28,7 @@ import {
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { normalizePaymentAmountInput } from "@/lib/payment-amount";
 import { managementPaymentMetrics } from "@/lib/management-payment-metrics";
+import { mergePaymentSnapshot } from "@/lib/payment-live-sync";
 
 type Tab = "all" | "unauthorised" | "pending";
 type Order = {
@@ -134,6 +135,9 @@ export function PaymentsClient({
     [deleting, setDeleting] = useState<Payment | null>(null),
     [deleteReason, setDeleteReason] = useState("");
   const refreshBusy = useRef(false);
+  const refreshSequence = useRef(0);
+  const mutationVersion = useRef(0);
+  const mutatingIds = useRef(new Set<string>());
   const submitBusy = useRef(false);
   const claimBusy = useRef(false);
   const submissionKey = useRef("");
@@ -141,10 +145,12 @@ export function PaymentsClient({
   const refresh = useCallback(async () => {
     if (refreshBusy.current) return;
     refreshBusy.current = true;
+    const sequence = ++refreshSequence.current, startedAtMutation = mutationVersion.current;
     try {
-      const r = await fetch("/api/payments", { cache: "no-store" }),
+      const r = await fetch(`/api/payments?sync=${Date.now()}`, { cache: "no-store", headers: { "Cache-Control": "no-cache" } }),
         j = await r.json();
-      if (r.ok) setPayments(sortPayments(j.data.payments));
+      if (r.ok && sequence === refreshSequence.current && startedAtMutation === mutationVersion.current)
+        setPayments(current => sortPayments(mergePaymentSnapshot(current, j.data.payments, mutatingIds.current)));
     } finally {
       refreshBusy.current = false;
     }
@@ -152,7 +158,7 @@ export function PaymentsClient({
   useEffect(() => {
     const timer = setInterval(() => {
       if (document.visibilityState === "visible") void refresh();
-    }, 60000);
+    }, 4000);
     const focus = () => void refresh();
     const visible = () => { if (document.visibilityState === "visible") void refresh(); };
     window.addEventListener("focus", focus);
@@ -163,6 +169,7 @@ export function PaymentsClient({
       document.removeEventListener("visibilitychange", visible);
     };
   }, [refresh]);
+  useEffect(() => { if (selected) setSelected(payments.find(payment => payment.id === selected.id) || null); }, [payments, selected?.id]);
   useEffect(() => {
     const add = () => startAdd();
     window.addEventListener("payment:add", add);
@@ -357,13 +364,19 @@ export function PaymentsClient({
     setError("");setForm(emptyForm());setProofs([]);submissionKey.current="";setOpen(false);
   }
   async function patch(body: object) {
-    const r = await fetch("/api/payments", {
+    const id = typeof (body as {id?:unknown}).id === "string" ? (body as {id:string}).id : "";
+    mutationVersion.current += 1;
+    if (id) mutatingIds.current.add(id);
+    let r: Response, j: any;
+    try { r = await fetch("/api/payments", {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
-      }),
-      j = await r.json().catch(() => ({}));
+      }); j = await r.json().catch(() => ({})); }
+    catch { if (id) mutatingIds.current.delete(id); mutationVersion.current += 1; setError("Update failed. Check your connection and try again."); return false; }
     if (!r.ok) {
+      if (id) mutatingIds.current.delete(id);
+      mutationVersion.current += 1;
       setError(j.error || "Update failed");
       return false;
     }
@@ -372,6 +385,8 @@ export function PaymentsClient({
         p.map((x) => (x.id === j.data.payment.id ? j.data.payment : x)),
       ),
     );
+    if (id) mutatingIds.current.delete(id);
+    mutationVersion.current += 1;
     return true;
   }
   async function status(
@@ -381,7 +396,9 @@ export function PaymentsClient({
     if (p.status === "Payment Received" && next === "Pending" &&
         !window.confirm("Change this received receipt back to Payment Pending?")) return;
     setUpdating(p.id);
-    await patch({ id: p.id, status: next });
+    setPayments(current => current.map(item => item.id === p.id ? { ...item, status: next } : item));
+    const ok = await patch({ id: p.id, status: next });
+    if (!ok) setPayments(current => current.map(item => item.id === p.id ? p : item));
     setUpdating(null);
   }
   async function claim(e: React.FormEvent) {

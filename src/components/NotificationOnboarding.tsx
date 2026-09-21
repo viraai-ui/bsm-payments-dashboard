@@ -6,6 +6,10 @@ import type { SafeUser } from '@/lib/auth'
 type State = 'hidden' | 'prompt' | 'working' | 'blocked' | 'ios-install' | 'unconfigured' | 'enabled' | 'unsupported'
 const SNOOZE_MS = 7 * 24 * 60 * 60 * 1000
 const MAX_DISMISSALS = 3
+const SETUP_TIMEOUT_MS = 10000
+function timed<T>(operation: Promise<T>, label: string): Promise<T> {
+  return Promise.race([operation, new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`${label} timed out. In-app notifications remain active.`)), SETUP_TIMEOUT_MS))])
+}
 function key(userId: string) { return `payment-push-onboarding:${userId}` }
 function deviceId() {
   const storageKey = 'payment-push-device-id'
@@ -57,23 +61,24 @@ export function NotificationOnboarding({ user }: { user: SafeUser }) {
     setState('working'); setDetail('')
     try {
       // This is deliberately the first permission request and only runs from the Enable click.
-      const permission = await Notification.requestPermission()
+      const permission = await timed(Notification.requestPermission(), 'Notification permission')
       if (permission === 'denied') { localStorage.setItem(key(user.id), JSON.stringify({ denied: true })); setState('blocked'); return }
       if (permission !== 'granted') { notNow(); return }
-      const configResponse = await fetch('/api/payments/push-subscription', { cache: 'no-store' })
+      const configResponse = await timed(fetch('/api/payments/push-subscription', { cache: 'no-store' }), 'Push configuration')
       const config = await configResponse.json().catch(() => ({}))
       if (!configResponse.ok || !config.data?.configured || !config.data.publicKey) {
         localStorage.setItem(key(user.id), JSON.stringify({ granted: true, pushConfigured: false }))
         setState('unconfigured'); return
       }
-      const registration = await navigator.serviceWorker.register('/payment-push-sw.js', { scope: '/' })
-      const existing = await registration.pushManager.getSubscription()
-      const subscription = existing || await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: decodeKey(config.data.publicKey) })
-      const response = await fetch('/api/payments/push-subscription', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ subscription: subscription.toJSON(), deviceId: deviceId() }) })
+      const registration = await timed(navigator.serviceWorker.register('/payment-push-sw.js', { scope: '/' }), 'Service worker registration')
+      await timed(navigator.serviceWorker.ready, 'Service worker activation')
+      const existing = await timed(registration.pushManager.getSubscription(), 'Push subscription check')
+      const subscription = existing || await timed(registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: decodeKey(config.data.publicKey) }), 'Push subscription')
+      const response = await timed(fetch('/api/payments/push-subscription', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ subscription: subscription.toJSON(), deviceId: deviceId() }) }), 'Push registration')
       if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || 'Could not register this device')
       localStorage.setItem(key(user.id), JSON.stringify({ granted: true, subscribed: true }))
       setState('enabled'); setTimeout(() => setState('hidden'), 1800)
-    } catch (error) { setDetail(error instanceof Error ? error.message : 'Could not enable notifications'); setState('unsupported') }
+    } catch (error) { setDetail(`${error instanceof Error ? error.message : 'Could not enable push notifications'} In-app notifications remain active.`); setState('unsupported') }
   }
   if (state === 'hidden') return null
   const messages: Partial<Record<State, string>> = {
