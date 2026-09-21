@@ -12,9 +12,13 @@ export type ManagementPaymentMetric = {
  * fallback), and only Pending/Received receipts reduce its authoritative total.
  */
 export function managementPaymentMetrics(payments: SettlementPayment[]): ManagementPaymentMetric[] {
+  // Allocation parents are immutable source receipts, not extra payments.
+  const accountingAmount = (payment: SettlementPayment) => payment.originalPaymentAmount !== undefined
+    ? (payment.remainingAmount ?? payment.paymentAmount)
+    : payment.paymentAmount
   const sum = (status: SettlementPayment['status']) => fromPaise(payments
     .filter(payment => payment.status === status)
-    .reduce((total, payment) => total + toPaise(payment.paymentAmount), 0))
+    .reduce((total, payment) => total + toPaise(accountingAmount(payment)), 0))
   const orders = new Map<string, { total: number; receipts: number }>()
   for (const payment of payments) {
     if ((!payment.salesOrderId && !payment.salesOrderNumber) || payment.orderTotal === undefined) continue

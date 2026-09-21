@@ -10,7 +10,8 @@ export function viewerPaymentMetrics(payments: Payment[], now = new Date()): Vie
   const today = localDateKey(now), monday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7))
   const weekStart = localDateKey(monday)
-  const summarize = (predicate: (payment: Payment) => boolean) => { const matching=payments.filter(predicate); return {amount:matching.reduce((sum,p)=>sum+p.paymentAmount,0),count:matching.length} }
+  const accountingAmount=(p:Payment)=>p.originalPaymentAmount!==undefined?(p.remainingAmount??p.paymentAmount):p.paymentAmount
+  const summarize = (predicate: (payment: Payment) => boolean) => { const matching=payments.filter(p=>predicate(p)&&accountingAmount(p)>0); return {amount:matching.reduce((sum,p)=>sum+accountingAmount(p),0),count:matching.length} }
   const received=(p:Payment)=>p.status==='Payment Received', paymentDay=(p:Payment)=>localDateKey(p.paymentDate||p.createdAt), enteredDay=(p:Payment)=>localDateKey(p.paymentDate||p.createdAt)
   const monthStart=`${today.slice(0,7)}-01`
   return [

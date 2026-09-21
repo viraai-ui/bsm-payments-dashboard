@@ -7,5 +7,5 @@ assert.match(ui,/paymentType[^\n]+unauthorised/);assert.match(ui,/UTR \/ Referen
 assert.ok(ui.indexOf('payments-add-button')<ui.indexOf('<NotificationCenter'), 'Add precedes notification bell')
 assert.match(css,/payments-toolbar\{position:static/);assert.match(css,/height:42px!important/)
 assert.match(api,/Accounts can only add unauthorised payments/);assert.match(api,/Select an active Salesperson/);assert.match(api,/\['Pending','Payment Received','Void'\]/)
-assert.match(notifications,/role==='Salesperson'/);assert.match(notifications,/notify\(payment,type,\[owner.id\]/)
+assert.match(notifications,/role\s*===\s*['"]Salesperson['"]/);assert.match(notifications,/notify\(payment,\s*copy\.type,\s*\[owner\]/)
 console.log('PASS Admin UI/API contract: toolbar, compact controls, columns, modal sections, forms, roles and owner notifications')

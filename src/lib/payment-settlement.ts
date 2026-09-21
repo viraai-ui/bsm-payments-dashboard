@@ -11,6 +11,9 @@ export type SettlementPayment = {
   createdAt?:string
   paymentMode?:string
   remarks?:string
+  parentPaymentId?:string
+  originalPaymentAmount?:number
+  remainingAmount?:number
 }
 
 const STATUS_ORDER={Pending:0,Unauthorised:1,'Payment Received':2,Void:3} as const

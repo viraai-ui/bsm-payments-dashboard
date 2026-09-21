@@ -38,7 +38,12 @@ export function MobileMenu({ active, onLogout, user }: { nav: NavItem[]; utility
   const destinations = user.role === 'Viewer'
     ? ([['all', 'Regular Payments'], ['pending', 'Pending']] as const)
     : ([['all', 'Regular Payments'], ['unauthorised', 'Unauthorised'], ['pending', 'Pending']] as const)
-  const screenLabel = active === 'Settings' ? 'Settings' : destinations.find(([key]) => key === paymentTab)?.[1] || 'Regular Payments'
+  const paymentScreenLabels = {
+    all: 'Regular Payments',
+    unauthorised: 'Unauthorised Payments',
+    pending: 'Pending Payments',
+  } as const
+  const screenLabel = active === 'Settings' ? 'Settings' : paymentScreenLabels[paymentTab]
   return <>
     <header className="mobile-appbar" data-mobile-app-header>
       <a className="mobile-brand" href="/payments" aria-label="BSM Payments home">
