@@ -16,8 +16,10 @@ assert.equal(summary([payment(1200,'Pending')]).pendingPayment,0,'overpaid clamp
 assert.equal(summary([payment(100,'Pending',{salesOrderNumber:' so 001 ',salesOrderId:undefined})]).advanceReceived,100,'normalized SO match')
 assert.equal(summary([payment(100,'Pending')],).advanceReceived,100,'id and number do not double count')
 assert.equal(orderSummary([payment(100,'Pending',{orderTotal:900})],so,1000,id).orderTotal,1000,'Zoho total is authoritative')
+assert.equal(orderSummary([payment(10,'Pending',{id:'older',orderTotal:800,createdAt:'2026-01-01'}),payment(10,'Pending',{id:'newer',orderTotal:900,createdAt:'2026-02-01'})],so,undefined,id).orderTotal,900,'latest persisted snapshot wins regardless of storage order')
+assert.equal(orderSummary([payment(10,'Pending',{id:'a',orderTotal:800,createdAt:'2026-01-01'}),payment(10,'Pending',{id:'b',orderTotal:900,createdAt:'2026-01-01'})],so,undefined,id).orderTotal,900,'payment id deterministically breaks equal-time snapshot ties')
 const remaining=summary([payment(250.25,'Pending')]).pendingPayment
 assert.equal(toPaise(remaining),74975)
 assert.equal(toPaise(remaining)<=toPaise(remaining),true,'exact remaining accepted')
 assert.equal(toPaise(remaining+0.01)>toPaise(remaining),true,'one paisa over rejected')
-console.log('Settlement summary verification passed: 12 scenarios')
+console.log('Settlement summary verification passed: 14 scenarios')

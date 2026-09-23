@@ -1,5 +1,5 @@
 const {spawn}=require('node:child_process'),fs=require('node:fs/promises'),path=require('node:path'),assert=require('node:assert/strict')
-const root=path.resolve(__dirname,'..'),data=path.join(root,'data'),port='3233',base=`http://127.0.0.1:${port}`,files=['payments.json','payment-notifications.json','payment-tombstones.json','auth-users-store.json']
+const root=path.resolve(__dirname,'..'),data=path.join(root,'data'),port='3233',base=`http://127.0.0.1:${port}`,files=['payments.json','payment-notifications.json','payment-tombstones.json','payments-payouts-outbox.json','auth-users-store.json']
 const backups=new Map(),sleep=ms=>new Promise(r=>setTimeout(r,ms));let server
 async function login(name){const r=await fetch(base+'/api/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({login:name,password:'1231'})});assert.equal(r.status,200,`login ${name}`);return r.headers.getSetCookie()[0].split(';')[0]}
 async function req(cookie,method,body,multipart=false){return fetch(base+'/api/payments',{method,headers:{cookie,...(multipart?{}:{'content-type':'application/json'})},body:multipart?body:JSON.stringify(body)})}
