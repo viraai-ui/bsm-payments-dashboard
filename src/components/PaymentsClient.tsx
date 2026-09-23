@@ -32,6 +32,7 @@ import { mergePaymentSnapshot } from "@/lib/payment-live-sync";
 
 type Tab = "all" | "unauthorised" | "pending";
 type PendingView = "grid" | "list";
+type PayoutSyncState = { eventId: string; status: "pending" | "synced" | "failed" | "manual_review" };
 type Order = {
   id: string;
   salesOrderNumber: string;
@@ -125,6 +126,8 @@ export function PaymentsClient({
     [viewer, setViewer] = useState<ViewerProof[] | null>(null),
     [error, setError] = useState("");
   const [claimError, setClaimError] = useState("");
+  const [retryingSync, setRetryingSync] = useState<string | null>(null);
+  const [syncEvents, setSyncEvents] = useState<Map<string, PayoutSyncState>>(new Map());
   const [pendingView, setPendingView] = useState<PendingView>("grid");
   const [open, setOpen] = useState(false),
     [paymentType, setPaymentType] = useState<"unauthorised" | "regular">(
@@ -154,12 +157,14 @@ export function PaymentsClient({
     try {
       const r = await fetch(`/api/payments?sync=${Date.now()}`, { cache: "no-store", headers: { "Cache-Control": "no-cache" } }),
         j = await r.json();
-      if (r.ok && sequence === refreshSequence.current && startedAtMutation === mutationVersion.current)
+      if (r.ok && sequence === refreshSequence.current && startedAtMutation === mutationVersion.current) {
         setPayments(current => sortPayments(mergePaymentSnapshot(current, j.data.payments, mutatingIds.current)));
+        if (userRole === "Admin") setSyncEvents(new Map(j.data.payments.filter((payment: Payment & { payoutSync?: PayoutSyncState }) => payment.payoutSync).map((payment: Payment & { payoutSync: PayoutSyncState }) => [payment.id, payment.payoutSync])));
+      }
     } finally {
       refreshBusy.current = false;
     }
-  }, []);
+  }, [userRole]);
   useEffect(() => {
     const timer = setInterval(() => {
       if (document.visibilityState === "visible") void refresh();
@@ -174,6 +179,7 @@ export function PaymentsClient({
       document.removeEventListener("visibilitychange", visible);
     };
   }, [refresh]);
+  useEffect(() => { void refresh(); }, [refresh]);
   useEffect(() => { if (selected) setSelected(payments.find(payment => payment.id === selected.id) || null); }, [payments, selected?.id]);
   useEffect(() => {
     const add = () => startAdd();
@@ -409,6 +415,30 @@ export function PaymentsClient({
     const ok = await patch({ id: p.id, status: next });
     if (!ok) setPayments(current => current.map(item => item.id === p.id ? p : item));
     setUpdating(null);
+  }
+  async function retryPayoutSync(p: Payment) {
+    const sync = syncEvents.get(p.id);
+    if (retryingSync || !sync) return;
+    setRetryingSync(p.id);
+    setError("");
+    try {
+      const response = await fetch("/api/integrations/payouts/retry", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ eventId: sync.eventId }),
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(json.error || "Could not retry payout sync");
+      const event = json.event;
+      const status: PayoutSyncState["status"] = event?.outcome === "manual_review" ? "manual_review"
+        : event?.status === "delivered" ? "synced"
+        : event?.status === "failed" ? "failed" : "pending";
+      setSyncEvents(current => new Map(current).set(p.id, { eventId: sync.eventId, status }));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not retry payout sync");
+    } finally {
+      setRetryingSync(null);
+    }
   }
   async function claim(e: React.FormEvent) {
     e.preventDefault();
@@ -758,6 +788,9 @@ export function PaymentsClient({
                       onProof={() => openProof(p)}
                       onEdit={() => beginEdit(p)}
                       onDelete={() => setDeleting(p)}
+                      onRetrySync={() => void retryPayoutSync(p)}
+                      retryingSync={retryingSync === p.id}
+                      syncState={syncEvents.get(p.id)}
                     />
                   ))}
                 </tbody>
@@ -789,6 +822,9 @@ export function PaymentsClient({
                   onProof={() => openProof(p)}
                   onEdit={() => beginEdit(p)}
                   onDelete={() => setDeleting(p)}
+                  onRetrySync={() => void retryPayoutSync(p)}
+                  retryingSync={retryingSync === p.id}
+                      syncState={syncEvents.get(p.id)}
                 />
               ))}
             </div>
@@ -1061,6 +1097,9 @@ export function PaymentsClient({
             busy={updating === selected.id}
             onStatus={status}
             onProof={() => openProof(selected)}
+            onRetrySync={() => void retryPayoutSync(selected)}
+            retryingSync={retryingSync === selected.id}
+            syncState={syncEvents.get(selected.id)}
           />
         </Sheet>
       )}
@@ -1565,6 +1604,23 @@ function Actions({
     </div>
   );
 }
+const PAYOUT_SYNC_LABELS = {
+  pending: "Sync Pending",
+  synced: "Synced to Payouts",
+  failed: "Sync Failed",
+  manual_review: "Manual Review",
+} as const;
+function PayoutSync({ sync, retrying, onRetry }: { sync?: PayoutSyncState; retrying: boolean; onRetry: () => void }) {
+  const value = sync?.status;
+  if (!value || !PAYOUT_SYNC_LABELS[value]) return null;
+  const retryable = value === "failed" || value === "manual_review";
+  return <div className="payout-sync" data-sync-status={value} role="status" aria-live="polite">
+    <span className={`payout-sync-badge ${value}`}>{PAYOUT_SYNC_LABELS[value]}</span>
+    {retryable && <button type="button" disabled={retrying} aria-busy={retrying} onClick={onRetry}>
+      {retrying ? "Retrying…" : "Retry Payout Sync"}
+    </button>}
+  </div>;
+}
 function PaymentDetails({
   p,
   summary: s,
@@ -1572,6 +1628,9 @@ function PaymentDetails({
   role,
   busy,
   onStatus,
+  onRetrySync,
+  retryingSync,
+  syncState,
 }: {
   p: Payment;
   summary: any;
@@ -1579,10 +1638,14 @@ function PaymentDetails({
   role: AppRole;
   busy: boolean;
   onStatus: (p: Payment, s: "Pending" | "Payment Received" | "Void") => void;
+  onRetrySync: () => void;
+  retryingSync: boolean;
+  syncState?: PayoutSyncState;
 }) {
   const total = s?.orderTotal ?? p.orderTotal;
   return (
     <div className="payment-details payment-details-modal">
+      {role === "Admin" && <PayoutSync sync={syncState} retrying={retryingSync} onRetry={onRetrySync} />}
       {(role === "Admin" || role === "Accounts") && p.status !== "Unauthorised" && (
         <label className="detail-status">
           Status
@@ -1736,6 +1799,9 @@ function DesktopRow({
   onClaim,
   onEdit,
   onDelete,
+  onRetrySync,
+  retryingSync,
+  syncState,
 }: any) {
   const activate = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" || e.key === " ") {
@@ -1786,6 +1852,7 @@ function DesktopRow({
           onStatus={onStatus}
           onClaim={onClaim}
         />
+        {role === "Admin" && <PayoutSync sync={syncState} retrying={retryingSync} onRetry={onRetrySync} />}
       </td>
       <td onClick={(e) => e.stopPropagation()}>
         <Overflow
@@ -1813,6 +1880,9 @@ function MobileCard({
   onProof,
   onEdit,
   onDelete,
+  onRetrySync,
+  retryingSync,
+  syncState,
 }: any) {
   const activate = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" || e.key === " ") {
@@ -1889,6 +1959,7 @@ function MobileCard({
           onStatus={onStatus}
           onClaim={onClaim}
         />
+        {role === "Admin" && <PayoutSync sync={syncState} retrying={retryingSync} onRetry={onRetrySync} />}
       </div>
     </article>
   );

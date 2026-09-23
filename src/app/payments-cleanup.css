@@ -230,6 +230,14 @@ div.payment-command{display:grid!important;grid-template-columns:minmax(0,1fr) 1
 
 /* Notification onboarding always clears the fixed native navigation. */
 @media(max-width:760px){.notification-onboarding{bottom:calc(67px + env(safe-area-inset-bottom) + 12px)!important}}
+
+/* Payout integration state is secondary to payment status and admin-only in the UI. */
+.payout-sync{display:flex;min-width:0;align-items:center;justify-content:center;flex-wrap:wrap;gap:5px;margin-top:6px}
+.payout-sync-badge{display:inline-flex;align-items:center;justify-content:center;max-width:100%;min-height:24px;padding:2px 8px;border:1px solid #d9dde3;border-radius:999px;background:#f4f5f7;color:#525d6d;font-size:10px;font-weight:750;line-height:1.2;text-align:center}
+.payout-sync-badge.pending{border-color:#ead390;background:#fff8df;color:#795600}.payout-sync-badge.synced{border-color:#b8dec6;background:#ebf8ef;color:#17603a}.payout-sync-badge.failed{border-color:#e5b2b8;background:#fff0f2;color:#941b2d}.payout-sync-badge.manual_review{border-color:#d5c0e4;background:#f8f1fc;color:#69407d}
+.payout-sync button{box-sizing:border-box;min-height:44px;padding:0 10px;border:1px solid #d8a6ae;border-radius:9px;background:#fff;color:#97172b;font:inherit;font-size:10px;font-weight:750;cursor:pointer}.payout-sync button:disabled{cursor:wait;opacity:.62}
+.payment-details-modal>.payout-sync{justify-content:flex-end;margin:0}.payment-details-modal>.payout-sync .payout-sync-badge{min-height:28px}
+@media(max-width:760px){.payment-mobile-controls{flex-wrap:wrap}.payment-mobile-controls>.payout-sync{flex:1 0 100%;justify-content:flex-end;margin-top:0}.payment-mobile-controls>.payout-sync button{min-height:44px}.payment-details-modal>.payout-sync{justify-content:center}}
 @media(min-width:761px) and (max-width:1180px){.notification-onboarding{right:max(24px,calc((100vw - 1040px)/2))!important;bottom:calc(69px + env(safe-area-inset-bottom) + 12px)!important;max-width:min(440px,calc(100vw - 48px))!important}}
 
 /* Payment UI states, scroll-safe dialogs and compact pending layouts. */

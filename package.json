@@ -21,11 +21,13 @@
     "verify:notifications": "tsx scripts/verify-payment-notifications.mjs",
     "verify:live-sync": "tsx scripts/verify-live-sync.mjs",
     "verify:admin-contract": "node scripts/verify-admin-contract.cjs",
+    "verify:payout-sync-ui": "node scripts/verify-payout-sync-ui.cjs",
     "verify:responsive": "node scripts/verify-responsive.cjs",
     "verify:tablet": "TABLET_ONLY=1 node scripts/verify-responsive.cjs",
     "verify:ui-interactions": "node scripts/verify-responsive.cjs",
     "verify:mobile-app": "node scripts/verify-mobile-app.cjs && node scripts/verify-responsive.cjs",
     "verify:zoho-orders": "node --experimental-strip-types scripts/verify-zoho-payment-orders.mjs",
+    "verify:payouts-outbox": "tsx scripts/verify-payouts-outbox.mjs",
     "verify:zoho-orders:live": "node --env-file=.env.local --experimental-strip-types scripts/verify-zoho-payment-orders-live.mjs"
   },
   "dependencies": {

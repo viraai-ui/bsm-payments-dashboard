@@ -36,3 +36,11 @@ APP_LOCAL_ONLY="false"
 The fine-grained token needs **Contents: Read and write** on the private data repository and **Contents: Read** on the legacy application repository during migration. `GITHUB_REPO` is never written by payment storage. On the first read of a missing JSON file, the application reads `data/<file>` from the legacy app repository; its first mutation creates the migrated document in `GITHUB_DATA_REPO`.
 
 GitHub-backed proofs are limited to five files and 5 MiB per file. They are stored privately and returned only by authenticated/capability-checked application endpoints; no GitHub token or raw URL is exposed. R2 remains the preferred future backend and supports the existing 10 MiB proof limit.
+# Payouts synchronization
+
+The durable Payments → Payouts outbox is retried every minute by the Vercel Cron in `vercel.json`.
+Production must define server-only `PAYOUTS_INTEGRATION_SECRET` and `CRON_SECRET`. Vercel sends
+`Authorization: Bearer <CRON_SECRET>` to the cron route. Optionally set server-only
+`PAYOUTS_BASE_URL` (for example `https://payouts.bsmindia.com`); otherwise the production Payouts
+endpoint is used. `PAYOUTS_EVENTS_URL` remains available as an exact endpoint override. Never use
+the `NEXT_PUBLIC_` prefix for any of these values.
