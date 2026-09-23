@@ -12,7 +12,7 @@ const LABELS: Record<ReceivedPeriod, string> = {
   month: "Payments received this month",
 };
 const money = (paise: number) => new Intl.NumberFormat("en-IN", {
-  style: "currency", currency: "INR", minimumFractionDigits: 0, maximumFractionDigits: 2,
+  style: "currency", currency: "INR", minimumFractionDigits: 0, maximumFractionDigits: 0,
 }).format(paise / 100);
 const shortDate = (date: Date) => new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short" }).format(date);
 
