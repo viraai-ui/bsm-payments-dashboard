@@ -24,6 +24,14 @@ export async function checkRateLimit(request: Request, scope: string, limit: num
   return { allowed: bucket.count <= max, retryAfter: Math.max(1, Math.ceil((bucket.reset - now) / 1000)) }
 }
 
+export async function clearRateLimit(request: Request, scope: string) {
+  const now = Date.now()
+  const key = crypto.createHash('sha256').update(`${scope}:${clientIp(request)}`).digest('hex')
+  await updateLocalJson<RateStore>('rate-limits.json', { buckets: {} }, store => ({
+    buckets: Object.fromEntries(Object.entries(store.buckets || {}).filter(([bucketKey, value]) => bucketKey !== key && value.reset > now).slice(-4999)),
+  }))
+}
+
 export function sameOrigin(request: Request) {
   const origin = request.headers.get('origin')
   if (!origin) return true // Native/webview clients commonly omit Origin; token remains mandatory.
