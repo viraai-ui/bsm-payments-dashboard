@@ -18,7 +18,7 @@ local.clearLocalStoreCache();calls=0
 await Promise.all(Array.from({length:100},()=>local.readLocalJson('payments.json',{payments:[]})))
 assert.equal(calls,1,'concurrent cache misses must deduplicate')
 await new Promise(resolve=>setTimeout(resolve,1050));fail=true
-const stale=await local.readLocalJson('payments.json',{payments:[]});assert.equal(stale.payments.filter(p=>p.salesOrderNumber==='SO-07976').length,2);assert.equal(calls,2,'expired read attempts GitHub once then serves stale')
+const stale=await local.readLocalJson('payments.json',{payments:[]});assert.deepEqual(stale,bundled['payments.json'],'expired read must serve the complete cached authoritative value');assert.equal(calls,2,'expired read attempts GitHub once then serves stale')
 local.clearLocalStoreCache();const before=calls
 const user=await auth.authenticate('admin','1231');assert.equal(user?.id,'u-admin','login must use bundled password hash during GitHub 403');assert.equal(calls,before+1)
 const unchanged=JSON.stringify(remote.get('data/payments.json').value);await assert.rejects(()=>local.updateLocalJson('payments.json',{payments:[]},s=>({...s,shouldNotPersist:true})),/temporarily unavailable/);assert.equal(JSON.stringify(remote.get('data/payments.json').value),unchanged,'rate-limited write must not mutate durable data')
@@ -33,4 +33,4 @@ assert.equal(notificationFetchCount,2,'one GET plus one PATCH endpoint use expec
 assert(notifications.includes('setInterval(visible,4000)'),'notification feed must synchronize within five seconds')
 assert(paymentsClient.includes('}, 4000);'),'payments must synchronize within five seconds')
 assert(publicForm.includes('}, 60000)'))
-console.log('PASS cache: 100x3 reads=3 calls; 100 concurrent=1; stale 403 preserves two SO-07976 records; bundled login succeeds; write updates cache')
+console.log('PASS cache: 100x3 reads=3 calls; 100 concurrent=1; stale 403 preserves complete cached store; bundled login succeeds; write updates cache')

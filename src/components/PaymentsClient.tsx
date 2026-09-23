@@ -1936,7 +1936,7 @@ function Overflow({
   const canDelete =
     !p.parentPaymentId &&
     ((p.status === "Unauthorised" &&
-      (p.allocatedAmount ?? 0) === 0 &&
+      !p.hasAllocationChildren &&
       (role === "Admin" || role === "Accounts") &&
       !p.ownerUserId) ||
       (p.originalPaymentAmount === undefined &&
