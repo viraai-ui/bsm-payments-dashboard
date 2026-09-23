@@ -3,7 +3,7 @@ import { readLocalJson, updateLocalJson } from './local-store'
 import type { Payment, PaymentStatus } from './payments'
 import { sendPaymentPushNotifications } from './payment-push'
 
-export type NotificationType = 'payment-created' | 'status-received' | 'status-pending' | 'status-void'
+export type NotificationType = 'boss-payment-created' | 'unauthorised-created' | 'status-received' | 'status-pending' | 'status-void'
 export type PaymentNotification = {
   id: string
   eventId: string
@@ -13,6 +13,7 @@ export type PaymentNotification = {
   recipientRole: AppRole
   paymentId: string
   salesOrderNumber?: string
+  utrReference?: string
   customerName: string
   paymentAmount: number
   title: string
@@ -34,7 +35,7 @@ function paymentSummary(payment: Payment) {
   return payment.salesOrderNumber ? `${base} • ${payment.salesOrderNumber}` : base
 }
 
-async function notify(payment: Payment, type: NotificationType, recipients: Array<{ id: string; role: AppRole }>, title: string, body: string, eventId: string) {
+async function notify(payment: Payment, type: NotificationType, recipients: Array<{ id: string; role: AppRole }>, title: string, body: string, eventId: string, url = `/payments?payment=${encodeURIComponent(payment.id)}`) {
   const now = new Date().toISOString()
   let made: PaymentNotification[] = []
   await updateLocalJson(FILE, EMPTY, store => {
@@ -44,9 +45,9 @@ async function notify(payment: Payment, type: NotificationType, recipients: Arra
       return {
         id: `notification-${crypto.randomUUID()}`, eventId, dedupeKey, type,
         recipientUserId: recipient.id, recipientRole: recipient.role, paymentId: payment.id,
-        salesOrderNumber: payment.salesOrderNumber, customerName: payment.customerName,
+        salesOrderNumber: payment.salesOrderNumber, utrReference: payment.utrReference, customerName: payment.customerName,
         paymentAmount: payment.paymentAmount, title, body, message: body,
-        url: `/payments?payment=${encodeURIComponent(payment.id)}`, createdAt: now, readAt: null,
+        url, createdAt: now, readAt: null,
       }
     }).filter(item => !existing.has(item.dedupeKey))
     return { notifications: [...made, ...store.notifications].slice(0, 2000) }
@@ -55,11 +56,20 @@ async function notify(payment: Payment, type: NotificationType, recipients: Arra
   return made
 }
 
-/** New regular and unauthorised payments are visible only to active Admin/Accounts recipients. */
-export async function createPaymentNotifications(payment: Payment, _creator: string) {
+/** Creation events have deliberately disjoint audiences: the shared claim queue
+ * goes to Salespeople, while linked payments go only to Viewer/Boss accounts. */
+export async function createPaymentNotifications(payment: Payment, creator: string) {
   const users = (await getUserStore()).users
-  const recipients = users.filter(user => user.active && (user.role === 'Admin' || user.role === 'Accounts'))
-  return notify(payment, 'payment-created', recipients, 'New payment added', paymentSummary(payment), `payment-created:${payment.id}`)
+  if (payment.status === 'Unauthorised') {
+    const recipients = users.filter(user => user.active && user.role === 'Salesperson' && user.id !== creator)
+    const reference = payment.utrReference ? ` • UTR / Reference: ${payment.utrReference}` : ''
+    return notify(payment, 'unauthorised-created', recipients, 'Unauthorised payment available to claim', `${paymentSummary(payment)}${reference}`, `unauthorised-created:${payment.id}`, '/payments?view=unauthorised')
+  }
+  if (!payment.salesOrderNumber || (payment.status !== 'Pending' && payment.status !== 'Payment Received')) return []
+  const recipients = users.filter(user => user.active && user.role === 'Viewer')
+  const title = payment.status === 'Payment Received' ? 'New payment received' : 'New payment added'
+  const body = `${formatPaymentAmount(payment.paymentAmount)} • Sales Order ${payment.salesOrderNumber}`
+  return notify(payment, 'boss-payment-created', recipients, title, body, `boss-payment-created:${payment.id}`)
 }
 
 /** Status events are private to the stable salesperson owner/claimant. */

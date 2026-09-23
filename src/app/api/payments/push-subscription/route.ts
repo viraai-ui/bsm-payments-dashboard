@@ -9,7 +9,7 @@ function validSubscription(value: unknown): value is { endpoint: string; keys: {
   const item = value as { endpoint?: unknown; keys?: { p256dh?: unknown; auth?: unknown } }
   return typeof item.endpoint === 'string' && item.endpoint.startsWith('https://') && typeof item.keys?.p256dh === 'string' && typeof item.keys.auth === 'string'
 }
-const roles = ['Admin', 'Accounts', 'Salesperson'] as const
+const roles = ['Admin', 'Accounts', 'Salesperson', 'Viewer'] as const
 export async function GET() {
   const auth = await requireUser([...roles]); if (!auth.ok) return auth.response
   return apiOk(paymentPushConfiguration())
