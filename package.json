@@ -28,6 +28,8 @@
     "verify:mobile-app": "node scripts/verify-mobile-app.cjs && node scripts/verify-responsive.cjs",
     "verify:zoho-orders": "node --experimental-strip-types scripts/verify-zoho-payment-orders.mjs",
     "verify:payouts-outbox": "tsx scripts/verify-payouts-outbox.mjs",
+    "verify:payment-link-backfill": "node scripts/verify-payment-link-backfill.mjs",
+    "audit:payment-links": "node --env-file=.env.local --experimental-strip-types scripts/payment-link-backfill.mjs",
     "verify:zoho-orders:live": "node --env-file=.env.local --experimental-strip-types scripts/verify-zoho-payment-orders-live.mjs"
   },
   "dependencies": {
