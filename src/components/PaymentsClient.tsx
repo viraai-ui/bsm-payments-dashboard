@@ -1925,13 +1925,27 @@ function Overflow({
           : Math.max(8, r.top - gap - height),
     });
   }, []);
-  const allowed =
-    (role === "Admin" && !p.ownerUserId && p.createdBy === userId) ||
-    (role === "Salesperson" &&
-      p.status === "Pending" &&
-      (p.ownerUserId === userId ||
-        p.claimedBy === userId ||
-        p.createdBy === userId));
+  const canEdit =
+    p.originalPaymentAmount === undefined &&
+    ((role === "Admin" && !p.ownerUserId) ||
+      (role === "Salesperson" &&
+        p.status === "Pending" &&
+        (p.ownerUserId === userId ||
+          p.claimedBy === userId ||
+          p.createdBy === userId)));
+  const canDelete =
+    !p.parentPaymentId &&
+    ((p.status === "Unauthorised" &&
+      (p.allocatedAmount ?? 0) === 0 &&
+      (role === "Admin" || role === "Accounts") &&
+      !p.ownerUserId) ||
+      (p.originalPaymentAmount === undefined &&
+        ((role === "Admin" && !p.ownerUserId) ||
+          (role === "Salesperson" &&
+            p.status === "Pending" &&
+            (p.ownerUserId === userId ||
+              p.claimedBy === userId ||
+              p.createdBy === userId)))));
   useEffect(() => {
     if (!open) return;
     position();
@@ -1961,7 +1975,7 @@ function Overflow({
       removeEventListener("scroll", position, true);
     };
   }, [open, position]);
-  if (!allowed) return null;
+  if (!canEdit && !canDelete) return null;
   return (
     <div
       className="payment-overflow"
@@ -1994,25 +2008,29 @@ function Overflow({
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <button
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                onEdit();
-              }}
-            >
-              Edit
-            </button>
-            <button
-              role="menuitem"
-              className="danger"
-              onClick={() => {
-                setOpen(false);
-                onDelete();
-              }}
-            >
-              Delete
-            </button>
+            {canEdit && (
+              <button
+                role="menuitem"
+                onClick={() => {
+                  setOpen(false);
+                  onEdit();
+                }}
+              >
+                Edit
+              </button>
+            )}
+            {canDelete && (
+              <button
+                role="menuitem"
+                className="danger"
+                onClick={() => {
+                  setOpen(false);
+                  onDelete();
+                }}
+              >
+                Delete
+              </button>
+            )}
           </div>,
           document.body,
         )}

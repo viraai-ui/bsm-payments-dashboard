@@ -15,7 +15,7 @@ export const APP_ROLES: AppRole[] = ['Salesperson', 'Accounts', 'Admin', 'Viewer
 export const ALL_PERMISSIONS: Permission[] = ['payments.view','payments.createLinked','payments.createUnauthorised','payments.approve','payments.claim','payments.edit','payments.delete','users.manage','roles.manage']
 export const DEFAULT_PERMISSIONS: RolePermissions = {
   Salesperson: ['payments.view', 'payments.createLinked', 'payments.claim', 'payments.edit', 'payments.delete'],
-  Accounts: ['payments.view', 'payments.createUnauthorised', 'payments.approve'],
+  Accounts: ['payments.view', 'payments.createUnauthorised', 'payments.approve', 'payments.delete'],
   Admin: [...ALL_PERMISSIONS],
   Viewer: ['payments.view'],
 }
