@@ -1,25 +1,27 @@
 import crypto from 'node:crypto'
+import { updateLocalJson } from './local-store'
 
 const WINDOW_MS = 60_000
-const buckets = new Map<string, { count: number; reset: number }>()
+type RateStore={buckets:Record<string,{count:number;reset:number}>}
 
 function secret() {
   return process.env.PUBLIC_PAYMENT_SECRET || process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'bsm-public-payment-local-only'
 }
 
 export function clientIp(request: Request) {
-  return (request.headers.get('x-forwarded-for')?.split(',')[0] || request.headers.get('x-real-ip') || 'unknown').trim().slice(0, 64)
+  // Vercel supplies this header specifically so applications do not have to
+  // trust the client-controlled x-forwarded-for chain. Outside Vercel we use
+  // one shared bucket unless a future deployment adds an explicitly trusted
+  // proxy integration.
+  const raw=process.env.VERCEL?request.headers.get('x-vercel-forwarded-for'):null
+  const ip=(raw?.split(',')[0]||'unknown').trim();return /^[a-f0-9:.]{1,64}$/i.test(ip)?ip:'unknown'
 }
 
-export function checkRateLimit(request: Request, scope: string, limit: number) {
+export async function checkRateLimit(request: Request, scope: string, limit: number) {
   const now = Date.now()
-  const key = `${scope}:${clientIp(request)}`
-  const current = buckets.get(key)
-  const bucket = !current || current.reset <= now ? { count: 0, reset: now + WINDOW_MS } : current
-  bucket.count += 1
-  buckets.set(key, bucket)
-  if (buckets.size > 2000) for (const [item, value] of buckets) if (value.reset <= now) buckets.delete(item)
-  return { allowed: bucket.count <= limit, retryAfter: Math.max(1, Math.ceil((bucket.reset - now) / 1000)) }
+  const key=crypto.createHash('sha256').update(`${scope}:${clientIp(request)}`).digest('hex'),max=Math.max(1,Math.min(10_000,limit));let bucket={count:1,reset:now+WINDOW_MS}
+  await updateLocalJson<RateStore>('rate-limits.json',{buckets:{}},store=>{const buckets=Object.fromEntries(Object.entries(store.buckets||{}).filter(([,v])=>v.reset>now).slice(-4999)),current=buckets[key];bucket=!current?{count:1,reset:now+WINDOW_MS}:{count:Math.min(current.count+1,max+1),reset:current.reset};buckets[key]=bucket;return{buckets}})
+  return { allowed: bucket.count <= max, retryAfter: Math.max(1, Math.ceil((bucket.reset - now) / 1000)) }
 }
 
 export function sameOrigin(request: Request) {

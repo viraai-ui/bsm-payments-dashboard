@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs'
 import { SignJWT, jwtVerify } from 'jose'
 import { cookies } from 'next/headers'
-import { readLocalJson, updateLocalJson, writeLocalJson } from './local-store'
+import { readAuthoritativeJson, updateLocalJson, writeLocalJson } from './local-store'
 import { authKey, SESSION_COOKIE_NAME, SESSION_MAX_AGE_SECONDS } from './auth-config'
 
 export type AppRole = 'Salesperson' | 'Accounts' | 'Admin' | 'Viewer'
@@ -19,6 +19,7 @@ export const DEFAULT_PERMISSIONS: RolePermissions = {
   Admin: [...ALL_PERMISSIONS],
   Viewer: ['payments.view'],
 }
+const emptyStore=():UserStore=>({users:[],permissions:DEFAULT_PERMISSIONS})
 
 async function initialStore(): Promise<UserStore> {
   const now = new Date().toISOString(), users: AppUser[] = []
@@ -32,19 +33,21 @@ async function initialStore(): Promise<UserStore> {
   return { users, permissions: DEFAULT_PERMISSIONS }
 }
 export async function getUserStore() {
-  let store = await readLocalJson<UserStore | null>(FILE, null)
+  const local=process.env.APP_LOCAL_ONLY==='true'||(!process.env.VERCEL&&process.env.NODE_ENV!=='production')
+  let store = await readAuthoritativeJson<UserStore | null>(FILE, null)
   const hasLegacyRoles = Boolean(store?.users?.some((user) => !isKnownRole(String(user.role))))
-  if (!store || hasLegacyRoles) {
+  if (local && (!store || hasLegacyRoles || !store.users.length)) {
     store = await initialStore()
     await writeLocalJson(FILE, store)
   }
+  if(!store)store=emptyStore()
   // Roles are deliberately fixed in this local application. Older stores used
   // the now-retired `payments.create` permission; never let those persisted
   // arrays shadow the current safe defaults.
   return { ...store, permissions: DEFAULT_PERMISSIONS }
 }
 export async function saveUserStore(store: UserStore) { await writeLocalJson(FILE, store) }
-export async function mutateUserStore(fn: (s: UserStore) => UserStore | Promise<UserStore>) { return updateLocalJson(FILE, await initialStore(), fn) }
+export async function mutateUserStore(fn: (s: UserStore) => UserStore | Promise<UserStore>) { const local=process.env.APP_LOCAL_ONLY==='true'||(!process.env.VERCEL&&process.env.NODE_ENV!=='production');return updateLocalJson(FILE, local?await initialStore():emptyStore(), fn) }
 export function safeUser({ passwordHash: _, ...user }: AppUser): SafeUser { return user }
 export function isKnownRole(role: string): role is AppRole { return APP_ROLES.includes(role as AppRole) }
 export async function hasPermission(user: AppUser, permission: Permission) { const s=await getUserStore(); return s.permissions[user.role]?.includes(permission) || false }
