@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { SafeUser } from '@/lib/auth'
 import { NotificationCenter } from './NotificationCenter'
 
@@ -22,6 +22,9 @@ function PaymentTabIcon({ tab }: { tab: 'overview' | 'all' | 'unauthorised' | 'p
 
 export function MobileMenu({ active, onLogout, user }: { nav: NavItem[]; utilityNav?: NavItem[]; active: string; onLogout: () => void | Promise<void>; readyCount?: number | null; user: SafeUser }) {
   const [accountOpen, setAccountOpen] = useState(false)
+  const accountTriggerRef = useRef<HTMLButtonElement>(null)
+  const accountSheetRef = useRef<HTMLElement>(null)
+  const accountCloseRef = useRef<HTMLButtonElement>(null)
   const [paymentTab, setPaymentTab] = useState<'overview' | 'all' | 'unauthorised' | 'pending'>(user.role === 'Viewer' ? 'overview' : 'all')
   useEffect(() => {
     const changed = (event: Event) => setPaymentTab((event as CustomEvent<'overview' | 'all' | 'unauthorised' | 'pending'>).detail)
@@ -30,11 +33,26 @@ export function MobileMenu({ active, onLogout, user }: { nav: NavItem[]; utility
   }, [])
   useEffect(() => {
     if (!accountOpen) return
+    const background = [...document.querySelectorAll<HTMLElement>('.mobile-appbar, .mobile-bottom-nav, .side, .main')]
+    const previousInert = background.map(element => element.hasAttribute('inert'))
+    background.forEach(element => element.setAttribute('inert', ''))
+    accountCloseRef.current?.focus()
     const close = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setAccountOpen(false)
+      if (event.key === 'Escape') { event.preventDefault(); setAccountOpen(false); return }
+      if (event.key === 'Tab') {
+        const focusable = [...(accountSheetRef.current?.querySelectorAll<HTMLElement>('button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])') ?? [])]
+        if (!focusable.length) { event.preventDefault(); return }
+        const first = focusable[0], last = focusable[focusable.length - 1]
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
+      }
     }
     window.addEventListener('keydown', close)
-    return () => window.removeEventListener('keydown', close)
+    return () => {
+      window.removeEventListener('keydown', close)
+      background.forEach((element, index) => { if (!previousInert[index]) element.removeAttribute('inert') })
+      accountTriggerRef.current?.focus()
+    }
   }, [accountOpen])
   const destinations = user.role === 'Viewer'
     ? ([['overview', 'Overview'], ['all', 'Regular Payments'], ['pending', 'Pending']] as const)
@@ -54,14 +72,14 @@ export function MobileMenu({ active, onLogout, user }: { nav: NavItem[]; utility
       </a>
       <div className="mobile-app-actions">
         <NotificationCenter />
-        <button className="mobile-avatar" type="button" aria-label="Open account menu" aria-expanded={accountOpen} onClick={() => setAccountOpen(true)}>{(user.name || user.email || user.role).slice(0,2).toUpperCase()}</button>
+        <button ref={accountTriggerRef} className="mobile-avatar" type="button" aria-label="Open account menu" aria-expanded={accountOpen} aria-controls="mobile-account-sheet" onClick={() => setAccountOpen(true)}>{(user.name || user.email || user.role).slice(0,2).toUpperCase()}</button>
       </div>
     </header>
     {accountOpen && <div className="mobile-sheet-layer" role="presentation" onClick={() => setAccountOpen(false)}>
-      <section className="mobile-account-sheet" role="dialog" aria-modal="true" aria-label="Account" onClick={e => e.stopPropagation()}>
-        <div className="sheet-handle"/><button className="mobile-sheet-close" type="button" aria-label="Close account menu" onClick={() => setAccountOpen(false)}>×</button><header><div className="account-avatar">{(user.name || user.role).slice(0,2).toUpperCase()}</div><div><strong>{user.name || user.role}</strong><span>{user.email}</span></div></header><p>{user.role}</p>
+      <section ref={accountSheetRef} id="mobile-account-sheet" className="mobile-account-sheet" role="dialog" aria-modal="true" aria-label="Account" onClick={e => e.stopPropagation()}>
+        <div className="sheet-handle"/><button ref={accountCloseRef} className="mobile-sheet-close" type="button" aria-label="Close account menu" onClick={() => setAccountOpen(false)}>×</button><header><div className="account-avatar">{(user.name || user.role).slice(0,2).toUpperCase()}</div><div><strong>{user.name || user.role}</strong><span>{user.email}</span></div></header><p>{user.role}</p>
         <div className="account-sheet-actions">
-          {user.role === 'Admin' && <a href="/settings" className="account-settings-link"><NavIcon icon="settings"/><span>Settings</span><b aria-hidden="true">›</b></a>}
+          {user.role === 'Admin' && <a href="/settings" className="account-settings-link" onClick={() => setAccountOpen(false)}><NavIcon icon="settings"/><span>Settings</span><b aria-hidden="true">›</b></a>}
           <button className="account-logout" type="button" onClick={() => void onLogout()}>Log out</button>
         </div>
       </section>

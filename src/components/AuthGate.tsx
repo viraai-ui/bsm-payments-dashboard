@@ -56,12 +56,9 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       const response = await fetch('/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ login, password }) })
       const json = await response.json().catch(() => ({}))
       if (!response.ok || !json.ok) throw new Error(json.error || 'Invalid login')
-      setUser(json.user)
-      // Login changes the server's view of this request. A replace by itself can
-      // reuse the anonymous RSC payload, so force its role/id/data to hydrate
-      // again from the newly-set HttpOnly session cookie.
-      router.replace(homeForRole(json.user.role))
-      router.refresh()
+      // Login changes the server's view of the route. A hard replacement avoids
+      // racing an anonymous RSC payload against the newly-set HttpOnly cookie.
+      window.location.replace(homeForRole(json.user.role))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Invalid login')
     } finally { setSubmitting(false) }
