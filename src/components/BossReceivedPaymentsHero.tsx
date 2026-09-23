@@ -7,9 +7,9 @@ import { receivedPaymentsByPeriod, type ReceivedPeriod } from "@/lib/viewer-paym
 const PERIODS: ReceivedPeriod[] = ["day", "week", "month"];
 const PERIOD_NAMES: Record<ReceivedPeriod, string> = { day: "Day", week: "Week", month: "Month" };
 const LABELS: Record<ReceivedPeriod, string> = {
-  day: "Payments received today",
-  week: "Payments received this week",
-  month: "Payments received this month",
+  day: "Payments added today",
+  week: "Payments added this week",
+  month: "Payments added this month",
 };
 const money = (paise: number) => new Intl.NumberFormat("en-IN", {
   style: "currency", currency: "INR", minimumFractionDigits: 0, maximumFractionDigits: 0,
@@ -50,7 +50,7 @@ export function BossReceivedPaymentsHero({ payments }: { payments: Payment[] }) 
         <time dateTime={now.toISOString().slice(0, 10)}>{support}</time>
       </div>
     </div>
-    <div className="boss-period-tabs" role="tablist" aria-label="Received payments period">
+    <div className="boss-period-tabs" role="tablist" aria-label="Payments added period">
       {PERIODS.map(item => <button key={item} id={`boss-period-${item}`} type="button" role="tab"
         aria-selected={period === item} aria-controls="boss-received-panel" tabIndex={period === item ? 0 : -1}
         onClick={() => setPeriod(item)}>{PERIOD_NAMES[item]}</button>)}

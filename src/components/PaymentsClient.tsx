@@ -20,18 +20,19 @@ import {
   pendingOrderSummaries,
   sortPayments,
 } from "@/lib/payment-settlement";
-import { viewerPaymentMetrics } from "@/lib/viewer-payment-metrics";
+import { pendingPeriodSummary, viewerPaymentMetrics, viewerRegularSummary } from "@/lib/viewer-payment-metrics";
 import {
   PaymentProofViewer,
   type ViewerProof,
 } from "@/components/PaymentProofViewer";
 import { NotificationCenter } from "@/components/NotificationCenter";
 import { BossReceivedPaymentsHero } from "@/components/BossReceivedPaymentsHero";
+import { BossMobileOverview } from "@/components/BossMobileOverview";
 import { normalizePaymentAmountInput } from "@/lib/payment-amount";
 import { managementPaymentMetrics } from "@/lib/management-payment-metrics";
 import { mergePaymentSnapshot } from "@/lib/payment-live-sync";
 
-type Tab = "all" | "unauthorised" | "pending";
+type Tab = "overview" | "all" | "unauthorised" | "pending";
 type PendingView = "grid" | "list";
 type PayoutSyncState = { eventId: string; status: "pending" | "synced" | "failed" | "manual_review" };
 type Order = {
@@ -222,7 +223,8 @@ export function PaymentsClient({
     setFilters((current) => ({ ...current, status: statusFilter ?? (next === "all" ? current.status : "") }));
     if (history !== "none") {
       const url = new URL(window.location.href);
-      if (next === "all") url.searchParams.delete("view");
+      if (next === "overview") url.searchParams.delete("view");
+      else if (next === "all") url.searchParams.set("view", "regular");
       else url.searchParams.set("view", next);
       if (statusFilter) url.searchParams.set("status", statusFilter);
       else if (next !== "all" || statusFilter === "") url.searchParams.delete("status");
@@ -235,6 +237,8 @@ export function PaymentsClient({
     const fromUrl = (): Tab => {
       const value = new URL(window.location.href).searchParams.get("view");
       if (value === "pending") return "pending";
+      if (value === "regular") return "all";
+      if (!value && userRole === "Viewer" && window.matchMedia("(max-width: 1180px)").matches) return "overview";
       if (value === "unauthorised" && userRole !== "Viewer") return "unauthorised";
       return "all";
     };
@@ -310,11 +314,14 @@ export function PaymentsClient({
     [payments, search, tab, filters, summaries, userRole],
   );
   const counts = {
+    overview: payments.filter((p) => p.status !== "Void").length,
     all: payments.filter((p) => p.status !== "Unauthorised").length,
     unauthorised: payments.filter((p) => p.status === "Unauthorised" && (p.remainingAmount ?? p.paymentAmount) > 0).length,
     pending: pending.length,
   };
   const metrics = useMemo(() => viewerPaymentMetrics(payments), [payments]);
+  const regularSummary = useMemo(() => viewerRegularSummary(payments), [payments]);
+  const pendingSummary = useMemo(() => pendingPeriodSummary(payments), [payments]);
   const managementMetrics = useMemo(() => managementPaymentMetrics(payments), [payments]);
   const activeFilters = Object.values(filters).filter(Boolean).length;
   function selectOrder(order: Order, target: "add" | "claim") {
@@ -550,7 +557,7 @@ export function PaymentsClient({
   }
   const openProof = (p: Payment) => setViewer(proofsFor(p));
   return (
-    <section className="payments-page ledger-page">
+    <section className={`payments-page ledger-page ${userRole === "Viewer" && tab === "overview" ? "viewer-overview-active" : ""}`}>
       <header className="payments-header">
         <div>
           <h1><span className="mobile-heading-copy">Payments</span><span className="sr-only mobile-semantic-heading">Payments</span></h1>
@@ -569,8 +576,9 @@ export function PaymentsClient({
           </div>
         )}
       </header>
-      {userRole === "Viewer" && <BossReceivedPaymentsHero payments={payments} />}
-      {userRole === "Viewer" && (
+      {userRole === "Viewer" && tab === "overview" && <BossMobileOverview payments={payments} />}
+      {userRole === "Viewer" && <div className="viewer-desktop-hero"><BossReceivedPaymentsHero payments={payments} /></div>}
+      {userRole === "Viewer" && tab !== "overview" && (
         <div className="viewer-metrics" aria-label="Payment summary">
           {metrics.map((m) => (
             <article className="viewer-metric" key={m.label}>
@@ -583,6 +591,14 @@ export function PaymentsClient({
           ))}
         </div>
       )}
+      {userRole === "Viewer" && tab === "all" && <div className="viewer-regular-insights" aria-label="Regular payment summary">
+        <article><span>Total Payments</span><strong>{money(regularSummary.total.amountPaise/100)}</strong><small>{regularSummary.total.count} receipts</small></article>
+        <article><span>Confirmation</span><div><b>Received</b><strong>{money(regularSummary.received.amountPaise/100)}</strong><small>{regularSummary.received.count}</small></div><div><b>Not Confirmed</b><strong>{money(regularSummary.notConfirmed.amountPaise/100)}</strong><small>{regularSummary.notConfirmed.count}</small></div></article>
+      </div>}
+      {userRole === "Viewer" && tab === "pending" && <div className="viewer-pending-insights" aria-label="Pending receipt summary">
+        <article><span>Pending receipts this week</span><strong>{money(pendingSummary.week.amountPaise/100)}</strong><small>{pendingSummary.week.count} receipts</small></article>
+        <article><span>Pending receipts this month</span><strong>{money(pendingSummary.month.amountPaise/100)}</strong><small>{pendingSummary.month.count} receipts</small></article>
+      </div>}
       {userRole !== "Viewer" && (
         <div className="management-metrics" aria-label="Payment management summary">
           {managementMetrics.map((metric) => {
