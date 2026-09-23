@@ -31,6 +31,9 @@ export async function removePaymentPushSubscription(userId: string, endpoint: st
 }
 
 /** Sends only to subscriptions owned by the exact server-selected recipients. */
+export function isPaymentPushEligible(notification: Pick<PaymentNotification, 'recipientUserId' | 'recipientRole'>, subscription: Pick<StoredPushSubscription, 'userId' | 'role'>) {
+  return subscription.userId === notification.recipientUserId && subscription.role === notification.recipientRole
+}
 export async function sendPaymentPushNotifications(notifications: PaymentNotification[]) {
   const config = paymentPushConfiguration()
   if (!config.configured) return { sent: 0, configured: false }
@@ -39,7 +42,7 @@ export async function sendPaymentPushNotifications(notifications: PaymentNotific
   const dead = new Set<string>()
   let sent = 0
   await Promise.allSettled(notifications.flatMap(notification => store.subscriptions
-    .filter(subscription => subscription.userId === notification.recipientUserId && subscription.role === notification.recipientRole)
+    .filter(subscription => isPaymentPushEligible(notification, subscription))
     .map(async subscription => {
       try {
         await webpush.sendNotification(subscription, JSON.stringify({

@@ -33,7 +33,6 @@ export function NotificationOnboarding({ user }: { user: SafeUser }) {
   const [state, setState] = useState<State>('hidden')
   const [detail, setDetail] = useState('')
   useEffect(() => {
-    if (user.role === 'Viewer') return
     const cap = capability()
     if (!cap.supported) return
     const stored = JSON.parse(localStorage.getItem(key(user.id)) || '{}') as { granted?: boolean; denied?: boolean; nextPromptAt?: number; dismissals?: number }
