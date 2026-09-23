@@ -13,6 +13,7 @@ export const STATUS_IDS = [
 ]
 export const COMPETENCE_ID = 'payment-e80749e8-4090-446c-b03b-4d816dbd3638'
 const GREAT_INDIA_ID = 'payment-ce5bdbec-f3fc-49b8-8dcd-ab348ca052c4'
+const OWNER_IDS = { shivani:'u-sales5', deepak:'u-sales3', ram:'u-sales2', karan:'u-sales4' }
 const stable = value => JSON.stringify(value)
 const date = value => String(value || '').slice(0, 10)
 const norm = value => String(value || '').trim().toUpperCase()
@@ -33,7 +34,20 @@ function statusAudit(payment, from, source, sourceSha) {
   return [...existing,{id,type:'status_changed',actor:'final-dispatch-sync',at:source.updatedAt,from,to:'Payment Received',reason:`Final incremental sync from bsm-dispatch-dashboard ${sourceSha}`}]
 }
 function importAudit(payment, sourceSha, to) {
-  return [{id:auditId('import',payment.id,sourceSha),type:'created',actor:'final-dispatch-sync',at:payment.createdAt,to,reason:`Final incremental sync from bsm-dispatch-dashboard ${sourceSha}`}]
+  const existing=Array.isArray(payment.audit)?payment.audit:[], id=auditId('import',payment.id,sourceSha)
+  return existing.some(item=>item.id===id)?existing:[...existing,{id,type:'created',actor:'final-dispatch-sync',at:payment.createdAt,to,reason:`Final incremental sync from bsm-dispatch-dashboard ${sourceSha}`}]
+}
+function unauthorisedAudit(payment, sourceSha) {
+  const existing=importAudit(payment,sourceSha,payment.status),id=auditId('unlinked',payment.id,sourceSha)
+  return existing.some(item=>item.id===id)?existing:[...existing,{id,type:'status_changed',actor:'final-dispatch-sync',at:payment.updatedAt||payment.createdAt,from:payment.status,to:'Unauthorised',reason:'Final sync: receipt has no asserted Sales Order and must remain claimable'}]
+}
+function normalizeImported(payment) {
+  const attachments=[],seen=new Set(),add=item=>{if(!item)return;const identity=item.key||item.url;if(!identity||seen.has(identity))return;seen.add(identity);attachments.push({...item})}
+  for(const item of payment.attachments||[])add(item)
+  if((payment.screenshotKey||payment.screenshotUrl)&&!attachments.some(item=>(payment.screenshotKey&&item.key===payment.screenshotKey)||(payment.screenshotUrl&&item.url===payment.screenshotUrl)))add({key:payment.screenshotKey||payment.screenshotUrl,url:payment.screenshotUrl||'',name:payment.screenshotName||'proof',contentType:'application/octet-stream',size:0})
+  const ownerUserId=OWNER_IDS[String(payment.addedBy||'').trim().toLowerCase()]
+  if(!ownerUserId)throw new Error(`${payment.id}: no reviewed owner mapping for ${payment.addedBy||''}`)
+  return {...payment,paymentDate:date(payment.createdAt),attachments,ownerUserId}
 }
 function enrich(payment, order) {
   return {...payment,salesOrderId:String(order.id),salesOrderNumber:String(order.salesOrderNumber).trim(),orderTotal:total(order),salesOrderDate:date(order.orderDate),customerName:String(order.customerName).trim()}
@@ -54,10 +68,10 @@ export function buildFinalDispatchSync(targetStore, sourceStore, orders, sourceS
   let output=structuredClone(targetStore), changed=0, outById
   if(!alreadyApplied){
   for(const id of SOURCE_ONLY_IDS){
-    let payment=structuredClone(sourceById.get(id))
+    let payment=normalizeImported(structuredClone(sourceById.get(id)))
     if(id===GREAT_INDIA_ID){
       if(payment.salesOrderId||payment.salesOrderNumber)throw new Error('Great India must remain unlinked')
-      payment.status='Unauthorised';payment.audit=importAudit(payment,sourceSha,'Unauthorised')
+      payment.audit=unauthorisedAudit(payment,sourceSha);payment.status='Unauthorised'
     }else{
       const matches=byNumber.get(norm(payment.salesOrderNumber))||[]
       if(matches.length!==1)throw new Error(`${id}: expected one authoritative Zoho order, got ${matches.length}`)
@@ -76,7 +90,10 @@ export function buildFinalDispatchSync(targetStore, sourceStore, orders, sourceS
   validateUnique(output.payments,'output')
   const orderTotals=new Map(orders.map(o=>[norm(o.salesOrderNumber),total(o)])), paid=new Map()
   for(const p of output.payments)if(p.status!=='Void'&&p.salesOrderId&&p.salesOrderNumber)paid.set(norm(p.salesOrderNumber),(paid.get(norm(p.salesOrderNumber))||0)+Number(p.paymentAmount||0))
-  for(const [number,amount] of paid)if(!orderTotals.has(number)||amount>orderTotals.get(number))throw new Error(`${number}: aggregate payment ${amount} exceeds/misses authoritative total ${orderTotals.get(number)}`)
+  // Historical stores contain reviewed legacy overpayments. This cut-over must
+  // not broaden them, but it must fail closed for every newly inserted order.
+  const insertedOrderNumbers=SOURCE_ONLY_IDS.filter(id=>id!==GREAT_INDIA_ID).map(id=>norm(sourceById.get(id).salesOrderNumber))
+  for(const number of insertedOrderNumbers){const amount=paid.get(number)||0;if(!orderTotals.has(number)||amount>orderTotals.get(number))throw new Error(`${number}: aggregate payment ${amount} exceeds/misses authoritative total ${orderTotals.get(number)}`)}
   const linked=output.payments.filter(p=>p.salesOrderId&&p.salesOrderNumber).length
   if(output.payments.some(p=>Boolean(p.salesOrderId)!==Boolean(p.salesOrderNumber)))throw new Error('Half-linked payment detected')
   const statuses=Object.fromEntries(['Payment Received','Pending','Unauthorised'].map(s=>[s,output.payments.filter(p=>p.status===s).length]))

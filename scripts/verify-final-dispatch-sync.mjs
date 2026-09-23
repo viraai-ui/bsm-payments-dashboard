@@ -19,7 +19,8 @@ const additions=[
  {id:SOURCE_ONLY_IDS[2],customerName:'Great India'},
  {id:SOURCE_ONLY_IDS[3],customerName:'AIRCITY SHOES PRIVATE LIMITED',salesOrderNumber:'SO-08017'},
 ]
-for(const [i,p] of additions.entries()){source.payments.push({...p,idempotencyKey:`new-key-${i}`,paymentAmount:10,paymentMode:'Bank Transfer',addedBy:'Fixture',remarks:'proof',attachments:[{key:`new-proof-${i}`}],ownerUserId:'owner-new',paymentDate:'2026-09-23',status:'Payment Received',createdAt:'2026-09-23T09:00:00.000Z',updatedAt:'2026-09-23T12:00:00.000Z'});if(p.salesOrderNumber)orders.push({id:`new-order-${i}`,salesOrderNumber:p.salesOrderNumber,customerName:p.customerName,total:100,orderTotal:100,orderDate:'2026-09-23',currency:'INR'})}
+const ownerNames=['Shivani','Deepak','Ram','Karan']
+for(const [i,p] of additions.entries()){source.payments.push({...p,idempotencyKey:`new-key-${i}`,paymentAmount:10,paymentMode:'Bank Transfer',addedBy:ownerNames[i],remarks:'proof',attachments:[{key:`new-proof-${i}`}],status:'Payment Received',createdAt:'2026-09-23T09:00:00.000Z',updatedAt:'2026-09-23T12:00:00.000Z'});if(p.salesOrderNumber)orders.push({id:`new-order-${i}`,salesOrderNumber:p.salesOrderNumber,customerName:p.customerName,total:100,orderTotal:100,orderDate:'2026-09-23',currency:'INR'})}
 const beforeCompetence=JSON.stringify(competence), preserved=structuredClone(rows.find(r=>r.id===STATUS_IDS[0]))
 const first=buildFinalDispatchSync(target,source,orders,sourceSha)
 assert.deepEqual(first.report,{changed:7,payments:110,linked:97,unlinked:13,statuses:{'Payment Received':95,Pending:2,Unauthorised:13},sourceOnly:SOURCE_ONLY_IDS,sourceNewer:[...STATUS_IDS,COMPETENCE_ID]})
