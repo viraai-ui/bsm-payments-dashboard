@@ -2147,7 +2147,7 @@ function PendingList({
               <dt>Order total</dt>
               <dd>{money(s.orderTotal)}</dd>
             </div>
-            <div>
+            <div className="pending-outstanding">
               <dt>Outstanding</dt>
               <dd>{money(s.outstanding)}</dd>
             </div>
