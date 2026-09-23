@@ -26,6 +26,7 @@ import {
   type ViewerProof,
 } from "@/components/PaymentProofViewer";
 import { NotificationCenter } from "@/components/NotificationCenter";
+import { BossReceivedPaymentsHero } from "@/components/BossReceivedPaymentsHero";
 import { normalizePaymentAmountInput } from "@/lib/payment-amount";
 import { managementPaymentMetrics } from "@/lib/management-payment-metrics";
 import { mergePaymentSnapshot } from "@/lib/payment-live-sync";
@@ -568,6 +569,7 @@ export function PaymentsClient({
           </div>
         )}
       </header>
+      {userRole === "Viewer" && <BossReceivedPaymentsHero payments={payments} />}
       {userRole === "Viewer" && (
         <div className="viewer-metrics" aria-label="Payment summary">
           {metrics.map((m) => (

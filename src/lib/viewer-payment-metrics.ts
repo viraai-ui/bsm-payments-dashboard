@@ -1,11 +1,31 @@
 import type { Payment } from './payments'
 export type ViewerMetric = { label: string; amount: number; count: number }
+export type ReceivedPeriod = 'day' | 'week' | 'month'
+export type ReceivedPeriodMetric = { amountPaise: number; count: number; start: Date }
 export function localDateKey(value: string | Date): string {
   if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value
   const date = value instanceof Date ? value : new Date(value)
   if (Number.isNaN(date.getTime())) return ''
   return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`
 }
+export function receivedPaymentsByPeriod(payments: Payment[], period: ReceivedPeriod, now = new Date()): ReceivedPeriodMetric {
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const start = new Date(end)
+  if (period === 'week') start.setDate(start.getDate() - ((start.getDay() + 6) % 7))
+  if (period === 'month') start.setDate(1)
+  const startKey = localDateKey(start), endKey = localDateKey(end)
+  const matching = payments.filter(payment => {
+    if (payment.status !== 'Payment Received') return false
+    const key = localDateKey(payment.paymentDate || payment.createdAt)
+    return key >= startKey && key <= endKey
+  })
+  return {
+    amountPaise: matching.reduce((sum, payment) => sum + Math.round(payment.paymentAmount * 100), 0),
+    count: matching.length,
+    start,
+  }
+}
+
 export function viewerPaymentMetrics(payments: Payment[], now = new Date()): ViewerMetric[] {
   const today = localDateKey(now), monday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7))
