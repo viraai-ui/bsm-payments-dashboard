@@ -29,7 +29,8 @@ export function orderSummary(payments:SettlementPayment[], so:string, orderTotal
   // Match either immutable Zoho id or normalized SO number. A receipt is visited
   // once by filter even if both identifiers match, preventing double counting.
   const linked=payments.filter(p=>(Boolean(salesOrderId)&&p.salesOrderId===salesOrderId)||sameOrder(p.salesOrderNumber,so))
-  const storedTotal=linked.find(p=>p.orderTotal!==undefined)?.orderTotal
+  // Storage order is not authoritative: legacy rows may carry old snapshots.
+  const storedTotal=[...linked].filter(p=>p.orderTotal!==undefined).sort((a,b)=>(b.createdAt||b.paymentDate||'').localeCompare(a.createdAt||a.paymentDate||'')||(b.id||'').localeCompare(a.id||''))[0]?.orderTotal
   // Explicit orderTotal is authoritative Zoho data; persisted totals are fallback only.
   const total=orderTotal??storedTotal
   const salesOrderDate=linked.find(p=>p.salesOrderDate)?.salesOrderDate

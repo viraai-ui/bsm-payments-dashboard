@@ -1,5 +1,5 @@
 const {spawn}=require('node:child_process'),assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path')
-const root=path.resolve(__dirname,'..'),data=path.join(root,'data'),port=process.env.TEST_PORT||'3200',base=`http://127.0.0.1:${port}`,files=['payments.json','payment-notifications.json','payment-tombstones.json','auth-users-store.json'],backups=new Map(),sleep=ms=>new Promise(r=>setTimeout(r,ms));let server
+const root=path.resolve(__dirname,'..'),data=path.join(root,'data'),port=process.env.TEST_PORT||'3200',base=`http://127.0.0.1:${port}`,files=['payments.json','payment-notifications.json','payment-tombstones.json','payments-payouts-outbox.json','auth-users-store.json'],backups=new Map(),sleep=ms=>new Promise(r=>setTimeout(r,ms));let server
 async function wait(){for(let i=0;i<60;i++){try{if((await fetch(base)).ok)return}catch{}await sleep(200)}throw Error('server did not start')}
 async function login(name,password){const r=await fetch(base+'/api/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({login:name,password})});assert.equal(r.status,200,`${name} login`);return r.headers.getSetCookie()[0].split(';')[0]}
 const png=(size=1153434)=>new File([Uint8Array.from([137,80,78,71,13,10,26,10]),new Uint8Array(Math.max(0,size-8))],'proof.png',{type:'image/png'})
