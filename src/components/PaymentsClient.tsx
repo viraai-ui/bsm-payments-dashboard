@@ -592,8 +592,7 @@ export function PaymentsClient({
         </div>
       )}
       {userRole === "Viewer" && tab === "all" && <div className="viewer-regular-insights" aria-label="Regular payment summary">
-        <article><span>Total Payments</span><strong>{money(regularSummary.total.amountPaise/100)}</strong><small>{regularSummary.total.count} receipts</small></article>
-        <article><span>Confirmation</span><div><b>Received</b><strong>{money(regularSummary.received.amountPaise/100)}</strong><small>{regularSummary.received.count}</small></div><div><b>Not Confirmed</b><strong>{money(regularSummary.notConfirmed.amountPaise/100)}</strong><small>{regularSummary.notConfirmed.count}</small></div></article>
+        <article><div><b>Received</b><strong>{money(regularSummary.received.amountPaise/100)}</strong><small>{regularSummary.received.count}</small></div><div><b>Not Confirmed</b><strong>{money(regularSummary.notConfirmed.amountPaise/100)}</strong><small>{regularSummary.notConfirmed.count}</small></div></article>
       </div>}
       {userRole === "Viewer" && tab === "pending" && <div className="viewer-pending-insights" aria-label="Pending receipt summary">
         <article><span>Pending receipts this week</span><strong>{money(pendingSummary.week.amountPaise/100)}</strong><small>{pendingSummary.week.count} receipts</small></article>
