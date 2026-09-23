@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 function validSubscription(value: unknown): value is { endpoint: string; keys: { p256dh: string; auth: string } } {
   if (!value || typeof value !== 'object') return false
   const item = value as { endpoint?: unknown; keys?: { p256dh?: unknown; auth?: unknown } }
-  return typeof item.endpoint === 'string' && item.endpoint.startsWith('https://') && typeof item.keys?.p256dh === 'string' && typeof item.keys.auth === 'string'
+  return typeof item.endpoint === 'string' && item.endpoint.length<=2048 && item.endpoint.startsWith('https://') && typeof item.keys?.p256dh === 'string' && item.keys.p256dh.length>=32 && item.keys.p256dh.length<=256 && typeof item.keys.auth === 'string' && item.keys.auth.length>=8 && item.keys.auth.length<=128
 }
 const roles = ['Admin', 'Accounts', 'Salesperson', 'Viewer'] as const
 export async function GET() {

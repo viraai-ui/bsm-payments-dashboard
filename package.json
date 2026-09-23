@@ -15,6 +15,7 @@
     "verify:proofs": "node scripts/verify-payment-proofs.cjs",
     "verify:github-store": "node --experimental-strip-types scripts/verify-github-data-store.mjs",
     "verify:data-cache": "tsx scripts/verify-data-cache.mjs",
+    "verify:security": "tsx scripts/verify-security.mts",
     "verify:viewer-metrics": "node scripts/verify-viewer-metrics.cjs",
     "verify:payment-actions": "node scripts/verify-payment-actions.cjs",
     "verify:split-claims": "tsx scripts/verify-split-claims.mts",
@@ -36,18 +37,18 @@
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
-    "@prisma/client": "^6.19.0",
     "@types/web-push": "^3.6.4",
     "bcryptjs": "latest",
     "clsx": "latest",
     "date-fns": "latest",
     "jose": "latest",
     "jspdf": "^4.2.1",
-    "next": "^16.3.1",
+    "next": "^16.3.6",
     "pg": "^8.23.0",
     "qrcode": "latest",
     "react": "latest",
     "react-dom": "latest",
+    "sharp": "^0.35.4",
     "web-push": "^3.6.7",
     "zod": "latest"
   },
@@ -58,7 +59,6 @@
     "@types/qrcode": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
-    "prisma": "^6.19.0",
     "tsx": "^4.23.13",
     "typescript": "^5.9.3"
   }
