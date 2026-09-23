@@ -1904,7 +1904,7 @@ function MobileCard({
       <header>
         <div>
           <strong className="viewer-card-company">{p.customerName}</strong>
-          <span className="mobile-reference">{p.salesOrderNumber ? `SO ${p.salesOrderNumber}` : p.utrReference ? `UTR ${p.utrReference}` : "Unlinked receipt"}</span>
+          <span className="mobile-reference">{p.salesOrderNumber || (p.utrReference ? `UTR ${p.utrReference}` : "Unlinked receipt")}</span>
         </div>
         <Overflow
           p={p}
