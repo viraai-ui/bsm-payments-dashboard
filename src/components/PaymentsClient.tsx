@@ -594,9 +594,9 @@ export function PaymentsClient({
       {userRole === "Viewer" && tab === "all" && <div className="viewer-regular-insights" aria-label="Regular payment summary">
         <article><div><b>Received</b><strong>{money(regularSummary.received.amountPaise/100)}</strong><small>{regularSummary.received.count}</small></div><div><b>Not Confirmed</b><strong>{money(regularSummary.notConfirmed.amountPaise/100)}</strong><small>{regularSummary.notConfirmed.count}</small></div></article>
       </div>}
-      {userRole === "Viewer" && tab === "pending" && <div className="viewer-pending-insights" aria-label="Pending receipt summary">
-        <article><span>Pending receipts this week</span><strong>{money(pendingSummary.week.amountPaise/100)}</strong><small>{pendingSummary.week.count} receipts</small></article>
-        <article><span>Pending receipts this month</span><strong>{money(pendingSummary.month.amountPaise/100)}</strong><small>{pendingSummary.month.count} receipts</small></article>
+      {userRole === "Viewer" && tab === "pending" && <div className="viewer-pending-insights" aria-label="Pending payment summary">
+        <article><span>Pending this week</span><strong>{money(pendingSummary.week.amountPaise/100)}</strong><small>{pendingSummary.week.count}</small></article>
+        <article><span>Pending this month</span><strong>{money(pendingSummary.month.amountPaise/100)}</strong><small>{pendingSummary.month.count}</small></article>
       </div>}
       {userRole !== "Viewer" && (
         <div className="management-metrics" aria-label="Payment management summary">
