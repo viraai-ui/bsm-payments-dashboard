@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import styles from './submit-payment.module.css'
 import { normalizePaymentScreenshotFile } from '@/lib/payment-screenshot'
+import { PAYMENT_PROOF_ACCEPT, normalizePaymentProofFiles, removePaymentProofFile } from '@/lib/payment-proof-files'
 import { PaymentProofViewer, type ViewerProof } from '@/components/PaymentProofViewer'
 import { isValidPaymentAmount, normalizePaymentAmountInput } from '@/lib/payment-amount'
 const PAYMENT_ADDED_BY_USERS = ['Sales One','Sales Two','Sales Three','Sales Four','Sales Five','Accounts','Admin'] as const
@@ -114,8 +115,13 @@ export default function PublicPaymentForm() {
     try {
       if (!candidates.length) throw new Error('Folders cannot be attached. Choose images or PDFs.')
       const normalized = candidates.map(normalizePaymentScreenshotFile)
-      setFiles((current) => { const keys = new Set(current.map((file) => `${file.name}:${file.size}:${file.lastModified}`)); const additions = normalized.filter((file) => !keys.has(`${file.name}:${file.size}:${file.lastModified}`)); if (current.length + additions.length > 5) { setError('You can attach up to 5 files.'); return current } return [...current, ...additions] })
-      setError(''); setFileAnnouncement(`${normalized.length} file${normalized.length === 1 ? '' : 's'} attached.`)
+      setFiles((current) => {
+        const result = normalizePaymentProofFiles(current, normalized, 'append')
+        setError(result.error)
+        const added = result.files.length - current.length
+        setFileAnnouncement(result.error || `${added} file${added === 1 ? '' : 's'} attached.`)
+        return result.files
+      })
       if (fileInputRef.current) fileInputRef.current.value = ''
       return true
     } catch (cause) {
@@ -123,6 +129,12 @@ export default function PublicPaymentForm() {
       if (fileInputRef.current) fileInputRef.current.value = ''
       setError(message); setFileAnnouncement(message); return false
     }
+  }, [])
+
+  const removeProof = useCallback((index: number, name: string) => {
+    setFiles((current) => removePaymentProofFile(current, index))
+    setError(''); setFileAnnouncement(`${name} removed.`)
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }, [])
 
   useEffect(() => {
@@ -276,7 +288,7 @@ export default function PublicPaymentForm() {
         <label htmlFor="amount">Payment Amount<span>*</span></label><div className={styles.amount}><b>₹</b><input id="amount" type="text" inputMode="decimal" pattern="[0-9]+(?:[.][0-9]{1,2})?" autoComplete="off" value={amount} onChange={(e) => setAmount(normalizePaymentAmountInput(e.target.value))} placeholder="0.00" /></div>
         <label htmlFor="mode">Payment Mode<span>*</span></label><select id="mode" value={mode} onChange={(e) => setMode(e.target.value)}><option value="">Select payment mode</option>{['Bank Transfer', 'UPI', 'Cash', 'Credit Card', 'Debit Card', 'Other'].map((item) => <option key={item}>{item}</option>)}</select>
         <label htmlFor="added-by">Added by<span>*</span></label><div className={styles.selectWrap}><select id="added-by" required value={addedBy} onChange={(e) => setAddedBy(e.target.value as PaymentAddedBy | '')}><option value="">Select user</option>{PAYMENT_ADDED_BY_USERS.map((user) => <option key={user} value={user}>{user}</option>)}</select></div>
-        <label htmlFor="shot">Proof (optional, up to 5)</label><label className={`${styles.upload} ${files.length ? styles.uploadSuccess : ''}`} htmlFor="shot"><b>{files.length ? `✓ ${files.length}/5 selected` : 'Add images or PDFs'}</b><small>Up to 5 images or PDFs • 10 MB each</small></label><input ref={fileInputRef} className={styles.file} id="shot" type="file" multiple accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.pdf" onChange={(e) => attachPaymentProof(Array.from(e.target.files || []))} />{files.length > 0 && <div className={styles.fileQueue}>{files.map((item, index) => <div key={`${item.name}-${item.size}-${item.lastModified}`}><span title={item.name}>{item.name} · {(item.size / 1048576).toFixed(1)} MB</span><button type="button" aria-label={`Remove ${item.name}`} onClick={() => setFiles((current) => current.filter((_, itemIndex) => itemIndex !== index))}>×</button></div>)}</div>}
+        <label htmlFor="shot">Proof (optional, up to 5)</label><label className={`${styles.upload} ${files.length ? styles.uploadSuccess : ''}`} htmlFor="shot"><b>{files.length ? `✓ ${files.length}/5 selected` : 'Add images or PDFs'}</b><small>Up to 5 images or PDFs • 10 MB each</small></label><input ref={fileInputRef} className={styles.file} id="shot" type="file" multiple accept={PAYMENT_PROOF_ACCEPT} onChange={(e) => attachPaymentProof(Array.from(e.target.files || []))} />{files.length > 0 && <div className={styles.fileQueue}>{files.map((item, index) => <div key={`${item.name}-${item.size}-${item.lastModified}`}><span title={item.name}>{item.name} · {(item.size / 1048576).toFixed(1)} MB</span><button type="button" aria-label={`Remove ${item.name}`} onClick={() => removeProof(index, item.name)}><span aria-hidden="true">×</span></button></div>)}</div>}
         <label htmlFor="remarks">Remarks <em>Optional</em></label><textarea id="remarks" maxLength={500} rows={3} value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Add any payment details or notes…" />{remarks.length >= 400 && <small>{remarks.length}/500</small>}
         <input className={styles.trap} name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" />{error && <p className={styles.error} role="alert">{error}</p>}<div className={styles.actions}><button type="button" className={styles.cancel} onClick={close}>Cancel</button><button className={styles.add} disabled={busy || !token}>{busy ? 'Submitting…' : 'Submit Payment'}</button></div>
       </form></>}

@@ -31,7 +31,7 @@ import { BossMobileOverview } from "@/components/BossMobileOverview";
 import { normalizePaymentAmountInput } from "@/lib/payment-amount";
 import { managementPaymentMetrics } from "@/lib/management-payment-metrics";
 import { mergePaymentSnapshot } from "@/lib/payment-live-sync";
-import { PAYMENT_PROOF_ACCEPT, normalizePaymentProofFiles } from "@/lib/payment-proof-files";
+import { PAYMENT_PROOF_ACCEPT, normalizePaymentProofFiles, removePaymentProofFile } from "@/lib/payment-proof-files";
 
 type Tab = "overview" | "all" | "unauthorised" | "pending";
 type PendingView = "grid" | "list";
@@ -162,6 +162,10 @@ export function PaymentsClient({
       setError(result.error);
       return result.files;
     });
+  }, []);
+  const removeProofFile = useCallback((index: number) => {
+    setProofs(current => removePaymentProofFile(current, index));
+    setError("");
   }, []);
   useEffect(() => {
     proofDragDepth.current = 0;
@@ -997,6 +1001,7 @@ export function PaymentsClient({
                 <ProofUpload
                   files={proofs}
                   acceptFiles={acceptProofFiles}
+                  removeFile={removeProofFile}
                 />
               </>
             ) : (
@@ -1076,6 +1081,7 @@ export function PaymentsClient({
                 <ProofUpload
                   files={proofs}
                   acceptFiles={acceptProofFiles}
+                  removeFile={removeProofFile}
                 />
                 <label>
                   Remarks <small>{form.remarks.length}/500</small>
@@ -1265,6 +1271,7 @@ export function PaymentsClient({
             <ProofUpload
               files={proofs}
               acceptFiles={acceptProofFiles}
+              removeFile={removeProofFile}
             />
             {error && <p ref={addErrorRef} className="add-payment-error" role="alert" tabIndex={-1}>{error}</p>}
             </div>
@@ -1636,9 +1643,11 @@ function OrderSnapshot({
 function ProofUpload({
   files,
   acceptFiles,
+  removeFile,
 }: {
   files: File[];
   acceptFiles: (files: File[], mode: "append" | "replace") => void;
+  removeFile: (index: number) => void;
 }) {
   return (
     <label className="proof-upload">
@@ -1657,8 +1666,11 @@ function ProofUpload({
         <ul className="proof-file-list">
           {files.map((f, i) => (
             <li key={f.name + i}>
-              {f.name}
-              <span>{(f.size / 1048576).toFixed(1)} MB</span>
+              <span className="proof-file-name" title={f.name}>{f.name}</span>
+              <span className="proof-file-size">{(f.size / 1048576).toFixed(1)} MB</span>
+              <button type="button" className="proof-file-remove" aria-label={`Remove ${f.name}`} onClick={(event) => { event.preventDefault(); event.stopPropagation(); removeFile(i); }}>
+                <span aria-hidden="true">×</span>
+              </button>
             </li>
           ))}
         </ul>

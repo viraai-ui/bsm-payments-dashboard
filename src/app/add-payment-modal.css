@@ -29,8 +29,12 @@
 .proof-drop-overlay>div{width:min(460px,calc(100vw - 32px));display:grid;gap:7px;padding:32px 24px;border:2px dashed rgba(255,255,255,.92);border-radius:22px;background:rgba(15,23,42,.88);color:#fff;text-align:center;box-shadow:0 28px 80px rgba(2,6,23,.38)}
 .proof-drop-overlay strong{font-size:clamp(20px,4vw,28px);letter-spacing:-.03em}.proof-drop-overlay span{color:#dbe4f0;font-size:13px;font-weight:700}
 @media(max-width:500px){.proof-drop-overlay{padding:12px}.proof-drop-overlay>div{padding:25px 16px;border-radius:18px}}
-.add-payment-form .proof-file-list li{align-items:center;min-height:36px;padding:5px 9px;border:1px solid #e7eaf0;border-radius:8px;background:#f8fafc;color:#344054;font-weight:600;overflow:hidden}
-.add-payment-form .proof-file-list li span{flex:0 0 auto;color:#7a8594;font-weight:500}
+.add-payment-form .proof-file-list li{box-sizing:border-box;align-items:center;min-width:0;min-height:44px;padding:4px 0 4px 9px;border:1px solid #e7eaf0;border-radius:8px;background:#f8fafc;color:#344054;font-weight:600;overflow:hidden}
+.add-payment-form .proof-file-list .proof-file-name{min-width:0;flex:1 1 auto;overflow:hidden;color:#344054;font-weight:600;text-overflow:ellipsis;white-space:nowrap}
+.add-payment-form .proof-file-list .proof-file-size{flex:0 0 auto;color:#7a8594;font-weight:500;white-space:nowrap}
+.add-payment-form .proof-file-remove{display:grid;place-items:center;width:44px;height:44px;flex:0 0 44px;margin:-4px 0;border:0;background:transparent;color:#667085;cursor:pointer}
+.add-payment-form .proof-file-remove span{color:inherit;font-size:19px;font-weight:500;line-height:1}
+.add-payment-form .proof-file-remove:hover{background:#f1e8ea;color:#a10d25}.add-payment-form .proof-file-remove:focus-visible{position:relative;z-index:1;outline:2px solid #c8102e;outline-offset:-4px;border-radius:8px}
 .add-payment-form>.muted{margin:0;padding:10px 12px;border-radius:9px;background:#fff7ed;color:#7c4a12;font-size:11px;line-height:1.4}
 .add-payment-form>.ledger-balance{padding:10px 12px;border-radius:10px}
 .add-payment-form>.modal-actions{position:relative;bottom:auto;z-index:3;box-sizing:border-box;min-height:70px;margin:0;padding:13px 24px max(13px,env(safe-area-inset-bottom));border-top:1px solid #e8ebef;background:#fff;box-shadow:0 -10px 20px rgba(255,255,255,.9);align-items:center}

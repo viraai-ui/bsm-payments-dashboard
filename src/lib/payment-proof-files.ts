@@ -51,3 +51,12 @@ export function normalizePaymentProofFiles<T extends ProofFile>(
     ignoredDuplicates,
   };
 }
+
+/** Remove exactly one locally staged proof. Persisted attachments are never involved. */
+export function removePaymentProofFile<T extends ProofFile>(
+  current: readonly T[],
+  index: number,
+): T[] {
+  if (!Number.isInteger(index) || index < 0 || index >= current.length) return [...current];
+  return current.filter((_, fileIndex) => fileIndex !== index);
+}
