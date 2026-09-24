@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Payment } from "@/lib/payments";
-import { receivedPaymentsByPeriod, type ReceivedPeriod } from "@/lib/viewer-payment-metrics";
+import { paymentCountLabel, receivedPaymentsByPeriod, type ReceivedPeriod } from "@/lib/viewer-payment-metrics";
 
 const PERIODS: ReceivedPeriod[] = ["day", "week", "month"];
 const PERIOD_NAMES: Record<ReceivedPeriod, string> = { day: "Day", week: "Week", month: "Month" };
@@ -46,7 +46,7 @@ export function BossReceivedPaymentsHero({ payments }: { payments: Payment[] }) 
       <p id="boss-received-title">{LABELS[period]}</p>
       <strong className="boss-received-amount">{money(metric.amountPaise)}</strong>
       <div className="boss-received-support">
-        <span>{metric.count} {metric.count === 1 ? "receipt" : "receipts"}</span><i aria-hidden="true" />
+        <span>{paymentCountLabel(metric.count)}</span><i aria-hidden="true" />
         <time dateTime={now.toISOString().slice(0, 10)}>{support}</time>
       </div>
     </div>

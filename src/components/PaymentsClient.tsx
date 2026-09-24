@@ -20,7 +20,7 @@ import {
   pendingOrderSummaries,
   sortPayments,
 } from "@/lib/payment-settlement";
-import { receiptCountLabel, viewerPaymentMetrics, viewerPendingTotal, viewerRegularSummary } from "@/lib/viewer-payment-metrics";
+import { paymentCountLabel, viewerPaymentMetrics, viewerPendingTotal, viewerRegularSummary } from "@/lib/viewer-payment-metrics";
 import {
   PaymentProofViewer,
   type ViewerProof,
@@ -634,17 +634,17 @@ export function PaymentsClient({
               <span>{m.label}</span>
               <strong>{money(m.amount)}</strong>
               <small>
-                {m.count} {m.count === 1 ? "receipt" : "receipts"}
+                {paymentCountLabel(m.count)}
               </small>
             </article>
           ))}
         </div>
       )}
       {userRole === "Viewer" && tab === "all" && <div className="viewer-regular-insights" aria-label="Regular payment summary">
-        <article><div><b>Received</b><strong>{money(regularSummary.received.amountPaise/100)}</strong><small>{receiptCountLabel(regularSummary.received.count)}</small></div><div><b>Not Confirmed</b><strong>{money(regularSummary.notConfirmed.amountPaise/100)}</strong><small>{receiptCountLabel(regularSummary.notConfirmed.count)}</small></div></article>
+        <article><div><b>Received</b><strong>{money(regularSummary.received.amountPaise/100)}</strong><small>{paymentCountLabel(regularSummary.received.count)}</small></div><div><b>Not Confirmed</b><strong>{money(regularSummary.notConfirmed.amountPaise/100)}</strong><small>{paymentCountLabel(regularSummary.notConfirmed.count)}</small></div></article>
       </div>}
       {userRole === "Viewer" && tab === "pending" && <div className="viewer-pending-insights" aria-label="Pending payment summary">
-        <article><span>Total pending amount</span><strong>{money(pendingSummary.amountPaise/100)}</strong><small>{pendingSummary.count} {pendingSummary.count === 1 ? "receipt" : "receipts"}</small></article>
+        <article><span>Total pending amount</span><strong>{money(pendingSummary.amountPaise/100)}</strong><small>{paymentCountLabel(pendingSummary.count)}</small></article>
       </div>}
       {userRole !== "Viewer" && (
         <div className="management-metrics" aria-label="Payment management summary">
@@ -818,7 +818,7 @@ export function PaymentsClient({
                     <th>Date</th>
                     <th>Company / Sales Order</th>
                     <th>Order Total</th>
-                    <th>Receipt</th>
+                    <th>{userRole === "Viewer" ? "Payment" : "Receipt"}</th>
                     <th>Outstanding</th>
                     <th>Salesperson</th>
                     <th>Status</th>
@@ -1754,7 +1754,7 @@ function PaymentDetails({
             <strong>{total === undefined ? "—" : money(total)}</strong>
           </div>
           <div>
-            <span>Receipt</span>
+            <span>{role === "Viewer" ? "Payment" : "Receipt"}</span>
             <strong>{money(p.paymentAmount)}</strong>
           </div>
           <div>
@@ -1771,11 +1771,11 @@ function PaymentDetails({
         <section className="allocation-lineage">
           <h3>Allocation History</h3>
           <div className="detail-summary">
-            <div><span>Original receipt</span><strong>{money(p.originalPaymentAmount ?? p.paymentAmount)}</strong></div>
+            <div><span>{role === "Viewer" ? "Original payment" : "Original receipt"}</span><strong>{money(p.originalPaymentAmount ?? p.paymentAmount)}</strong></div>
             <div><span>{p.parentPaymentId ? "This allocation" : "Allocated"}</span><strong>{money(p.parentPaymentId ? p.paymentAmount : (p.allocatedAmount ?? 0))}</strong></div>
             <div><span>Amount remaining</span><strong>{money(p.parentPaymentId ? 0 : (p.remainingAmount ?? p.paymentAmount))}</strong></div>
           </div>
-          {p.parentPaymentId && <p className="lineage-reference">Allocated from receipt {p.parentPaymentId}</p>}
+          {p.parentPaymentId && <p className="lineage-reference">Allocated from {role === "Viewer" ? "payment" : "receipt"} {p.parentPaymentId}</p>}
         </section>
       )}
       <section>
@@ -1944,7 +1944,7 @@ function MobileCard({
       <header>
         <div>
           <strong className="viewer-card-company">{paymentCustomerLabel(p.customerName)}</strong>
-          <span className="mobile-reference">{p.salesOrderNumber || (p.utrReference ? `UTR ${p.utrReference}` : "Unlinked receipt")}</span>
+          <span className="mobile-reference">{p.salesOrderNumber || (p.utrReference ? `UTR ${p.utrReference}` : role === "Viewer" ? "Unlinked payment" : "Unlinked receipt")}</span>
         </div>
         <Overflow
           p={p}
@@ -1979,7 +1979,7 @@ function MobileCard({
           </dd>
         </div>
         <div className="payment-received-amount">
-          <dt>{isPartiallyClaimed(p) ? "Amount remaining" : "Receipt"}</dt>
+          <dt>{isPartiallyClaimed(p) ? "Amount remaining" : role === "Viewer" ? "Payment" : "Receipt"}</dt>
           <dd>{money(isPartiallyClaimed(p) ? (p.remainingAmount ?? 0) : p.paymentAmount)}</dd>
           {isPartiallyClaimed(p) && <small className="partial-remaining">Partially claimed</small>}
         </div>
