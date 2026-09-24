@@ -2,9 +2,12 @@ import assert from 'node:assert/strict'
 import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import type { PushDelivery, PushTransport } from '../src/lib/payment-push.ts'
+const vapidEnvironmentKeys=['NEXT_PUBLIC_VAPID_PUBLIC_KEY','VAPID_PRIVATE_KEY','VAPID_SUBJECT'] as const
+const originalVapidEnvironment=Object.fromEntries(vapidEnvironmentKeys.map(key=>[key,process.env[key]]))
 process.env.APP_LOCAL_ONLY='true'
-process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY='test-public'
-process.env.VAPID_PRIVATE_KEY='test-private'
+process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY='fixture-public-key'
+process.env.VAPID_PRIVATE_KEY='fixture-private-key'
+process.env.VAPID_SUBJECT='mailto:push-fixture@example.test'
 const root=process.cwd(),notificationPath=path.join(root,'data/payment-notifications.json'),subscriptionPath=path.join(root,'data/payment-push-subscriptions.json')
 const originalNotifications=await readFile(notificationPath,'utf8').catch(()=>'{"notifications":[]}'),originalSubscriptions=await readFile(subscriptionPath,'utf8').catch(()=>'{"subscriptions":[]}')
 const push=await import('../src/lib/payment-push.ts')
@@ -19,4 +22,4 @@ try{
  const final=JSON.parse(await readFile(notificationPath,'utf8'));assert.equal(final.pushOutbox.length,1);assert.equal(final.pushOutbox[0].deliveries.filter((d:PushDelivery)=>d.status==='delivered').length,1)
  const sw=await readFile(path.join(root,'public/payment-push-sw.js'),'utf8');assert.match(sw,/event\.waitUntil\(Promise\.all/);assert.match(sw,/showNotification/);assert.match(sw,/notificationclick/);assert.match(sw,/clients\.openWindow/);assert.match(sw,/renotify: true/)
  console.log('push delivery verification passed: multiple devices, wrong-user isolation, transient retry, 410 cleanup, duplicate suppression, audit, service-worker lifetime/click')
-}finally{await writeFile(notificationPath,originalNotifications);await writeFile(subscriptionPath,originalSubscriptions)}
+}finally{await writeFile(notificationPath,originalNotifications);await writeFile(subscriptionPath,originalSubscriptions);for(const key of vapidEnvironmentKeys){const value=originalVapidEnvironment[key];if(value===undefined)delete process.env[key];else process.env[key]=value}}

@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict'
 import { readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+const vapidEnvironmentKeys=['NEXT_PUBLIC_VAPID_PUBLIC_KEY','VAPID_PRIVATE_KEY','VAPID_SUBJECT']
+const originalVapidEnvironment=Object.fromEntries(vapidEnvironmentKeys.map(key=>[key,process.env[key]]))
+for(const key of vapidEnvironmentKeys)delete process.env[key]
 const root=process.cwd();process.env.APP_LOCAL_ONLY='true'
 const authPath=path.join(root,'data/auth-users-store.json'),originalAuthFile=await readFile(authPath,'utf8')
 const n=await import(path.join(root,'src/lib/payment-notifications.ts')),push=await import(path.join(root,'src/lib/payment-push.ts')),{getUserStore,saveUserStore}=await import(path.join(root,'src/lib/auth.ts'))
@@ -26,4 +29,4 @@ try{
  const sample=viewerList.notifications[0],matching={userId:viewer.id,role:'Viewer'},wrongRole={userId:viewer.id,role:'Admin'},wrongUser={userId:'other',role:'Viewer'};eq(push.isPaymentPushEligible(sample,matching),true);eq(push.isPaymentPushEligible(sample,wrongRole),false);eq(push.isPaymentPushEligible(sample,wrongUser),false);eq(push.paymentPushConfiguration(),{configured:false,publicKey:''});eq(await push.sendPaymentPushNotifications([sample]),{sent:0,configured:false})
  const onboarding=await readFile(path.join(root,'src/components/NotificationOnboarding.tsx'),'utf8'),route=await readFile(path.join(root,'src/app/api/payments/push-subscription/route.ts'),'utf8'),center=await readFile(path.join(root,'src/components/NotificationCenter.tsx'),'utf8'),sw=await readFile(path.join(root,'public/payment-push-sw.js'),'utf8');ok(!/user\.role === 'Viewer'\) return/.test(onboarding));ok(route.includes("'Viewer'"));ok(center.includes("n.type==='boss-payment-created'"));ok(center.includes('n.utrReference'));ok(/Notification\.requestPermission\(\)/.test(onboarding));ok(/notificationclick/.test(sw));ok(/clients\.openWindow/.test(sw))
  console.log(`notification matrix: ${assertions} assertions passed`)
-}finally{await Promise.all(ids.map(n.removePaymentNotifications));await writeFile(authPath,originalAuthFile);await rm(path.join(root,'data','.notification-test-cwd'),{force:true})}
+}finally{await Promise.all(ids.map(n.removePaymentNotifications));await writeFile(authPath,originalAuthFile);await rm(path.join(root,'data','.notification-test-cwd'),{force:true});for(const key of vapidEnvironmentKeys){const value=originalVapidEnvironment[key];if(value===undefined)delete process.env[key];else process.env[key]=value}}
