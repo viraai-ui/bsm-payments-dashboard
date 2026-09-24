@@ -1,6 +1,6 @@
 import { apiError, apiOk } from '@/lib/api'
 import { getUserStore, requirePermission } from '@/lib/auth'
-import { canEditStandaloneUnauthorised, claimPayment, createLinkedPayment, createUnlinkedPayment, deletePayment, deletePaymentWithTombstone, isPaymentAddedBy, listPayments, listPaymentsForUserFresh, reverseClaimedAllocation, setPaymentAttachments, updatePayment, updatePaymentStatus, updateStandaloneUnauthorisedPayment } from '@/lib/payments'
+import { canEditStandaloneUnauthorised, claimPayment, createLinkedPayment, createUnlinkedPayment, deletePayment, deletePaymentWithTombstone, isPaymentAddedBy, listPayments, paymentReadModelForUserFresh, reverseClaimedAllocation, setPaymentAttachments, updatePayment, updatePaymentStatus, updateStandaloneUnauthorisedPayment } from '@/lib/payments'
 import { orderSummary } from '@/lib/payment-settlement'
 import { cleanCustomer, cleanRemarks, isPaymentMode, parsePaymentAmount } from '@/lib/payment-domain'
 import { searchPaymentOrders, validatePaymentOrder } from '@/lib/payment-order-search'
@@ -8,7 +8,7 @@ import { deletePaymentProofs, deleteProofAttachments, storeProofFiles, validateP
 import { createClaimNotification, createPaymentNotifications, createStatusNotification, removePaymentNotifications } from '@/lib/payment-notifications'
 export const runtime='nodejs';export const dynamic='force-dynamic';const text=(v:unknown)=>String(v||'').trim()
 async function selectedOrder(id:unknown,number:unknown){const so=text(number);if(!so)return null;if(text(id))return validatePaymentOrder(text(id),so);const found=(await searchPaymentOrders(so,50)).orders.filter(o=>o.salesOrderNumber===so);return found.length===1?found[0]:null}
-export async function GET(){const a=await requirePermission('payments.view');if(!a.ok)return a.response;try{const payments=await listPaymentsForUserFresh(a.user);const response=apiOk({payments});response.headers.set('Cache-Control','no-store, max-age=0');return response}catch(e){return apiError(e instanceof Error?e.message:'Could not read payments',500)}}
+export async function GET(){const a=await requirePermission('payments.view');if(!a.ok)return a.response;try{const model=await paymentReadModelForUserFresh(a.user);const response=apiOk(model);response.headers.set('Cache-Control','private, no-store, max-age=0, must-revalidate');response.headers.set('Vary','Cookie');return response}catch(e){return apiError(e instanceof Error?e.message:'Could not read payments',500)}}
 export async function POST(request:Request){
  const initial=await requirePermission('payments.view');if(!initial.ok)return initial.response
  const form=await request.formData().catch(()=>null);if(!form)return apiError('Multipart form data is required',400);const b=Object.fromEntries(form.entries())

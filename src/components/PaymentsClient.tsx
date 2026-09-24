@@ -110,16 +110,19 @@ const proofsFor = (p: Payment): ViewerProof[] =>
   }));
 export function PaymentsClient({
   initialPayments,
+  initialPendingOrders,
   userRole,
   userId,
   salespeople = [],
 }: {
   initialPayments: Payment[];
+  initialPendingOrders: ReturnType<typeof pendingOrderSummaries>;
   userRole: AppRole;
   userId: string;
   salespeople?: { id: string; name: string; username: string }[];
 }) {
   const [payments, setPayments] = useState(initialPayments),
+    [authoritativePending, setAuthoritativePending] = useState(initialPendingOrders),
     [tab, setTab] = useState<Tab>("all"),
     [search, setSearch] = useState(""),
     [filters, setFilters] = useState<Filters>(emptyFilters),
@@ -195,6 +198,7 @@ export function PaymentsClient({
         j = await r.json();
       if (r.ok && sequence === refreshSequence.current && startedAtMutation === mutationVersion.current) {
         setPayments(current => sortPayments(mergePaymentSnapshot(current, j.data.payments, mutatingIds.current)));
+        setAuthoritativePending(j.data.pendingOrders);
       }
     } finally {
       refreshBusy.current = false;
@@ -299,7 +303,7 @@ export function PaymentsClient({
     [salespeople],
   );
   const pending = useMemo(
-    () => pendingOrderSummaries(payments).map((order) => {
+    () => authoritativePending.map((order) => {
       const key = order.salesOrderNumber.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
       const orderPayments = payments
         .filter((payment) => payment.status === "Pending" || payment.status === "Payment Received")
@@ -317,7 +321,7 @@ export function PaymentsClient({
           || undefined;
       return { ...order, salespersonName };
     }),
-    [payments, salespersonDirectory],
+    [authoritativePending, payments, salespersonDirectory],
   );
   const visiblePending = useMemo(() => {
     const query = search.trim().toLowerCase();

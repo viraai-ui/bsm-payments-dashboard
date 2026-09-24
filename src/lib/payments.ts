@@ -1,5 +1,5 @@
 import { readLocalJson, readLocalJsonFresh, updateLocalJson } from './local-store'
-import { orderSummary, sortPayments, toPaise } from './payment-settlement'
+import { orderSummary, pendingOrderSummaries, sortPayments, toPaise } from './payment-settlement'
 import type { PaymentMode, PaymentStatus } from './payment-domain'
 import { getUserStore, type SafeUser } from './auth'
 import { enqueueAndDeliver, type PaymentEventType } from './payouts-outbox'
@@ -23,9 +23,26 @@ export function withAllocationBalances(payments:Payment[]){const allocated=new M
 export async function listPayments(){const payments=withAllocationBalances((await readLocalJson(FILE,EMPTY)).payments),users=(await getUserStore()).users;return sortPayments(payments.map(p=>{const owner=users.find(u=>u.id===(p.ownerUserId||p.claimedBy||p.createdBy));return{...p,salespersonName:p.salespersonName||owner?.name||((p.addedBy&&!/^u[-_]/i.test(p.addedBy))?p.addedBy:undefined)}}))}
 const normalized=(value?:string)=>String(value||'').trim().toLocaleLowerCase().replace(/[^a-z0-9]+/g,'')
 export function isPaymentOwnedBy(payment:Payment,user:Pick<SafeUser,'id'|'name'|'email'|'username'>){const stable=payment.ownerUserId||payment.claimedBy;if(stable)return stable===user.id;if(payment.createdBy===user.id)return true;const legacy=[payment.createdBy,payment.addedBy].map(normalized).filter(Boolean);return [user.name,user.email,user.username].map(normalized).some(value=>value&&legacy.includes(value))}
+const normalizedOrder=(value?:string)=>String(value||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'')
+/** Pending orders are always settled against the complete authoritative ledger. Role
+ * filtering is applied to the resulting orders, never to the receipts used in their
+ * arithmetic. Otherwise a salesperson can see a globally-settled order when one of
+ * its receipts is legacy/public or belongs to another salesperson. */
+export function pendingOrdersForUser(payments:Payment[],user:SafeUser){
+ const pending=pendingOrderSummaries(payments)
+ if(user.role!=='Salesperson')return pending
+ const ownedOrders=new Set(payments.filter(payment=>payment.salesOrderNumber&&isPaymentOwnedBy(payment,user)).map(payment=>normalizedOrder(payment.salesOrderNumber)))
+ return pending.filter(order=>ownedOrders.has(normalizedOrder(order.salesOrderNumber)))
+}
 /** Salespeople receive their own records plus the shared unauthorised claim queue. */
 export async function listPaymentsForUser(user:SafeUser){const all=await listPayments();return user.role==='Salesperson'?all.filter(p=>p.status==='Unauthorised'||isPaymentOwnedBy(p,user)):all}
-export async function listPaymentsForUserFresh(user:SafeUser){const all=sortPayments(withAllocationBalances((await readLocalJsonFresh(FILE,EMPTY)).payments));return user.role==='Salesperson'?all.filter(p=>p.status==='Unauthorised'||isPaymentOwnedBy(p,user)):all}
+function visiblePaymentsForUser(all:Payment[],user:SafeUser){return user.role==='Salesperson'?all.filter(p=>p.status==='Unauthorised'||isPaymentOwnedBy(p,user)):all}
+export async function paymentReadModelForUserFresh(user:SafeUser){
+ const users=(await getUserStore()).users
+ const all=sortPayments(withAllocationBalances((await readLocalJsonFresh(FILE,EMPTY)).payments).map(p=>{const owner=users.find(u=>u.id===(p.ownerUserId||p.claimedBy||p.createdBy));return{...p,salespersonName:p.salespersonName||owner?.name||((p.addedBy&&!/^u[-_]/i.test(p.addedBy))?p.addedBy:undefined)}}))
+ return {payments:visiblePaymentsForUser(all,user),pendingOrders:pendingOrdersForUser(all,user)}
+}
+export async function listPaymentsForUserFresh(user:SafeUser){return(await paymentReadModelForUserFresh(user)).payments}
 export async function createPayment(input:Omit<Payment,'id'|'status'|'paymentDate'|'createdAt'|'updatedAt'> & {status?:PaymentStatus;paymentDate?:string}){const now=new Date().toISOString();const payment:Payment={...input,id:`payment-${crypto.randomUUID()}`,status:input.status||'Pending',paymentDate:input.paymentDate||now.slice(0,10),createdAt:now,updatedAt:now,audit:[event('created',input.createdBy,now,{to:input.status||'Pending'})]};await updateLocalJson(FILE,EMPTY,s=>({payments:[payment,...s.payments]}));return payment}
 export async function createUnlinkedPayment(input:Omit<Payment,'id'|'status'|'paymentDate'|'createdAt'|'updatedAt'> & {status?:PaymentStatus;paymentDate?:string},key:string):Promise<{payment:Payment;duplicate:boolean}>{let result!: {payment:Payment;duplicate:boolean};await updateLocalJson(FILE,EMPTY,s=>{const existing=s.payments.find(p=>p.idempotencyKey===key);if(existing){result={payment:existing,duplicate:true};return s}const now=new Date().toISOString();const payment:Payment={...input,idempotencyKey:key,id:`payment-${crypto.randomUUID()}`,status:input.status||'Pending',paymentDate:input.paymentDate||now.slice(0,10),createdAt:now,updatedAt:now,audit:[event('created',input.createdBy,now,{to:input.status||'Pending'})]};result={payment,duplicate:false};return{payments:[payment,...s.payments]}});return result}
 export async function createLinkedPayment(input:Omit<Payment,'id'|'status'|'paymentDate'|'createdAt'|'updatedAt'>,key:string):Promise<{payment:Payment;duplicate:boolean}>{let result!: {payment:Payment;duplicate:boolean};await updateLocalJson(FILE,EMPTY,s=>{const existing=s.payments.find(p=>p.idempotencyKey===key);if(existing){if(existing.salesOrderId!==input.salesOrderId||toPaise(existing.paymentAmount)!==toPaise(input.paymentAmount))throw new Error('Submission key was already used for a different payment');result={payment:existing,duplicate:true};return s}const summary=orderSummary(s.payments,input.salesOrderNumber!,input.orderTotal,input.salesOrderId);if(typeof summary.pendingPayment==='number'&&toPaise(input.paymentAmount)>toPaise(summary.pendingPayment))throw new Error('Payment Received Amount cannot exceed the provisional outstanding balance');const now=new Date().toISOString(),payment:Payment={...input,idempotencyKey:key,id:`payment-${crypto.randomUUID()}`,status:'Pending',paymentDate:now.slice(0,10),createdAt:now,updatedAt:now,audit:[event('created',input.createdBy,now,{to:'Pending'})]};result={payment,duplicate:false};return{payments:[payment,...s.payments]}});return result}
