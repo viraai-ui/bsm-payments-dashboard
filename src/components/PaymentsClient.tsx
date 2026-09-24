@@ -524,6 +524,8 @@ export function PaymentsClient({
     body.set("paymentAmount", form.paymentAmount);
     body.set("paymentMode", form.paymentMode);
     body.set("remarks", form.remarks);
+    body.set("utrReference", form.utrReference);
+    body.set("customerName", form.customerName);
     body.set("replaceProofs", String(proofs.length > 0));
     proofs.forEach((f) => body.append("proofs", f));
     try {
@@ -575,6 +577,7 @@ export function PaymentsClient({
       paymentAmount: String(p.paymentAmount),
       paymentMode: p.paymentMode || "Bank Transfer",
       remarks: p.remarks || "",
+      utrReference: p.utrReference || "",
     });
   }
   const openProof = (p: Payment) => setViewer(proofsFor(p));
@@ -1163,7 +1166,16 @@ export function PaymentsClient({
             onSubmit={editPayment}
           >
             <div className="add-payment-form-body add-payment-scroll-body edit-payment-form-body">
-            <div className="order-snapshot" aria-label="Immutable payment identity">
+            {editing.status === "Unauthorised" ? <>
+              <label>
+                UTR / Reference Number
+                <input required maxLength={120} value={form.utrReference} onChange={(e) => setForm((f) => ({ ...f, utrReference: e.target.value }))} />
+              </label>
+              <label>
+                Customer Name <small>Optional</small>
+                <input maxLength={120} value={form.customerName} onChange={(e) => setForm((f) => ({ ...f, customerName: e.target.value }))} />
+              </label>
+            </> : <div className="order-snapshot" aria-label="Immutable payment identity">
               <div>
                 <span>Sales order</span>
                 <strong>{editing.salesOrderNumber}</strong>
@@ -1180,7 +1192,7 @@ export function PaymentsClient({
                 <span>Owner</span>
                 <strong>{salesperson(editing)}</strong>
               </div>
-            </div>
+            </div>}
             <label>
               Payment amount
               <input
@@ -2046,13 +2058,14 @@ function Overflow({
     });
   }, []);
   const canEdit =
-    p.originalPaymentAmount === undefined &&
+    (p.status === "Unauthorised" && !p.hasAllocationChildren && !p.ownerUserId && (role === "Admin" || role === "Accounts")) ||
+    (p.originalPaymentAmount === undefined &&
     ((role === "Admin" && !p.ownerUserId) ||
       (role === "Salesperson" &&
         p.status === "Pending" &&
         (p.ownerUserId === userId ||
           p.claimedBy === userId ||
-          p.createdBy === userId)));
+          p.createdBy === userId))));
   const canDelete =
     (Boolean(p.parentPaymentId) && (p.status === "Payment Received" || p.status === "Pending") && (role === "Admin" || (role === "Salesperson" && p.ownerUserId === userId && p.claimedBy === userId))) || (!p.parentPaymentId &&
     ((p.status === "Unauthorised" &&
