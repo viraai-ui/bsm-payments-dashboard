@@ -25,6 +25,10 @@
 .add-payment-form input[type=file]::file-selector-button{min-height:38px;margin-right:10px;padding:0 13px;border:1px solid #d8dde4;border-radius:8px;background:#fff;color:#263143;font:inherit;font-weight:750;cursor:pointer}
 .add-payment-form input[type=file]:hover{border-color:#aeb7c3;background:#f7f9fb}
 .add-payment-form .proof-file-list{max-height:none;overflow:visible;gap:5px;margin-top:2px}
+.proof-drop-overlay{position:fixed;inset:0;z-index:10020;display:grid;place-items:center;padding:24px;pointer-events:none;background:rgba(15,23,42,.48);backdrop-filter:blur(5px)}
+.proof-drop-overlay>div{width:min(460px,calc(100vw - 32px));display:grid;gap:7px;padding:32px 24px;border:2px dashed rgba(255,255,255,.92);border-radius:22px;background:rgba(15,23,42,.88);color:#fff;text-align:center;box-shadow:0 28px 80px rgba(2,6,23,.38)}
+.proof-drop-overlay strong{font-size:clamp(20px,4vw,28px);letter-spacing:-.03em}.proof-drop-overlay span{color:#dbe4f0;font-size:13px;font-weight:700}
+@media(max-width:500px){.proof-drop-overlay{padding:12px}.proof-drop-overlay>div{padding:25px 16px;border-radius:18px}}
 .add-payment-form .proof-file-list li{align-items:center;min-height:36px;padding:5px 9px;border:1px solid #e7eaf0;border-radius:8px;background:#f8fafc;color:#344054;font-weight:600;overflow:hidden}
 .add-payment-form .proof-file-list li span{flex:0 0 auto;color:#7a8594;font-weight:500}
 .add-payment-form>.muted{margin:0;padding:10px 12px;border-radius:9px;background:#fff7ed;color:#7c4a12;font-size:11px;line-height:1.4}

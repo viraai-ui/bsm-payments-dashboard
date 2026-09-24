@@ -14,6 +14,7 @@
     "verify:change-password": "node scripts/verify-change-password.cjs",
     "verify:salesperson-ownership": "node scripts/verify-salesperson-ownership.cjs",
     "verify:proofs": "node scripts/verify-payment-proofs.cjs",
+    "verify:proof-drop": "tsx scripts/verify-proof-drop.mts",
     "verify:github-store": "node --experimental-strip-types scripts/verify-github-data-store.mjs",
     "verify:data-cache": "tsx scripts/verify-data-cache.mjs",
     "verify:security": "tsx scripts/verify-security.mts",

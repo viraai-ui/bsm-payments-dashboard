@@ -31,6 +31,7 @@ import { BossMobileOverview } from "@/components/BossMobileOverview";
 import { normalizePaymentAmountInput } from "@/lib/payment-amount";
 import { managementPaymentMetrics } from "@/lib/management-payment-metrics";
 import { mergePaymentSnapshot } from "@/lib/payment-live-sync";
+import { PAYMENT_PROOF_ACCEPT, normalizePaymentProofFiles } from "@/lib/payment-proof-files";
 
 type Tab = "overview" | "all" | "unauthorised" | "pending";
 type PendingView = "grid" | "list";
@@ -143,6 +144,8 @@ export function PaymentsClient({
     [editing, setEditing] = useState<Payment | null>(null),
     [deleting, setDeleting] = useState<Payment | null>(null),
     [deleteReason, setDeleteReason] = useState("");
+  const [proofDragActive, setProofDragActive] = useState(false);
+  const proofDragDepth = useRef(0);
   const refreshBusy = useRef(false);
   const refreshSequence = useRef(0);
   const mutationVersion = useRef(0);
@@ -152,6 +155,35 @@ export function PaymentsClient({
   const claimSubmissionKey = useRef("");
   const submissionKey = useRef("");
   const addErrorRef = useRef<HTMLParagraphElement>(null);
+  const proofPopupActive = open || Boolean(editing);
+  const acceptProofFiles = useCallback((incoming: File[], mode: "append" | "replace") => {
+    setProofs(current => {
+      const result = normalizePaymentProofFiles(current, incoming, mode);
+      setError(result.error);
+      return result.files;
+    });
+  }, []);
+  useEffect(() => {
+    proofDragDepth.current = 0;
+    setProofDragActive(false);
+    if (!proofPopupActive) return;
+    const hasFiles = (event: DragEvent) => Array.from(event.dataTransfer?.types || []).includes("Files");
+    const enter = (event: DragEvent) => { if (hasFiles(event)) { event.preventDefault(); proofDragDepth.current += 1; setProofDragActive(true); } };
+    const over = (event: DragEvent) => { if (hasFiles(event)) { event.preventDefault(); if (event.dataTransfer) event.dataTransfer.dropEffect = "copy"; } };
+    const leave = (event: DragEvent) => { if (hasFiles(event)) { event.preventDefault(); proofDragDepth.current = Math.max(0, proofDragDepth.current - 1); if (!proofDragDepth.current) setProofDragActive(false); } };
+    const drop = (event: DragEvent) => {
+      if (!hasFiles(event)) return;
+      event.preventDefault(); event.stopPropagation(); proofDragDepth.current = 0; setProofDragActive(false);
+      acceptProofFiles(Array.from(event.dataTransfer?.files || []), "append");
+    };
+    const reset = () => { proofDragDepth.current = 0; setProofDragActive(false); };
+    document.addEventListener("dragenter", enter, true); document.addEventListener("dragover", over, true);
+    document.addEventListener("dragleave", leave, true); document.addEventListener("drop", drop, true); window.addEventListener("blur", reset);
+    return () => {
+      document.removeEventListener("dragenter", enter, true); document.removeEventListener("dragover", over, true);
+      document.removeEventListener("dragleave", leave, true); document.removeEventListener("drop", drop, true); window.removeEventListener("blur", reset);
+    };
+  }, [proofPopupActive, acceptProofFiles]);
   const refresh = useCallback(async () => {
     if (refreshBusy.current) return;
     refreshBusy.current = true;
@@ -883,7 +915,7 @@ export function PaymentsClient({
         <Sheet
           title="Add payment"
           eyebrow="New receipt"
-          close={() => { if(!saving){setOpen(false);setError("");submitBusy.current=false} }}
+          close={() => { if(!saving){setOpen(false);setProofs([]);setError("");submitBusy.current=false} }}
         >
           <form
             className="payment-form add-payment-form"
@@ -904,6 +936,7 @@ export function PaymentsClient({
                   onClick={() => {
                     setPaymentType("unauthorised");
                     setForm(emptyForm());
+                    setProofs([]);
                     setError(""); submissionKey.current=crypto.randomUUID();
                   }}
                 >
@@ -917,6 +950,7 @@ export function PaymentsClient({
                   onClick={() => {
                     setPaymentType("regular");
                     setForm(emptyForm());
+                    setProofs([]);
                     setError(""); submissionKey.current=crypto.randomUUID();
                   }}
                 >
@@ -964,8 +998,7 @@ export function PaymentsClient({
                 </label>
                 <ProofUpload
                   files={proofs}
-                  setFiles={setProofs}
-                  setError={setError}
+                  acceptFiles={acceptProofFiles}
                 />
               </>
             ) : (
@@ -1044,8 +1077,7 @@ export function PaymentsClient({
                 </label>
                 <ProofUpload
                   files={proofs}
-                  setFiles={setProofs}
-                  setError={setError}
+                  acceptFiles={acceptProofFiles}
                 />
                 <label>
                   Remarks <small>{form.remarks.length}/500</small>
@@ -1065,7 +1097,7 @@ export function PaymentsClient({
             </div>
             <Actions
               busy={saving}
-              close={() => { if(!saving){setOpen(false);setError("");submitBusy.current=false} }}
+              close={() => { if(!saving){setOpen(false);setProofs([]);setError("");submitBusy.current=false} }}
               label={paymentType === "unauthorised" || userRole === "Accounts" ? "Add unauthorised payment" : "Add payment"}
               disabled={userRole === "Admin" && paymentType === "regular" && salespeople.length === 0}
             />
@@ -1159,7 +1191,7 @@ export function PaymentsClient({
         <Sheet
           title="Edit payment"
           eyebrow={editing.salesOrderNumber}
-          close={() => { if (!saving) { setEditing(null); setError(""); } }}
+          close={() => { if (!saving) { setEditing(null); setProofs([]); setError(""); } }}
         >
           <form
             className="payment-form add-payment-form edit-payment-form"
@@ -1234,14 +1266,13 @@ export function PaymentsClient({
             </label>
             <ProofUpload
               files={proofs}
-              setFiles={setProofs}
-              setError={setError}
+              acceptFiles={acceptProofFiles}
             />
             {error && <p ref={addErrorRef} className="add-payment-error" role="alert" tabIndex={-1}>{error}</p>}
             </div>
             <Actions
               busy={saving}
-              close={() => { if (!saving) { setEditing(null); setError(""); } }}
+              close={() => { if (!saving) { setEditing(null); setProofs([]); setError(""); } }}
               label="Save changes"
             />
           </form>
@@ -1296,6 +1327,12 @@ export function PaymentsClient({
       )}
       {viewer && (
         <PaymentProofViewer proofs={viewer} onClose={() => setViewer(null)} />
+      )}
+      {proofPopupActive && proofDragActive && createPortal(
+        <div className="proof-drop-overlay" role="status" aria-live="polite" data-testid="proof-drop-overlay">
+          <div><strong>Drop payment proofs</strong><span>Images or PDFs · up to 5 · 10 MB each</span></div>
+        </div>,
+        document.body,
       )}
     </section>
   );
@@ -1600,12 +1637,10 @@ function OrderSnapshot({
 }
 function ProofUpload({
   files,
-  setFiles,
-  setError,
+  acceptFiles,
 }: {
   files: File[];
-  setFiles: (x: File[]) => void;
-  setError: (x: string) => void;
+  acceptFiles: (files: File[], mode: "append" | "replace") => void;
 }) {
   return (
     <label className="proof-upload">
@@ -1613,20 +1648,10 @@ function ProofUpload({
       <input
         type="file"
         multiple
-        accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,application/pdf"
+        accept={PAYMENT_PROOF_ACCEPT}
         onChange={(e) => {
-          const x = Array.from(e.target.files || []);
-          if (
-            x.length > 5 ||
-            x.some((f) => !f.size || f.size > 10 * 1024 * 1024)
-          ) {
-            setError("Up to 5 non-empty files, 10 MB each.");
-            e.target.value = "";
-            setFiles([]);
-          } else {
-            setError("");
-            setFiles(x);
-          }
+          acceptFiles(Array.from(e.target.files || []), "replace");
+          e.target.value = "";
         }}
       />
       <small>Images or PDFs · up to 5 · 10 MB each</small>
