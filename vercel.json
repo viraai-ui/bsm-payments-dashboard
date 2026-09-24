@@ -1,6 +1,7 @@
 {
   "crons": [
     { "path": "/api/integrations/payouts/retry", "schedule": "* * * * *" },
-    { "path": "/api/integrations/push/retry", "schedule": "* * * * *" }
+    { "path": "/api/integrations/push/retry", "schedule": "* * * * *" },
+    { "path": "/api/integrations/zoho-sales-orders/reconcile", "schedule": "*/10 * * * *" }
   ]
 }

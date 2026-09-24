@@ -39,7 +39,11 @@ export async function listPaymentsForUser(user:SafeUser){const all=await listPay
 function visiblePaymentsForUser(all:Payment[],user:SafeUser){return user.role==='Salesperson'?all.filter(p=>p.status==='Unauthorised'||isPaymentOwnedBy(p,user)):all}
 export async function paymentReadModelForUserFresh(user:SafeUser){
  const users=(await getUserStore()).users
- const all=sortPayments(withAllocationBalances((await readLocalJsonFresh(FILE,EMPTY)).payments).map(p=>{const owner=users.find(u=>u.id===(p.ownerUserId||p.claimedBy||p.createdBy));return{...p,salespersonName:p.salespersonName||owner?.name||((p.addedBy&&!/^u[-_]/i.test(p.addedBy))?p.addedBy:undefined)}}))
+ const stored=withAllocationBalances((await readLocalJsonFresh(FILE,EMPTY)).payments)
+ // Receipt amounts/history stay immutable; only the read projection receives current Zoho metadata.
+ const {refreshStaleLinkedOrders,applySalesOrderSnapshots}=await import('./sales-order-reconciliation')
+ const snapshots=await refreshStaleLinkedOrders(stored)
+ const all=sortPayments(applySalesOrderSnapshots(stored,snapshots).map(p=>{const owner=users.find(u=>u.id===(p.ownerUserId||p.claimedBy||p.createdBy));return{...p,salespersonName:p.salespersonName||owner?.name||((p.addedBy&&!/^u[-_]/i.test(p.addedBy))?p.addedBy:undefined)}}))
  return {payments:visiblePaymentsForUser(all,user),pendingOrders:pendingOrdersForUser(all,user)}
 }
 export async function listPaymentsForUserFresh(user:SafeUser){return(await paymentReadModelForUserFresh(user)).payments}

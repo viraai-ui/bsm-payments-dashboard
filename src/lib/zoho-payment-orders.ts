@@ -8,6 +8,8 @@ export type ZohoPaymentOrder = {
   orderDate: string
   rawStatus: string
   currency: string
+  /** Zoho's ordering token. Reconciliation rejects responses older than this value. */
+  modifiedTime: string
 }
 
 type FetchLike = typeof fetch
@@ -88,17 +90,17 @@ export function mapZohoPaymentOrder(value: unknown): ZohoPaymentOrder | null {
   const id = String(row.salesorder_id || '').trim(), salesOrderNumber = String(row.salesorder_number || row.reference_number || '').trim()
   const total = numericTotal(row.total)
   if (!id || !salesOrderNumber || total === undefined) return null
-  return { id, salesOrderNumber, customerName: String(row.customer_name || row.company_name || '').trim(), total, orderTotal: total, orderDate: String(row.date || row.created_time || '').slice(0, 10), rawStatus: statusOf(row), currency: String(row.currency_code || row.currency_symbol || 'INR') }
+  return { id, salesOrderNumber, customerName: String(row.customer_name || row.company_name || '').trim(), total, orderTotal: total, orderDate: String(row.date || row.created_time || '').slice(0, 10), rawStatus: statusOf(row), currency: String(row.currency_code || row.currency_symbol || 'INR'), modifiedTime: String(row.last_modified_time || row.modified_time || row.updated_time || row.created_time || '') }
 }
 function mapSummary(value: unknown): Omit<ZohoPaymentOrder, 'total'|'orderTotal'> & { total?: number; orderTotal?: number } | null {
   const row = (value || {}) as Record<string, unknown>, id = String(row.salesorder_id || '').trim(), salesOrderNumber = String(row.salesorder_number || row.reference_number || '').trim()
   if (!id || !salesOrderNumber) return null
   const total = numericTotal(row.total)
-  return { id, salesOrderNumber, customerName: String(row.customer_name || row.company_name || '').trim(), ...(total === undefined ? {} : { total, orderTotal: total }), orderDate: String(row.date || row.created_time || '').slice(0, 10), rawStatus: statusOf(row), currency: String(row.currency_code || row.currency_symbol || 'INR') }
+  return { id, salesOrderNumber, customerName: String(row.customer_name || row.company_name || '').trim(), ...(total === undefined ? {} : { total, orderTotal: total }), orderDate: String(row.date || row.created_time || '').slice(0, 10), rawStatus: statusOf(row), currency: String(row.currency_code || row.currency_symbol || 'INR'), modifiedTime: String(row.last_modified_time || row.modified_time || row.updated_time || row.created_time || '') }
 }
-export async function fetchZohoPaymentOrderDetail(id: string, fetcher: FetchLike = fetch): Promise<ZohoPaymentOrder> {
+export async function fetchZohoPaymentOrderDetail(id: string, fetcher: FetchLike = fetch, force = false): Promise<ZohoPaymentOrder> {
   const cached = detailCache.get(id)
-  if (cached && cached.expiresAt > Date.now()) return cached.order
+  if (!force && cached && cached.expiresAt > Date.now()) return cached.order
   const data = await zohoGet(fetcher, `/inventory/v1/salesorders/${encodeURIComponent(id)}`)
   const order = mapZohoPaymentOrder(data.salesorder)
   if (!order || order.id !== id) throw new Error(`Zoho sales order ${id} has no authoritative total`)
