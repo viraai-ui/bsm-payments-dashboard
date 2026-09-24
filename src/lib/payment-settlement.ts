@@ -13,6 +13,7 @@ export type SettlementPayment = {
   remarks?:string
   parentPaymentId?:string
   originalPaymentAmount?:number
+  closedRemainderAmount?:number
   remainingAmount?:number
 }
 

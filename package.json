@@ -21,6 +21,7 @@
     "verify:viewer-metrics": "node scripts/verify-viewer-metrics.cjs",
     "verify:payment-actions": "node scripts/verify-payment-actions.cjs",
     "verify:split-claims": "tsx scripts/verify-split-claims.mts",
+    "verify:closed-remainder": "tsx scripts/verify-closed-remainder.mts",
     "verify:notifications": "tsx scripts/verify-payment-notifications.mjs",
     "verify:currency-display": "node scripts/verify-currency-display.cjs",
     "verify:live-sync": "tsx scripts/verify-live-sync.mjs",
