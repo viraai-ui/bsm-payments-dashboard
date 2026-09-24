@@ -96,6 +96,7 @@ const money = (n: number) =>
     maximumFractionDigits: 0,
   }).format(n);
 const salesperson = (p: Payment) => p.salespersonName || (p.addedBy && !/^u[-_]/i.test(p.addedBy) ? p.addedBy : "—");
+const stableOwnerId = (p: Payment) => p.ownerUserId || p.claimedBy || p.createdBy;
 const isPartiallyClaimed = (p: Payment) => p.status === "Unauthorised" && (p.allocatedAmount ?? 0) > 0 && (p.remainingAmount ?? p.paymentAmount) > 0;
 const date = (v?: string) => {
   if (!v) return "—";
@@ -299,17 +300,22 @@ export function PaymentsClient({
   );
   const pending = useMemo(
     () => pendingOrderSummaries(payments).map((order) => {
-      const orderPayments = payments.filter((payment) => payment.salesOrderNumber === order.salesOrderNumber);
-      const stableOwner = orderPayments.find((payment) => {
-        const ownerId = payment.ownerUserId || payment.claimedBy || payment.createdBy;
-        return ownerId && salespersonDirectory.has(ownerId);
-      });
-      const stableOwnerId = stableOwner && (stableOwner.ownerUserId || stableOwner.claimedBy || stableOwner.createdBy);
+      const key = order.salesOrderNumber.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+      const orderPayments = payments
+        .filter((payment) => payment.status === "Pending" || payment.status === "Payment Received")
+        .filter((payment) => String(payment.salesOrderNumber || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "") === key)
+        .sort((a, b) => (b.createdAt || b.paymentDate || "").localeCompare(a.createdAt || a.paymentDate || "") || b.id.localeCompare(a.id));
+      const ownerIds = new Set(orderPayments.map(stableOwnerId).filter(Boolean));
+      const owningReceipt = orderPayments.find((payment) => Boolean(stableOwnerId(payment))) || orderPayments[0];
+      const ownerId = owningReceipt && stableOwnerId(owningReceipt);
       const legacyOwner = orderPayments.find((payment) => salesperson(payment) !== "—");
-      return {
-        ...order,
-        salespersonName: (stableOwnerId && salespersonDirectory.get(stableOwnerId)) || (legacyOwner && salesperson(legacyOwner)) || "Unassigned",
-      };
+      const salespersonName = ownerIds.size > 1
+        ? "Multiple"
+        : owningReceipt?.salespersonName
+          || (ownerId && salespersonDirectory.get(ownerId))
+          || (legacyOwner && salesperson(legacyOwner))
+          || undefined;
+      return { ...order, salespersonName };
     }),
     [payments, salespersonDirectory],
   );
@@ -1950,7 +1956,7 @@ function MobileCard({
       <div className="viewer-card-meta">
         <span>{date(p.paymentDate || p.createdAt)}</span>
         <span>{p.paymentMode || (p.utrReference ? `UTR ${p.utrReference}` : "Payment")}</span>
-        {role === "Admin" && (
+        {(role === "Admin" || role === "Viewer") && salesperson(p) !== "—" && (
           <span
             className="payment-salesperson-chip"
             title={salesperson(p)}
@@ -2181,7 +2187,7 @@ function PendingList({
           </header>
           <h2 className="pending-customer-line">
             <span>{s.customerName}</span>
-            {role === "Admin" && (
+            {(role === "Admin" || role === "Viewer") && s.salespersonName && (
               <small className="pending-salesperson-chip" title={s.salespersonName} aria-label={`Salesperson: ${s.salespersonName}`}>
                 {s.salespersonName}
               </small>
