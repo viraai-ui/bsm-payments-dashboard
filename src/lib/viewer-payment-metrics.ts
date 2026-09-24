@@ -54,6 +54,10 @@ export function pendingPeriodSummary(payments:Payment[],now=new Date()){
  const week=overviewPaymentsByPeriod(payments.filter(p=>p.status==='Pending'),'week',now),month=overviewPaymentsByPeriod(payments.filter(p=>p.status==='Pending'),'month',now)
  return {week,month}
 }
+export function viewerPendingTotal(orders: Array<{ outstanding?: number }>) {
+ const positive=orders.map(order=>Math.round((order.outstanding ?? 0)*100)).filter(paise=>Number.isSafeInteger(paise)&&paise>0)
+ return {amountPaise:positive.reduce((total,paise)=>total+paise,0),count:positive.length}
+}
 export function viewerPaymentMetrics(payments: Payment[], now = new Date()): ViewerMetric[] {
  const today=localDateKey(now),monday=dayStart(now);monday.setDate(monday.getDate()-((monday.getDay()+6)%7));const weekStart=localDateKey(monday),monthStart=`${today.slice(0,7)}-01`
  const summarize=(predicate:(p:Payment)=>boolean)=>{const rows=payments.filter(p=>paymentIsEffective(p)&&predicate(p));return{amount:rows.reduce((n,p)=>n+effectivePaymentPaise(p),0)/100,count:rows.length}}

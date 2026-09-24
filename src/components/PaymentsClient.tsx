@@ -20,7 +20,7 @@ import {
   pendingOrderSummaries,
   sortPayments,
 } from "@/lib/payment-settlement";
-import { pendingPeriodSummary, viewerPaymentMetrics, viewerRegularSummary } from "@/lib/viewer-payment-metrics";
+import { viewerPaymentMetrics, viewerPendingTotal, viewerRegularSummary } from "@/lib/viewer-payment-metrics";
 import {
   PaymentProofViewer,
   type ViewerProof,
@@ -313,6 +313,14 @@ export function PaymentsClient({
     }),
     [payments, salespersonDirectory],
   );
+  const visiblePending = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return pending;
+    return pending.filter((order) =>
+      [order.salesOrderNumber, order.customerName, order.salespersonName]
+        .some((value) => String(value || "").toLowerCase().includes(query)),
+    );
+  }, [pending, search]);
   const summaries = useMemo(
     () =>
       new Map(
@@ -372,7 +380,7 @@ export function PaymentsClient({
   };
   const metrics = useMemo(() => viewerPaymentMetrics(payments), [payments]);
   const regularSummary = useMemo(() => viewerRegularSummary(payments), [payments]);
-  const pendingSummary = useMemo(() => pendingPeriodSummary(payments), [payments]);
+  const pendingSummary = useMemo(() => viewerPendingTotal(pending), [pending]);
   const managementMetrics = useMemo(() => managementPaymentMetrics(payments), [payments]);
   const activeFilters = Object.values(filters).filter(Boolean).length;
   function selectOrder(order: Order, target: "add" | "claim") {
@@ -611,7 +619,7 @@ export function PaymentsClient({
       </header>
       {userRole === "Viewer" && tab === "overview" && <BossMobileOverview payments={payments} />}
       {userRole === "Viewer" && <div className="viewer-desktop-hero"><BossReceivedPaymentsHero payments={payments} /></div>}
-      {userRole === "Viewer" && tab !== "overview" && (
+      {userRole === "Viewer" && tab === "all" && (
         <div className="viewer-metrics" aria-label="Payment summary">
           {metrics.map((m) => (
             <article className="viewer-metric" key={m.label}>
@@ -628,8 +636,7 @@ export function PaymentsClient({
         <article><div><b>Received</b><strong>{money(regularSummary.received.amountPaise/100)}</strong><small>{regularSummary.received.count}</small></div><div><b>Not Confirmed</b><strong>{money(regularSummary.notConfirmed.amountPaise/100)}</strong><small>{regularSummary.notConfirmed.count}</small></div></article>
       </div>}
       {userRole === "Viewer" && tab === "pending" && <div className="viewer-pending-insights" aria-label="Pending payment summary">
-        <article><span>Pending this week</span><strong>{money(pendingSummary.week.amountPaise/100)}</strong><small>{pendingSummary.week.count}</small></article>
-        <article><span>Pending this month</span><strong>{money(pendingSummary.month.amountPaise/100)}</strong><small>{pendingSummary.month.count}</small></article>
+        <article><span>Total pending amount</span><strong>{money(pendingSummary.amountPaise/100)}</strong><small>{pendingSummary.count} {pendingSummary.count === 1 ? "receipt" : "receipts"}</small></article>
       </div>}
       {userRole !== "Viewer" && (
         <div className="management-metrics" aria-label="Payment management summary">
@@ -781,7 +788,7 @@ export function PaymentsClient({
       )}
       <div className="results-bar">
         <strong>
-          {tab === "pending" ? pending.length : filtered.length} results
+          {tab === "pending" ? visiblePending.length : filtered.length} results
         </strong>
         {activeFilters > 0 && <span>{activeFilters} filters applied</span>}
         {tab === "pending" && (
@@ -793,7 +800,7 @@ export function PaymentsClient({
       </div>
       <div className="card payments-card ledger-card">
         {tab === "pending" ? (
-          <PendingList orders={pending} role={userRole} onAdd={startAdd} view={pendingView} />
+          <PendingList orders={visiblePending} role={userRole} onAdd={startAdd} view={pendingView} />
         ) : filtered.length ? (
           <>
             <div className="payments-table-wrap">
