@@ -6,6 +6,6 @@ import { getSessionUser } from '@/lib/auth'
 
 export default async function SettingsPage() {
   const user = await getSessionUser()
-  if (user && user.role !== 'Admin' && user.role !== 'Salesperson') redirect('/payments')
-  return <DashboardShell active="Settings">{user?.role === 'Salesperson' ? <PasswordSettings /> : <SettingsClient />}</DashboardShell>
+  if (user && !['Admin', 'Accounts', 'Salesperson'].includes(user.role)) redirect('/payments')
+  return <DashboardShell active="Settings">{user?.role === 'Admin' ? <SettingsClient /> : <PasswordSettings />}</DashboardShell>
 }

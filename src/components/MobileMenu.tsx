@@ -79,7 +79,7 @@ export function MobileMenu({ active, onLogout, user }: { nav: NavItem[]; utility
       <section ref={accountSheetRef} id="mobile-account-sheet" className="mobile-account-sheet" role="dialog" aria-modal="true" aria-label="Account" onClick={e => e.stopPropagation()}>
         <div className="sheet-handle"/><button ref={accountCloseRef} className="mobile-sheet-close" type="button" aria-label="Close account menu" onClick={() => setAccountOpen(false)}>×</button><header><div className="account-avatar">{(user.name || user.role).slice(0,2).toUpperCase()}</div><div><strong>{user.name || user.role}</strong><span>{user.email}</span></div></header><p>{user.role}</p>
         <div className="account-sheet-actions">
-          {(user.role === 'Admin' || user.role === 'Salesperson') && <a href="/settings" className="account-settings-link" onClick={() => setAccountOpen(false)}><NavIcon icon="settings"/><span>Settings</span><b aria-hidden="true">›</b></a>}
+          {['Admin', 'Accounts', 'Salesperson'].includes(user.role) && <a href="/settings" className="account-settings-link" onClick={() => setAccountOpen(false)}><NavIcon icon="settings"/><span>Settings</span><b aria-hidden="true">›</b></a>}
           <button className="account-logout" type="button" onClick={() => void onLogout()}>Log out</button>
         </div>
       </section>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { NotificationSettingsCard } from './NotificationSettingsCard'
 
 export function PasswordSettings() {
   const [error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false)
@@ -12,8 +13,9 @@ export function PasswordSettings() {
     catch{setError('Unable to change password. Check the details and try again.')}
     finally{setBusy(false)}
   }
-  return <section className="settings-page"><header className="settings-hero"><div><p className="eyebrow">Your account</p><h1>Settings</h1><p>Keep your account secure by using a strong, unique password.</p></div></header>
+  return <section className="settings-page"><header className="settings-hero"><div><p className="eyebrow">Your account</p><h1>Settings</h1><p>Manage your account security and notifications on this device.</p></div></header>
     {error&&<div className="form-error settings-message" role="alert">{error}</div>}{notice&&<div className="form-success settings-message" role="status">{notice}</div>}
+    <NotificationSettingsCard />
     <div className="settings-list-card"><div className="settings-list-head"><div><h3>Change Password</h3><p>Your new password must be at least 8 characters.</p></div></div>
       <form className="settings-form" onSubmit={submit}><div className="settings-form-grid">
         <label className="settings-form-wide">Current Password<input name="currentPassword" type="password" required autoComplete="current-password" /></label>

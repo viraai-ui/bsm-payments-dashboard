@@ -3,11 +3,11 @@
 import { useEffect, useState } from 'react'
 import type { SafeUser } from '@/lib/auth'
 
-type State = 'hidden' | 'prompt' | 'working' | 'blocked' | 'ios-install' | 'unconfigured' | 'enabled' | 'unsupported'
+type State = 'hidden' | 'prompt' | 'working' | 'disabling' | 'blocked' | 'ios-install' | 'unconfigured' | 'enabled' | 'unsupported'
 const SNOOZE_MS = 7 * 24 * 60 * 60 * 1000
 const MAX_DISMISSALS = 3
-const SETUP_TIMEOUT_MS = 10000
-function timed<T>(operation: Promise<T>, label: string): Promise<T> {
+export const SETUP_TIMEOUT_MS = 10000
+export function timed<T>(operation: Promise<T>, label: string): Promise<T> {
   return Promise.race([operation, new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`${label} timed out. In-app notifications remain active.`)), SETUP_TIMEOUT_MS))])
 }
 function key(userId: string) { return `payment-push-onboarding:${userId}` }
@@ -43,10 +43,41 @@ export function NotificationOnboarding({ user }: { user: SafeUser }) {
     setState('prompt')
   }, [user.id, user.role])
   useEffect(() => {
-    const manual = () => setState(Notification.permission === 'denied' ? 'blocked' : capability().ios && !capability().standalone ? 'ios-install' : 'prompt')
+    const manual = async () => {
+      const cap = capability()
+      if (!cap.supported) { setState('unsupported'); return }
+      if (Notification.permission === 'denied') { setState('blocked'); return }
+      if (cap.ios && !cap.standalone) { setState('ios-install'); return }
+      if (Notification.permission === 'granted') {
+        try {
+          const registration = await timed(navigator.serviceWorker.getRegistration('/'), 'Notification status check')
+          const subscription = await timed(registration?.pushManager.getSubscription() || Promise.resolve(null), 'Notification status check')
+          setState(subscription ? 'enabled' : 'prompt')
+        } catch (error) { setDetail(error instanceof Error ? error.message : 'Could not check notification status'); setState('unsupported') }
+        return
+      }
+      setState('prompt')
+    }
     window.addEventListener('payment-notifications:settings', manual)
     return () => window.removeEventListener('payment-notifications:settings', manual)
   }, [])
+  // Push endpoints belong to a browser device, not a login. Rebind an existing
+  // endpoint whenever the authenticated user changes to prevent cross-user delivery.
+  useEffect(() => {
+    if (!capability().supported || Notification.permission !== 'granted') return
+    let cancelled = false
+    void (async () => {
+      try {
+        const registration = await timed(navigator.serviceWorker.getRegistration('/'), 'Push session check')
+        const subscription = await timed(registration?.pushManager.getSubscription() || Promise.resolve(null), 'Push session check')
+        if (!subscription || cancelled) return
+        const response = await timed(fetch('/api/payments/push-subscription', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ subscription: subscription.toJSON(), deviceId: deviceId() }) }), 'Push session registration')
+        if (!response.ok) throw new Error('Could not register this session')
+        localStorage.setItem(key(user.id), JSON.stringify({ granted: true, subscribed: true }))
+      } catch { /* In-app notifications remain active; Settings can retry. */ }
+    })()
+    return () => { cancelled = true }
+  }, [user.id, user.role])
 
   function notNow() {
     const old = JSON.parse(localStorage.getItem(key(user.id)) || '{}')
@@ -59,7 +90,6 @@ export function NotificationOnboarding({ user }: { user: SafeUser }) {
     if (cap.ios && !cap.standalone) { setState('ios-install'); return }
     setState('working'); setDetail('')
     try {
-      // This is deliberately the first permission request and only runs from the Enable click.
       const permission = await timed(Notification.requestPermission(), 'Notification permission')
       if (permission === 'denied') { localStorage.setItem(key(user.id), JSON.stringify({ denied: true })); setState('blocked'); return }
       if (permission !== 'granted') { notNow(); return }
@@ -76,21 +106,37 @@ export function NotificationOnboarding({ user }: { user: SafeUser }) {
       const response = await timed(fetch('/api/payments/push-subscription', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ subscription: subscription.toJSON(), deviceId: deviceId() }) }), 'Push registration')
       if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || 'Could not register this device')
       localStorage.setItem(key(user.id), JSON.stringify({ granted: true, subscribed: true }))
-      setState('enabled'); setTimeout(() => setState('hidden'), 1800)
+      setState('enabled')
     } catch (error) { setDetail(`${error instanceof Error ? error.message : 'Could not enable push notifications'} In-app notifications remain active.`); setState('unsupported') }
+  }
+  async function disable() {
+    setState('disabling'); setDetail('')
+    try {
+      const registration = await timed(navigator.serviceWorker.getRegistration('/'), 'Notification status check')
+      const subscription = await timed(registration?.pushManager.getSubscription() || Promise.resolve(null), 'Notification status check')
+      if (subscription) {
+        const response = await timed(fetch('/api/payments/push-subscription', { method: 'DELETE', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ endpoint: subscription.endpoint }) }), 'Push removal')
+        if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || 'Could not disable notifications')
+        await timed(subscription.unsubscribe(), 'Browser unsubscribe')
+      }
+      localStorage.setItem(key(user.id), JSON.stringify({ granted: true, subscribed: false }))
+      setState('prompt')
+    } catch (error) { setDetail(`${error instanceof Error ? error.message : 'Could not disable push notifications'} Try again.`); setState('unsupported') }
   }
   if (state === 'hidden') return null
   const messages: Partial<Record<State, string>> = {
     blocked: 'Notifications blocked. Allow notifications for this site in your browser or device settings.',
     'ios-install': 'On iPhone and iPad, add this dashboard to your Home Screen, open it there, then enable notifications.',
     unconfigured: 'In-app notifications are active. Mobile push is not configured on this server.',
-    enabled: 'Notifications enabled.',
+    enabled: 'Notifications are enabled on this device.',
+    disabling: 'Disabling notifications on this device…',
     unsupported: detail || 'Push notifications are not available in this browser.',
   }
   return <aside className="notification-onboarding" role="dialog" aria-live="polite" aria-label="Enable notifications">
-    <div><strong>{state === 'prompt' || state === 'working' ? 'Enable notifications' : state === 'blocked' ? 'Notifications blocked' : 'Notifications'}</strong>
+    <div><strong>{state === 'prompt' || state === 'working' ? 'Enable notifications' : state === 'blocked' ? 'Notifications blocked' : state === 'enabled' || state === 'disabling' ? 'Notifications enabled' : 'Notifications'}</strong>
       <p>{messages[state] || 'Get payment updates on this device.'}</p></div>
     {(state === 'prompt' || state === 'working') && <div className="notification-onboarding-actions"><button type="button" onClick={notNow} disabled={state === 'working'}>Not now</button><button type="button" onClick={() => void enable()} disabled={state === 'working'}>{state === 'working' ? 'Enabling…' : 'Enable'}</button></div>}
-    {!['prompt', 'working', 'enabled'].includes(state) && <button className="notification-onboarding-close" type="button" onClick={() => setState('hidden')}>Close</button>}
+    {(state === 'enabled' || state === 'disabling') && <div className="notification-onboarding-actions"><button type="button" onClick={() => setState('hidden')} disabled={state === 'disabling'}>Close</button><button type="button" onClick={() => void disable()} disabled={state === 'disabling'}>{state === 'disabling' ? 'Disabling…' : 'Disable'}</button></div>}
+    {!['prompt', 'working', 'enabled', 'disabling'].includes(state) && <button className="notification-onboarding-close" type="button" onClick={() => setState('hidden')}>Close</button>}
   </aside>
 }
