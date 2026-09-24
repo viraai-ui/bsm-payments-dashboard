@@ -2187,7 +2187,7 @@ function PendingList({
           </header>
           <h2 className="pending-customer-line">
             <span>{s.customerName}</span>
-            {(role === "Admin" || role === "Viewer") && s.salespersonName && (
+            {(role === "Admin" || role === "Accounts" || role === "Viewer") && s.salespersonName && (
               <small className="pending-salesperson-chip" title={s.salespersonName} aria-label={`Salesperson: ${s.salespersonName}`}>
                 {s.salespersonName}
               </small>
