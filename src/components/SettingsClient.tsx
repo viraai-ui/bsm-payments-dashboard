@@ -9,8 +9,8 @@ const LABELS: Record<Permission, string> = {
   'payments.view': 'View all, pending and unauthorised payments',
   'payments.createLinked': 'Add linked sales-order payments',
   'payments.createUnauthorised': 'Add unauthorised payments',
-  'payments.approve': 'Mark receipts received or pending',
-  'payments.claim': 'Claim unauthorised receipts',
+  'payments.approve': 'Mark payments received or pending',
+  'payments.claim': 'Claim unauthorised payments',
   'payments.edit': 'Edit authorised payments',
   'payments.delete': 'Delete authorised payments',
   'users.manage': 'Manage users',
@@ -18,7 +18,7 @@ const LABELS: Record<Permission, string> = {
 }
 const ROLE_COPY: Record<AppRole, string> = {
   Salesperson: 'Creates and tracks linked customer payments.',
-  Accounts: 'Reviews receipts and manages payment status.',
+  Accounts: 'Reviews payments and manages payment status.',
   Admin: 'Full payment, user and administration access.',
   Viewer: 'Read-only access to the complete payments dashboard.',
 }

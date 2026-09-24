@@ -3,7 +3,7 @@ import { toPaise, fromPaise } from './payment-settlement'
 
 export type ManagementPaymentMetric = {
   key: 'received' | 'pending-receipts' | 'unauthorised' | 'pending-payments'
-  label: 'Payment Received' | 'Pending Receipts' | 'Unauthorised Payments' | 'Pending Payments'
+  label: 'Payment Received' | 'Pending Payments' | 'Unauthorised Payments'
   amount: number
 }
 
@@ -35,7 +35,7 @@ export function managementPaymentMetrics(payments: SettlementPayment[]): Managem
   const outstanding = fromPaise([...orders.values()].reduce((total, order) => total + Math.max(0, order.total - order.receipts), 0))
   return [
     { key: 'received', label: 'Payment Received', amount: sum('Payment Received') },
-    { key: 'pending-receipts', label: 'Pending Receipts', amount: sum('Pending') },
+    { key: 'pending-receipts', label: 'Pending Payments', amount: sum('Pending') },
     { key: 'unauthorised', label: 'Unauthorised Payments', amount: sum('Unauthorised') },
     { key: 'pending-payments', label: 'Pending Payments', amount: outstanding },
   ]

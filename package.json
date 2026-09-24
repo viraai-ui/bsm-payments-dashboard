@@ -44,7 +44,8 @@
     "sync:final-dispatch": "node --env-file=.env.local --experimental-strip-types scripts/final-dispatch-sync.mjs",
     "audit:payment-links": "node --env-file=.env.local --experimental-strip-types scripts/payment-link-backfill.mjs",
     "verify:zoho-orders:live": "node --env-file=.env.local --experimental-strip-types scripts/verify-zoho-payment-orders-live.mjs",
-    "verify:sales-order-reconciliation": "tsx scripts/verify-sales-order-reconciliation.mts"
+    "verify:sales-order-reconciliation": "tsx scripts/verify-sales-order-reconciliation.mts",
+    "verify:payment-terminology": "node scripts/verify-payment-terminology.cjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

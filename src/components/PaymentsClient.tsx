@@ -486,7 +486,7 @@ export function PaymentsClient({
     next: "Pending" | "Payment Received" | "Void",
   ) {
     if (p.status === "Payment Received" && next === "Pending" &&
-        !window.confirm("Change this received receipt back to Payment Pending?")) return;
+        !window.confirm("Change this received payment back to Payment Pending?")) return;
     setUpdating(p.id);
     setPayments(current => current.map(item => item.id === p.id ? { ...item, status: next } : item));
     const ok = await patch({ id: p.id, status: next });
@@ -496,12 +496,12 @@ export function PaymentsClient({
   async function claim(e: React.FormEvent) {
     e.preventDefault();
     if (!claiming || claimBusy.current) return;
-    if (!form.salesOrderId) return setClaimError("Select a sales order before claiming this receipt.");
+    if (!form.salesOrderId) return setClaimError("Select a sales order before claiming this payment.");
     const amount = Number(form.paymentAmount);
     const available = claiming.remainingAmount ?? claiming.paymentAmount;
     const outstanding = Number(form.provisionalOutstanding);
     if (!Number.isFinite(amount) || amount <= 0) return setClaimError("Enter a claim amount greater than ₹0.");
-    if (Math.round(amount * 100) > Math.round(available * 100)) return setClaimError(`Claim amount cannot exceed the ${money(available)} available on this receipt.`);
+    if (Math.round(amount * 100) > Math.round(available * 100)) return setClaimError(`Claim amount cannot exceed the ${money(available)} available on this payment.`);
     if (Math.round(amount * 100) > Math.round(outstanding * 100)) return setClaimError(`Claim amount cannot exceed this order’s ${money(outstanding)} outstanding balance.`);
     claimBusy.current = true;
     setClaimError("");
@@ -522,7 +522,7 @@ export function PaymentsClient({
       });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) {
-        setClaimError(j.error || "Could not claim this receipt. Please try again.");
+        setClaimError(j.error || "Could not claim this payment. Please try again.");
         return;
       }
       setPayments((current) => sortPayments([j.data.payment, ...current.filter((p) => p.id !== j.data.payment.id)]));
@@ -531,7 +531,7 @@ export function PaymentsClient({
       claimSubmissionKey.current = "";
       await refresh();
     } catch {
-      setClaimError("Could not claim this receipt. Check your connection and try again.");
+      setClaimError("Could not claim this payment. Check your connection and try again.");
     } finally {
       claimBusy.current = false;
       setSaving(false);
@@ -818,7 +818,7 @@ export function PaymentsClient({
                     <th>Date</th>
                     <th>Company / Sales Order</th>
                     <th>Order Total</th>
-                    <th>{userRole === "Viewer" ? "Payment" : "Receipt"}</th>
+                    <th>Payment</th>
                     <th>Outstanding</th>
                     <th>Salesperson</th>
                     <th>Status</th>
@@ -897,7 +897,7 @@ export function PaymentsClient({
       {open && userRole !== "Viewer" && (
         <Sheet
           title="Add payment"
-          eyebrow="New receipt"
+          eyebrow="New payment"
           close={() => { if(!saving){setOpen(false);setProofs([]);setError("");submitBusy.current=false} }}
         >
           <form
@@ -1090,21 +1090,21 @@ export function PaymentsClient({
       )}
       {claiming && (
         <Sheet
-          title="Claim receipt"
-          eyebrow="Unauthorised receipt"
+          title="Claim payment"
+          eyebrow="Unauthorised payment"
           close={() => { if (!saving) { setClaiming(null); setClaimError(""); } }}
           variant="claim"
         >
           <form className="payment-form add-payment-form" onSubmit={claim}>
             <div className="add-payment-form-body claim-form-body">
-              <div className="claim-receipt-context" aria-label="Receipt to claim">
-                <div><span>Original Receipt</span><strong>{money(claiming.originalPaymentAmount ?? claiming.paymentAmount)}</strong></div>
+              <div className="claim-receipt-context" aria-label="Payment to claim">
+                <div><span>Original Payment</span><strong>{money(claiming.originalPaymentAmount ?? claiming.paymentAmount)}</strong></div>
                 <div><span>Already Allocated</span><strong>{money(claiming.allocatedAmount ?? 0)}</strong></div>
                 <div className="claim-available"><span>Available to Allocate</span><strong>{money(claiming.remainingAmount ?? claiming.paymentAmount)}</strong></div>
                 <div><span>UTR / Reference</span><strong>{claiming.utrReference || "Not provided"}</strong></div>
                 <div><span>Customer reported</span><strong>{claiming.customerName || "Unidentified customer"}</strong></div>
               </div>
-              <p className="claim-help">Choose the sales order this bank receipt settles. Its available balance is checked again when you claim.</p>
+              <p className="claim-help">Choose the sales order this payment settles. Its available balance is checked again when you claim.</p>
               {userRole === "Admin" && (
                 <label>
                   Salesperson
@@ -1269,7 +1269,7 @@ export function PaymentsClient({
         >
           <div className="void-confirm delete-confirm-body">
             <div className="delete-confirm-icon" aria-hidden="true">!</div>
-            <p>{deleting.parentPaymentId ? "This allocation will be voided and its amount restored to the original unauthorised receipt. Receipt proof, UTR and audit lineage will remain." : "The receipt, proofs and related notifications will be removed. A permanent audit tombstone will remain."}</p>
+            <p>{deleting.parentPaymentId ? "This allocation will be voided and its amount restored to the original unauthorised payment. Payment proof, UTR and audit lineage will remain." : "The payment, proofs and related notifications will be removed. A permanent audit tombstone will remain."}</p>
             <dl>
               <div>
                 <dt>Sales order</dt>
@@ -1280,7 +1280,7 @@ export function PaymentsClient({
                 <dd>{deleting.customerName}</dd>
               </div>
               <div>
-                <dt>Receipt</dt>
+                <dt>Payment</dt>
                 <dd>{money(deleting.paymentAmount)}</dd>
               </div>
             </dl>
@@ -1754,7 +1754,7 @@ function PaymentDetails({
             <strong>{total === undefined ? "—" : money(total)}</strong>
           </div>
           <div>
-            <span>{role === "Viewer" ? "Payment" : "Receipt"}</span>
+            <span>Payment</span>
             <strong>{money(p.paymentAmount)}</strong>
           </div>
           <div>
@@ -1771,11 +1771,11 @@ function PaymentDetails({
         <section className="allocation-lineage">
           <h3>Allocation History</h3>
           <div className="detail-summary">
-            <div><span>{role === "Viewer" ? "Original payment" : "Original receipt"}</span><strong>{money(p.originalPaymentAmount ?? p.paymentAmount)}</strong></div>
+            <div><span>Original payment</span><strong>{money(p.originalPaymentAmount ?? p.paymentAmount)}</strong></div>
             <div><span>{p.parentPaymentId ? "This allocation" : "Allocated"}</span><strong>{money(p.parentPaymentId ? p.paymentAmount : (p.allocatedAmount ?? 0))}</strong></div>
             <div><span>Amount remaining</span><strong>{money(p.parentPaymentId ? 0 : (p.remainingAmount ?? p.paymentAmount))}</strong></div>
           </div>
-          {p.parentPaymentId && <p className="lineage-reference">Allocated from {role === "Viewer" ? "payment" : "receipt"} {p.parentPaymentId}</p>}
+          {p.parentPaymentId && <p className="lineage-reference">Allocated from payment {p.parentPaymentId}</p>}
         </section>
       )}
       <section>
@@ -1825,7 +1825,7 @@ function StatusControl({
     </select>
   ) : p.status === "Unauthorised" && (role === "Salesperson" || role === "Admin") ? (
     <button className={`ledger-action ${isPartiallyClaimed(p) ? "partial-claim-action" : ""}`} onClick={onClaim}>
-      {isPartiallyClaimed(p) ? `Claim ${money(p.remainingAmount ?? 0)} remaining` : "Claim receipt"}
+      {isPartiallyClaimed(p) ? `Claim ${money(p.remainingAmount ?? 0)} remaining` : "Claim payment"}
     </button>
   ) : (
     <span
@@ -1944,7 +1944,7 @@ function MobileCard({
       <header>
         <div>
           <strong className="viewer-card-company">{paymentCustomerLabel(p.customerName)}</strong>
-          <span className="mobile-reference">{p.salesOrderNumber || (p.utrReference ? `UTR ${p.utrReference}` : role === "Viewer" ? "Unlinked payment" : "Unlinked receipt")}</span>
+          <span className="mobile-reference">{p.salesOrderNumber || (p.utrReference ? `UTR ${p.utrReference}` : "Unlinked payment")}</span>
         </div>
         <Overflow
           p={p}
@@ -1979,7 +1979,7 @@ function MobileCard({
           </dd>
         </div>
         <div className="payment-received-amount">
-          <dt>{isPartiallyClaimed(p) ? "Amount remaining" : role === "Viewer" ? "Payment" : "Receipt"}</dt>
+          <dt>{isPartiallyClaimed(p) ? "Amount remaining" : "Payment"}</dt>
           <dd>{money(isPartiallyClaimed(p) ? (p.remainingAmount ?? 0) : p.paymentAmount)}</dd>
           {isPartiallyClaimed(p) && <small className="partial-remaining">Partially claimed</small>}
         </div>
