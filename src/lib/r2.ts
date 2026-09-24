@@ -17,7 +17,7 @@ let corsReadyUntil = 0
 export const R2_VIDEO_MAX_BYTES = 250 * 1024 * 1024
 export const R2_DOCUMENT_MAX_BYTES = 15 * 1024 * 1024
 export type R2ObjectMetadata = { exists: boolean; contentType: string; contentLength: number; etag: string | null }
-const ALLOWED_PREFIXES = ['media-proof/', 'payments/', 'payment-proofs/', 'app-data/'] as const
+const ALLOWED_PREFIXES = ['media-proof/', 'payments/', 'payment-proofs/', 'app-data/', 'backups/'] as const
 
 /** Allows persisted legacy spaces while rejecting traversal and unsafe bytes. */
 export function isSafeR2Key(key: string, prefixes: readonly string[] = ALLOWED_PREFIXES) {

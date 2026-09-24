@@ -1,0 +1,5 @@
+import { NextRequest,NextResponse } from 'next/server'
+import { runPaymentProofRetention } from '@/lib/payment-proof-retention'
+export const runtime='nodejs';export const dynamic='force-dynamic';export const maxDuration=60
+function authorised(r:NextRequest){const secret=process.env.CRON_SECRET;return Boolean(secret&&r.headers.get('authorization')===`Bearer ${secret}`)}
+export async function GET(request:NextRequest){if(!authorised(request))return NextResponse.json({error:'Unauthorised'},{status:401});try{const dryRun=request.nextUrl.searchParams.get('dryRun')==='true',limit=Number(request.nextUrl.searchParams.get('limit')||25);const report=await runPaymentProofRetention({dryRun,limit});console.info('payment-proof-retention',report);return NextResponse.json(report,{headers:{'Cache-Control':'no-store'}})}catch(error){return NextResponse.json({error:error instanceof Error?error.message:'Retention failed'},{status:500})}}

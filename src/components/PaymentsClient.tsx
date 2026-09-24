@@ -32,6 +32,7 @@ import { normalizePaymentAmountInput } from "@/lib/payment-amount";
 import { managementPaymentMetrics } from "@/lib/management-payment-metrics";
 import { mergePaymentSnapshot } from "@/lib/payment-live-sync";
 import { PAYMENT_PROOF_ACCEPT, normalizePaymentProofFiles, removePaymentProofFile } from "@/lib/payment-proof-files";
+import { compressPaymentScreenshot } from "@/lib/payment-screenshot";
 
 type Tab = "overview" | "all" | "unauthorised" | "pending";
 type PendingView = "grid" | "list";
@@ -157,9 +158,10 @@ export function PaymentsClient({
   const submissionKey = useRef("");
   const addErrorRef = useRef<HTMLParagraphElement>(null);
   const proofPopupActive = open || Boolean(editing);
-  const acceptProofFiles = useCallback((incoming: File[], mode: "append" | "replace") => {
+  const acceptProofFiles = useCallback(async (incoming: File[], mode: "append" | "replace") => {
+    const compressed = await Promise.all(incoming.map(compressPaymentScreenshot));
     setProofs(current => {
-      const result = normalizePaymentProofFiles(current, incoming, mode);
+      const result = normalizePaymentProofFiles(current, compressed, mode);
       setError(result.error);
       return result.files;
     });

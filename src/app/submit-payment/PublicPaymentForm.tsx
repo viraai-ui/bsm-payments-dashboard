@@ -2,7 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import styles from './submit-payment.module.css'
-import { normalizePaymentScreenshotFile } from '@/lib/payment-screenshot'
+import { compressPaymentScreenshot } from '@/lib/payment-screenshot'
 import { PAYMENT_PROOF_ACCEPT, normalizePaymentProofFiles, removePaymentProofFile } from '@/lib/payment-proof-files'
 import { PaymentProofViewer, type ViewerProof } from '@/components/PaymentProofViewer'
 import { isValidPaymentAmount, normalizePaymentAmountInput } from '@/lib/payment-amount'
@@ -111,10 +111,10 @@ export default function PublicPaymentForm() {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }, [])
 
-  const attachPaymentProof = useCallback((candidates: File[]) => {
+  const attachPaymentProof = useCallback(async (candidates: File[]) => {
     try {
       if (!candidates.length) throw new Error('Folders cannot be attached. Choose images or PDFs.')
-      const normalized = candidates.map(normalizePaymentScreenshotFile)
+      const normalized = await Promise.all(candidates.map(compressPaymentScreenshot))
       setFiles((current) => {
         const result = normalizePaymentProofFiles(current, normalized, 'append')
         setError(result.error)

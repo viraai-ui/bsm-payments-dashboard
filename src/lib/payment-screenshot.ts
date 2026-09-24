@@ -42,3 +42,12 @@ export function normalizePaymentScreenshotFile(file: File) {
   if (!normalized) throw new Error('Choose a JPEG, PNG, WebP, HEIC, HEIF or PDF file.')
   return file.type === normalized.mimeType ? file : new File([file], file.name, { type: normalized.mimeType, lastModified: file.lastModified })
 }
+
+/** Re-encoding via canvas applies EXIF orientation and strips embedded metadata. */
+export async function compressPaymentScreenshot(file:File){
+  const normalized=normalizePaymentScreenshotFile(file)
+  if(!['image/jpeg','image/png','image/webp'].includes(normalized.type))return normalized
+  try{const bitmap=await createImageBitmap(normalized,{imageOrientation:'from-image'}),scale=Math.min(1,2048/Math.max(bitmap.width,bitmap.height));if(scale===1&&normalized.type==='image/webp')return normalized
+    const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));const context=canvas.getContext('2d');if(!context)throw new Error('Image compression unavailable');context.drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close();const blob=await new Promise<Blob|null>(resolve=>canvas.toBlob(resolve,'image/webp',.8));if(!blob)throw new Error('Image compression failed');if(blob.size>=normalized.size)return normalized;return new File([blob],`${normalized.name.replace(/\.[^.]+$/,'')||'payment-proof'}.webp`,{type:'image/webp',lastModified:normalized.lastModified})
+  }catch{return normalized}
+}
