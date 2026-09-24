@@ -52,7 +52,11 @@ export function NotificationOnboarding({ user }: { user: SafeUser }) {
         try {
           const registration = await timed(navigator.serviceWorker.getRegistration('/'), 'Notification status check')
           const subscription = await timed(registration?.pushManager.getSubscription() || Promise.resolve(null), 'Notification status check')
-          setState(subscription ? 'enabled' : 'prompt')
+          if (!subscription) { setState('prompt'); return }
+          const response = await timed(fetch('/api/payments/push-subscription', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ subscription: subscription.toJSON(), deviceId: deviceId() }) }), 'Push registration verification')
+          const result = await response.json().catch(() => ({}))
+          if (!response.ok || result.data?.subscribed !== true) throw new Error(result.error || 'This device was not registered on the server')
+          setState('enabled')
         } catch (error) { setDetail(error instanceof Error ? error.message : 'Could not check notification status'); setState('unsupported') }
         return
       }
@@ -72,7 +76,8 @@ export function NotificationOnboarding({ user }: { user: SafeUser }) {
         const subscription = await timed(registration?.pushManager.getSubscription() || Promise.resolve(null), 'Push session check')
         if (!subscription || cancelled) return
         const response = await timed(fetch('/api/payments/push-subscription', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ subscription: subscription.toJSON(), deviceId: deviceId() }) }), 'Push session registration')
-        if (!response.ok) throw new Error('Could not register this session')
+        const result = await response.json().catch(() => ({}))
+        if (!response.ok || result.data?.subscribed !== true) throw new Error('Could not register this session')
         localStorage.setItem(key(user.id), JSON.stringify({ granted: true, subscribed: true }))
       } catch { /* In-app notifications remain active; Settings can retry. */ }
     })()
@@ -104,7 +109,8 @@ export function NotificationOnboarding({ user }: { user: SafeUser }) {
       const existing = await timed(registration.pushManager.getSubscription(), 'Push subscription check')
       const subscription = existing || await timed(registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: decodeKey(config.data.publicKey) }), 'Push subscription')
       const response = await timed(fetch('/api/payments/push-subscription', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ subscription: subscription.toJSON(), deviceId: deviceId() }) }), 'Push registration')
-      if (!response.ok) throw new Error((await response.json().catch(() => ({}))).error || 'Could not register this device')
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok || result.data?.subscribed !== true) throw new Error(result.error || 'Could not register this device')
       localStorage.setItem(key(user.id), JSON.stringify({ granted: true, subscribed: true }))
       setState('enabled')
     } catch (error) { setDetail(`${error instanceof Error ? error.message : 'Could not enable push notifications'} In-app notifications remain active.`); setState('unsupported') }
@@ -128,7 +134,7 @@ export function NotificationOnboarding({ user }: { user: SafeUser }) {
     blocked: 'Notifications blocked. Allow notifications for this site in your browser or device settings.',
     'ios-install': 'On iPhone and iPad, add this dashboard to your Home Screen, open it there, then enable notifications.',
     unconfigured: 'In-app notifications are active. Mobile push is not configured on this server.',
-    enabled: 'Notifications are enabled on this device.',
+    enabled: 'Push is registered on this device. Desktop notifications also require browser and OS notifications to be allowed; iPhone/iPad push requires this app to be installed on the Home Screen.',
     disabling: 'Disabling notifications on this device…',
     unsupported: detail || 'Push notifications are not available in this browser.',
   }

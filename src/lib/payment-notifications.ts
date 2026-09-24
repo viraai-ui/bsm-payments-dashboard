@@ -1,7 +1,7 @@
 import { getUserStore, type AppRole } from './auth'
 import { readLocalJsonFresh, updateLocalJson } from './local-store'
 import type { Payment, PaymentStatus } from './payments'
-import { sendPaymentPushNotifications } from './payment-push'
+import { createPushOutboxItem, sendPaymentPushNotifications, type PushOutboxItem } from './payment-push'
 
 export type NotificationType = 'boss-payment-created' | 'unauthorised-created' | 'status-received' | 'status-pending' | 'status-void'
 export type PaymentNotification = {
@@ -23,7 +23,7 @@ export type PaymentNotification = {
   createdAt: string
   readAt: string | null
 }
-type Store = { notifications: PaymentNotification[] }
+type Store = { notifications: PaymentNotification[]; pushOutbox?: PushOutboxItem[] }
 const FILE = 'payment-notifications.json'
 const EMPTY: Store = { notifications: [] }
 
@@ -50,7 +50,8 @@ async function notify(payment: Payment, type: NotificationType, recipients: Arra
         url, createdAt: now, readAt: null,
       }
     }).filter(item => !existing.has(item.dedupeKey))
-    return { notifications: [...made, ...store.notifications].slice(0, 2000) }
+    const jobs = made.map(item => createPushOutboxItem(item))
+    return { notifications: [...made, ...store.notifications].slice(0, 2000), pushOutbox: [...jobs, ...(store.pushOutbox || [])].slice(0, 4000) }
   })
   if (made.length) await sendPaymentPushNotifications(made).catch(error => console.error('Payment push dispatch failed', error))
   return made

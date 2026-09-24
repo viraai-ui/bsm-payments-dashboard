@@ -1,5 +1,6 @@
 {
   "crons": [
-    { "path": "/api/integrations/payouts/retry", "schedule": "* * * * *" }
+    { "path": "/api/integrations/payouts/retry", "schedule": "* * * * *" },
+    { "path": "/api/integrations/push/retry", "schedule": "* * * * *" }
   ]
 }

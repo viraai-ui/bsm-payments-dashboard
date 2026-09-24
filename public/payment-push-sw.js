@@ -1,3 +1,6 @@
+const WORKER_VERSION = 'payment-push-v2'
+self.addEventListener('install', () => self.skipWaiting())
+self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()))
 self.addEventListener('push', (event) => {
   let data = {}
   try { data = event.data ? event.data.json() : {} } catch {}
@@ -7,7 +10,9 @@ self.addEventListener('push', (event) => {
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-192.png',
       tag: data.tag || 'new-payment',
-      data: { url: data.url || '/payments' },
+      renotify: true,
+      requireInteraction: false,
+      data: { url: data.url || '/payments', eventId: data.tag, workerVersion: WORKER_VERSION },
     }),
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windows => windows.forEach(client => client.postMessage({ type: 'payment-notification', eventId: data.tag }))),
   ]))

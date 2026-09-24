@@ -1,64 +1,44 @@
+import { randomUUID } from 'node:crypto'
 import webpush, { type PushSubscription as WebPushSubscription } from 'web-push'
-import { readLocalJson, updateLocalJson } from './local-store'
+import { readLocalJsonFresh, updateLocalJson } from './local-store'
 import type { AppRole } from './auth'
 import type { PaymentNotification } from './payment-notifications'
 
-export type StoredPushSubscription = WebPushSubscription & {
-  userId: string
-  role: AppRole
-  deviceId: string
-  createdAt: string
-  updatedAt: string
-}
-type PushStore = { subscriptions: StoredPushSubscription[] }
-const FILE = 'payment-push-subscriptions.json'
-const EMPTY: PushStore = { subscriptions: [] }
+export type StoredPushSubscription = WebPushSubscription & { userId:string; role:AppRole; deviceId:string; createdAt:string; updatedAt:string; disabledAt?:string }
+type PushStore={subscriptions:StoredPushSubscription[]}
+export type PushDelivery={endpoint:string;deviceId:string;status:'pending'|'delivered'|'retrying'|'expired'|'failed';attempts:number;nextAttemptAt:string|null;lastStatus?:number;lastError?:string;deliveredAt?:string}
+export type PushOutboxItem={id:string;notificationId:string;eventId:string;recipientUserId:string;recipientRole:AppRole;payload:string;status:'pending'|'delivering'|'retrying'|'delivered'|'waiting'|'failed';attempts:number;nextAttemptAt:string|null;createdAt:string;updatedAt:string;leaseId?:string;leaseExpiresAt?:string;deliveries:PushDelivery[]}
+type NotificationStore={notifications:PaymentNotification[];pushOutbox?:PushOutboxItem[]}
+const SUBSCRIPTIONS_FILE='payment-push-subscriptions.json',SUBSCRIPTIONS_EMPTY:PushStore={subscriptions:[]}
+const NOTIFICATIONS_FILE='payment-notifications.json',NOTIFICATIONS_EMPTY:NotificationStore={notifications:[],pushOutbox:[]}
+export const PUSH_RETRY_DELAYS_MS=[60_000,5*60_000,15*60_000,60*60_000,6*60*60_000,24*60*60_000] as const
+export const PUSH_LEASE_MS=30_000
+export type PushTransport=(subscription:WebPushSubscription,payload:string,options:{TTL:number;urgency:'high';topic:string})=>Promise<unknown>
 
-export function paymentPushConfiguration() {
-  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || ''
-  const privateKey = process.env.VAPID_PRIVATE_KEY || ''
-  return { configured: Boolean(publicKey && privateKey), publicKey }
-}
-export async function savePaymentPushSubscription(userId: string, role: AppRole, deviceId: string, subscription: WebPushSubscription) {
-  const now = new Date().toISOString()
-  await updateLocalJson(FILE, EMPTY, store => {
-    const old = store.subscriptions.find(item => item.endpoint === subscription.endpoint)
-    return { subscriptions: [{ ...subscription, userId, role, deviceId, createdAt: old?.createdAt || now, updatedAt: now }, ...store.subscriptions.filter(item => item.endpoint !== subscription.endpoint && !(item.userId === userId && item.deviceId === deviceId))] }
-  })
-}
-export async function removePaymentPushSubscription(userId: string, endpoint: string) {
-  await updateLocalJson(FILE, EMPTY, store => ({ subscriptions: store.subscriptions.filter(item => !(item.userId === userId && item.endpoint === endpoint)) }))
-}
+export function paymentPushConfiguration(){const publicKey=process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim()||'',privateKey=process.env.VAPID_PRIVATE_KEY?.trim()||'';return{configured:Boolean(publicKey&&privateKey),publicKey}}
+export async function savePaymentPushSubscription(userId:string,role:AppRole,deviceId:string,subscription:WebPushSubscription){const now=new Date().toISOString();await updateLocalJson(SUBSCRIPTIONS_FILE,SUBSCRIPTIONS_EMPTY,store=>{const old=store.subscriptions.find(item=>item.endpoint===subscription.endpoint);return{subscriptions:[{...subscription,userId,role,deviceId,createdAt:old?.createdAt||now,updatedAt:now},...store.subscriptions.filter(item=>item.endpoint!==subscription.endpoint&&!(item.userId===userId&&item.deviceId===deviceId))]}})}
+export async function removePaymentPushSubscription(userId:string,endpoint:string){await updateLocalJson(SUBSCRIPTIONS_FILE,SUBSCRIPTIONS_EMPTY,store=>({subscriptions:store.subscriptions.filter(item=>!(item.userId===userId&&item.endpoint===endpoint))}))}
+export async function hasPaymentPushSubscription(userId:string,endpoint:string,deviceId:string){const store=await readLocalJsonFresh(SUBSCRIPTIONS_FILE,SUBSCRIPTIONS_EMPTY);return store.subscriptions.some(item=>item.userId===userId&&item.endpoint===endpoint&&item.deviceId===deviceId&&!item.disabledAt)}
+export function isPaymentPushEligible(notification:Pick<PaymentNotification,'recipientUserId'|'recipientRole'>,subscription:Pick<StoredPushSubscription,'userId'|'role'>){return subscription.userId===notification.recipientUserId&&subscription.role===notification.recipientRole}
+export function createPushOutboxItem(notification:PaymentNotification,now=new Date()):PushOutboxItem{return{id:`push-${notification.id}`,notificationId:notification.id,eventId:notification.eventId,recipientUserId:notification.recipientUserId,recipientRole:notification.recipientRole,payload:JSON.stringify({title:notification.title,body:notification.body,url:notification.url,tag:notification.eventId,paymentId:notification.paymentId}),status:'pending',attempts:0,nextAttemptAt:now.toISOString(),createdAt:now.toISOString(),updatedAt:now.toISOString(),deliveries:[]}}
+function errorMessage(error:unknown){return error instanceof Error?error.message:String(error)}
+function statusCode(error:unknown){return (error as {statusCode?:number})?.statusCode}
+function defaultTransport(subscription:WebPushSubscription,payload:string,options:{TTL:number;urgency:'high';topic:string}){const config=paymentPushConfiguration();webpush.setVapidDetails(process.env.VAPID_SUBJECT?.trim()||'mailto:accounts@bsmindia.com',config.publicKey,process.env.VAPID_PRIVATE_KEY!.trim());return webpush.sendNotification(subscription,payload,options)}
 
-/** Sends only to subscriptions owned by the exact server-selected recipients. */
-export function isPaymentPushEligible(notification: Pick<PaymentNotification, 'recipientUserId' | 'recipientRole'>, subscription: Pick<StoredPushSubscription, 'userId' | 'role'>) {
-  return subscription.userId === notification.recipientUserId && subscription.role === notification.recipientRole
+export async function deliverPushOutboxItem(id:string,transport:PushTransport=defaultTransport,now=new Date()){
+ const config=paymentPushConfiguration();if(!config.configured){console.error('Payment push is not configured',{outboxId:id});return null}
+ const leaseId=randomUUID();let claimed:PushOutboxItem|undefined
+ await updateLocalJson(NOTIFICATIONS_FILE,NOTIFICATIONS_EMPTY,store=>({...store,pushOutbox:(store.pushOutbox||[]).map(item=>{const expired=item.status==='delivering'&&(!item.leaseExpiresAt||Date.parse(item.leaseExpiresAt)<=now.getTime());if(item.id!==id||(!['pending','retrying','waiting'].includes(item.status)&&!expired)||(item.nextAttemptAt&&Date.parse(item.nextAttemptAt)>now.getTime()))return item;claimed={...item,status:'delivering',attempts:item.attempts+1,nextAttemptAt:null,updatedAt:now.toISOString(),leaseId,leaseExpiresAt:new Date(now.getTime()+PUSH_LEASE_MS).toISOString()};return claimed})}))
+ if(!claimed)return null
+ const subscriptions=(await readLocalJsonFresh(SUBSCRIPTIONS_FILE,SUBSCRIPTIONS_EMPTY)).subscriptions.filter(subscription=>!subscription.disabledAt&&subscription.userId===claimed!.recipientUserId&&subscription.role===claimed!.recipientRole)
+ const existing=new Map(claimed.deliveries.map(delivery=>[delivery.endpoint,delivery]));const deliveries:PushDelivery[]=[];const dead=new Set<string>()
+ for(const subscription of subscriptions){const old=existing.get(subscription.endpoint);if(old?.status==='delivered'){deliveries.push(old);continue}try{await transport(subscription,claimed.payload,{TTL:24*60*60,urgency:'high',topic:claimed.eventId.slice(0,32)});deliveries.push({endpoint:subscription.endpoint,deviceId:subscription.deviceId,status:'delivered',attempts:(old?.attempts||0)+1,nextAttemptAt:null,deliveredAt:new Date().toISOString()})}catch(error){const code=statusCode(error),terminal=code===404||code===410;if(terminal)dead.add(subscription.endpoint);deliveries.push({endpoint:subscription.endpoint,deviceId:subscription.deviceId,status:terminal?'expired':'retrying',attempts:(old?.attempts||0)+1,nextAttemptAt:null,lastStatus:code,lastError:errorMessage(error).slice(0,300)});console.error('Payment push delivery failed',{outboxId:id,status:code,attempt:(old?.attempts||0)+1})}}
+ if(dead.size)await updateLocalJson(SUBSCRIPTIONS_FILE,SUBSCRIPTIONS_EMPTY,store=>({subscriptions:store.subscriptions.filter(item=>!dead.has(item.endpoint))}))
+ const retryable=deliveries.some(item=>item.status==='retrying'),allDelivered=subscriptions.length>0&&deliveries.every(item=>item.status==='delivered'||item.status==='expired'),delay=PUSH_RETRY_DELAYS_MS[claimed.attempts-1];let result:PushOutboxItem|undefined
+ await updateLocalJson(NOTIFICATIONS_FILE,NOTIFICATIONS_EMPTY,store=>({...store,pushOutbox:(store.pushOutbox||[]).map(item=>{if(item.id!==id||item.leaseId!==leaseId)return item;const waiting=subscriptions.length===0;result={...item,deliveries,status:allDelivered?'delivered':waiting?'waiting':retryable&&delay!==undefined?'retrying':'failed',nextAttemptAt:allDelivered?null:new Date(now.getTime()+(waiting?60*60_000:(delay||0))).toISOString(),updatedAt:new Date().toISOString(),leaseId:undefined,leaseExpiresAt:undefined};return result})}))
+ return result||null
 }
-export async function sendPaymentPushNotifications(notifications: PaymentNotification[]) {
-  const config = paymentPushConfiguration()
-  if (!config.configured) return { sent: 0, configured: false }
-  webpush.setVapidDetails(process.env.VAPID_SUBJECT || 'mailto:accounts@bsmindia.com', config.publicKey, process.env.VAPID_PRIVATE_KEY!)
-  const store = await readLocalJson(FILE, EMPTY)
-  const dead = new Set<string>()
-  let sent = 0
-  await Promise.allSettled(notifications.flatMap(notification => store.subscriptions
-    .filter(subscription => isPaymentPushEligible(notification, subscription))
-    .map(async subscription => {
-      try {
-        await webpush.sendNotification(subscription, JSON.stringify({
-          title: notification.title,
-          body: notification.body,
-          url: notification.url,
-          tag: notification.eventId,
-          paymentId: notification.paymentId,
-        }), { TTL: 60 * 60, urgency: 'high' })
-        sent += 1
-      } catch (error) {
-        const status = (error as { statusCode?: number }).statusCode
-        if (status === 404 || status === 410) dead.add(subscription.endpoint)
-        console.error('Payment push delivery failed', { status })
-      }
-    })))
-  if (dead.size) await updateLocalJson(FILE, EMPTY, current => ({ subscriptions: current.subscriptions.filter(item => !dead.has(item.endpoint)) })).catch(error => console.error('Could not clean dead push subscriptions', error))
-  return { sent, configured: true }
-}
+export async function processDuePushOutbox(transport:PushTransport=defaultTransport,now=new Date(),limit=25){const store=await readLocalJsonFresh(NOTIFICATIONS_FILE,NOTIFICATIONS_EMPTY),due=(store.pushOutbox||[]).filter(item=>{const expired=item.status==='delivering'&&(!item.leaseExpiresAt||Date.parse(item.leaseExpiresAt)<=now.getTime());return expired||(['pending','retrying','waiting'].includes(item.status)&&(!item.nextAttemptAt||Date.parse(item.nextAttemptAt)<=now.getTime()))}).slice(0,limit),results:PushOutboxItem[]=[];for(const item of due){const result=await deliverPushOutboxItem(item.id,transport,now);if(result)results.push(result)}return results}
+/** Backwards-compatible entry point; durable jobs are already transactionally enqueued with notifications. */
+export async function sendPaymentPushNotifications(notifications:PaymentNotification[],transport?:PushTransport){const results=[];for(const notification of notifications){const result=await deliverPushOutboxItem(`push-${notification.id}`,transport);if(result)results.push(result)}return{sent:results.reduce((n,item)=>n+item.deliveries.filter(d=>d.status==='delivered').length,0),configured:paymentPushConfiguration().configured}}
+export async function pushDeliveryAudit(){const [notifications,subscriptions]=await Promise.all([readLocalJsonFresh(NOTIFICATIONS_FILE,NOTIFICATIONS_EMPTY),readLocalJsonFresh(SUBSCRIPTIONS_FILE,SUBSCRIPTIONS_EMPTY)]);return{subscriptions:subscriptions.subscriptions.length,outbox:(notifications.pushOutbox||[]).reduce<Record<string,number>>((counts,item)=>(counts[item.status]=(counts[item.status]||0)+1,counts),{})}}

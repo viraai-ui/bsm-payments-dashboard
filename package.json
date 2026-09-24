@@ -24,6 +24,7 @@
     "verify:closed-remainder": "tsx scripts/verify-closed-remainder.mts",
     "verify:notifications": "tsx scripts/verify-payment-notifications.mjs && tsx scripts/verify-notification-stability.mts",
     "verify:notification-settings": "tsx scripts/verify-notification-settings.mts",
+    "verify:push-delivery": "tsx scripts/verify-push-delivery.mts",
     "verify:currency-display": "node scripts/verify-currency-display.cjs",
     "verify:live-sync": "tsx scripts/verify-live-sync.mjs",
     "verify:admin-contract": "node scripts/verify-admin-contract.cjs",

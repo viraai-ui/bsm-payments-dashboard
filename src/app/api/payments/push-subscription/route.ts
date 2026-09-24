@@ -1,6 +1,6 @@
 import { apiError, apiOk } from '@/lib/api'
 import { requireUser } from '@/lib/auth'
-import { paymentPushConfiguration, removePaymentPushSubscription, savePaymentPushSubscription } from '@/lib/payment-push'
+import { hasPaymentPushSubscription, paymentPushConfiguration, processDuePushOutbox, removePaymentPushSubscription, savePaymentPushSubscription } from '@/lib/payment-push'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -10,9 +10,11 @@ function validSubscription(value: unknown): value is { endpoint: string; keys: {
   return typeof item.endpoint === 'string' && item.endpoint.length<=2048 && item.endpoint.startsWith('https://') && typeof item.keys?.p256dh === 'string' && item.keys.p256dh.length>=32 && item.keys.p256dh.length<=256 && typeof item.keys.auth === 'string' && item.keys.auth.length>=8 && item.keys.auth.length<=128
 }
 const roles = ['Admin', 'Accounts', 'Salesperson', 'Viewer'] as const
-export async function GET() {
+export async function GET(request: Request) {
   const auth = await requireUser([...roles]); if (!auth.ok) return auth.response
-  return apiOk(paymentPushConfiguration())
+  const url = new URL(request.url), endpoint = url.searchParams.get('endpoint') || '', deviceId = url.searchParams.get('deviceId') || ''
+  const registered = endpoint.startsWith('https://') && deviceId ? await hasPaymentPushSubscription(auth.user.id, endpoint, deviceId) : false
+  return apiOk({ ...paymentPushConfiguration(), registered })
 }
 export async function POST(request: Request) {
   const auth = await requireUser([...roles]); if (!auth.ok) return auth.response
@@ -21,7 +23,7 @@ export async function POST(request: Request) {
   const deviceId = typeof body.deviceId === 'string' && /^[a-zA-Z0-9_-]{8,100}$/.test(body.deviceId) ? body.deviceId : ''
   if (!deviceId) return apiError('Invalid device id', 400)
   if (!paymentPushConfiguration().configured) return apiError('Push notifications are not configured', 503)
-  try { await savePaymentPushSubscription(auth.user.id, auth.user.role, deviceId, body.subscription); return apiOk({ subscribed: true }) }
+  try { await savePaymentPushSubscription(auth.user.id, auth.user.role, deviceId, body.subscription); const registered = await hasPaymentPushSubscription(auth.user.id, body.subscription.endpoint, deviceId); void processDuePushOutbox().catch(error => console.error('Push outbox opportunistic delivery failed', error)); return apiOk({ subscribed: registered }) }
   catch (error) { return apiError(error instanceof Error ? error.message : 'Could not save subscription', 500) }
 }
 export async function DELETE(request: Request) {
