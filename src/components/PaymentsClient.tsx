@@ -261,7 +261,26 @@ export function PaymentsClient({
     setPendingView(view);
     window.localStorage.setItem("bsm.pending-view", view);
   };
-  const pending = useMemo(() => pendingOrderSummaries(payments), [payments]);
+  const salespersonDirectory = useMemo(
+    () => new Map(salespeople.map((person) => [person.id, person.name || person.username])),
+    [salespeople],
+  );
+  const pending = useMemo(
+    () => pendingOrderSummaries(payments).map((order) => {
+      const orderPayments = payments.filter((payment) => payment.salesOrderNumber === order.salesOrderNumber);
+      const stableOwner = orderPayments.find((payment) => {
+        const ownerId = payment.ownerUserId || payment.claimedBy || payment.createdBy;
+        return ownerId && salespersonDirectory.has(ownerId);
+      });
+      const stableOwnerId = stableOwner && (stableOwner.ownerUserId || stableOwner.claimedBy || stableOwner.createdBy);
+      const legacyOwner = orderPayments.find((payment) => salesperson(payment) !== "—");
+      return {
+        ...order,
+        salespersonName: (stableOwnerId && salespersonDirectory.get(stableOwnerId)) || (legacyOwner && salesperson(legacyOwner)) || "Unassigned",
+      };
+    }),
+    [payments, salespersonDirectory],
+  );
   const summaries = useMemo(
     () =>
       new Map(
@@ -2164,7 +2183,14 @@ function PendingList({
             <strong>{s.salesOrderNumber}</strong>
             <span>{s.outstandingPercent}% outstanding</span>
           </header>
-          <h2>{s.customerName}</h2>
+          <h2 className="pending-customer-line">
+            <span>{s.customerName}</span>
+            {role === "Admin" && (
+              <small className="pending-salesperson-chip" title={s.salespersonName} aria-label={`Salesperson: ${s.salespersonName}`}>
+                {s.salespersonName}
+              </small>
+            )}
+          </h2>
           <Progress value={s.receivedPercent} />
           <dl>
             <div>
