@@ -25,3 +25,24 @@ export function parsePaymentAmount(value: unknown) {
 }
 export function isPaymentMode(value: unknown): value is PaymentMode { return PAYMENT_MODES.includes(value as PaymentMode) }
 export function cleanRemarks(value: unknown) { const text=String(value??'').trim(); return text.length<=MAX_REMARKS_LENGTH?text:null }
+
+/** One contract for every internal unauthorised-payment creator. Only amount is
+ * required; identity and presentation fields remain genuinely absent when blank. */
+export function parseUnauthorisedPaymentInput(input: Record<string, unknown>) {
+  const paymentAmount = parsePaymentAmount(input.paymentAmount)
+  const rawCustomer = String(input.customerName ?? '').trim()
+  const customerName = rawCustomer ? cleanCustomer(rawCustomer) : ''
+  const utrReference = String(input.utrReference ?? '').trim()
+  const remarks = cleanRemarks(input.remarks)
+  if (paymentAmount === null) return { ok: false as const, error: 'Enter a valid payment amount greater than ₹0' }
+  if (customerName === null) return { ok: false as const, error: 'Customer name must be 120 characters or fewer' }
+  if (utrReference.length > 120) return { ok: false as const, error: 'UTR / Reference Number must be 120 characters or fewer' }
+  if (remarks === null) return { ok: false as const, error: 'Remarks must be 500 characters or fewer' }
+  return { ok: true as const, value: {
+    paymentAmount, customerName, utrReference,
+    paymentMode: isPaymentMode(input.paymentMode) ? input.paymentMode : undefined,
+    remarks: remarks || undefined,
+  } }
+}
+
+export const paymentCustomerLabel = (customerName?: string) => customerName?.trim() || 'Unidentified customer'

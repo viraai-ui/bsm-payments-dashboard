@@ -8,6 +8,7 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "verify:payments": "node scripts/verify-payment-lifecycle.cjs",
+    "verify:unauthorised-amount-only": "tsx scripts/verify-unauthorised-amount-only.mts",
     "verify:payment-table": "node scripts/verify-payment-table.cjs",
     "verify:settlement": "node --experimental-strip-types scripts/verify-payment-settlement.mjs",
     "verify:cross-role-pending": "tsx scripts/verify-cross-role-pending.mts",

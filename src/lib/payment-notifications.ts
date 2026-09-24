@@ -2,6 +2,7 @@ import { getUserStore, type AppRole } from './auth'
 import { readLocalJsonFresh, updateLocalJson } from './local-store'
 import type { Payment, PaymentStatus } from './payments'
 import { createPushOutboxItem, sendPaymentPushNotifications, type PushOutboxItem } from './payment-push'
+import { paymentCustomerLabel } from './payment-domain'
 
 export type NotificationType = 'boss-payment-created' | 'unauthorised-created' | 'status-received' | 'status-pending' | 'status-void'
 export type PaymentNotification = {
@@ -31,7 +32,7 @@ export function formatPaymentAmount(amount: number) {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(amount).replace(/^₹\s*/, '₹')
 }
 function paymentSummary(payment: Payment) {
-  const base = `${formatPaymentAmount(payment.paymentAmount)} from ${payment.customerName}`
+  const base = `${formatPaymentAmount(payment.paymentAmount)} from ${paymentCustomerLabel(payment.customerName)}`
   return payment.salesOrderNumber ? `${base} • ${payment.salesOrderNumber}` : base
 }
 
@@ -79,7 +80,7 @@ export async function createStatusNotification(payment: Payment, status: 'Pendin
   const ownerId = payment.ownerUserId || payment.claimedBy || payment.createdBy
   const owner = (await getUserStore()).users.find(user => user.id === ownerId && user.active && user.role === 'Salesperson')
   if (!owner) return []
-  const amountCompany = `${formatPaymentAmount(payment.paymentAmount)} from ${payment.customerName}${payment.salesOrderNumber ? ` • ${payment.salesOrderNumber}` : ''}`
+  const amountCompany = `${formatPaymentAmount(payment.paymentAmount)} from ${paymentCustomerLabel(payment.customerName)}${payment.salesOrderNumber ? ` • ${payment.salesOrderNumber}` : ''}`
   const copy = status === 'Payment Received'
     ? { type: 'status-received' as const, title: 'Payment received', body: `Your payment of ${amountCompany} has been received.` }
     : status === 'Void'

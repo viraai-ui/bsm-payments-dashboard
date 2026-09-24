@@ -11,7 +11,7 @@ import {
 import { createPortal } from "react-dom";
 import type { AppRole } from "@/lib/auth";
 import type { Payment } from "@/lib/payments";
-import { PAYMENT_MODES } from "@/lib/payment-domain";
+import { PAYMENT_MODES, paymentCustomerLabel } from "@/lib/payment-domain";
 import {
   orderSummary,
   paymentOutstandingById,
@@ -946,9 +946,8 @@ export function PaymentsClient({
             {userRole === "Accounts" || paymentType === "unauthorised" ? (
               <>
                 <label>
-                  UTR / Reference Number
+                  UTR / Reference Number <small>Optional</small>
                   <input
-                    required
                     maxLength={120}
                     value={form.utrReference}
                     onChange={(e) =>
@@ -957,7 +956,7 @@ export function PaymentsClient({
                   />
                 </label>
                 <label>
-                  Payment Amount
+                  Payment Amount <span aria-hidden="true">*</span>
                   <input
                     required
                     type="text"
@@ -1184,8 +1183,8 @@ export function PaymentsClient({
             <div className="add-payment-form-body add-payment-scroll-body edit-payment-form-body">
             {editing.status === "Unauthorised" ? <>
               <label>
-                UTR / Reference Number
-                <input required maxLength={120} value={form.utrReference} onChange={(e) => setForm((f) => ({ ...f, utrReference: e.target.value }))} />
+                UTR / Reference Number <small>Optional</small>
+                <input maxLength={120} value={form.utrReference} onChange={(e) => setForm((f) => ({ ...f, utrReference: e.target.value }))} />
               </label>
               <label>
                 Customer Name <small>Optional</small>
@@ -1735,7 +1734,7 @@ function PaymentDetails({
           </div>
           <div>
             <dt>Company</dt>
-            <dd>{p.customerName}</dd>
+            <dd>{paymentCustomerLabel(p.customerName)}</dd>
           </div>
           <div>
             <dt>Salesperson</dt>
@@ -1817,7 +1816,7 @@ function StatusControl({
   return can ? (
     <select
       className={`ledger-status-select status-${statusClass(p.status)}`}
-      aria-label={`Status for ${p.salesOrderNumber || p.customerName}`}
+      aria-label={`Status for ${p.salesOrderNumber || paymentCustomerLabel(p.customerName)}`}
       value={p.status}
       disabled={busy}
       onChange={(e) => onStatus(p, e.target.value as any)}
@@ -1862,14 +1861,14 @@ function DesktopRow({
     <tr
       data-payment-id={p.id}
       tabIndex={0}
-      aria-label={`View payment details for ${p.salesOrderNumber || p.customerName}`}
+      aria-label={`View payment details for ${p.salesOrderNumber || paymentCustomerLabel(p.customerName)}`}
       className={`payment-data-row payment-${statusClass(p.status)}-row ${highlight ? "payment-highlight" : ""}`}
       onClick={onOpen}
       onKeyDown={activate}
     >
       <td>{date(p.paymentDate || p.createdAt)}</td>
       <td>
-        <strong className="payment-company">{p.customerName}</strong>
+        <strong className="payment-company">{paymentCustomerLabel(p.customerName)}</strong>
         <button className="payment-so-link" onClick={onOpen}>
           {p.salesOrderNumber || p.utrReference || "Unassigned"}
         </button>
@@ -1939,14 +1938,14 @@ function MobileCard({
     <article
       data-payment-id={p.id}
       tabIndex={0}
-      aria-label={`View payment details for ${p.salesOrderNumber || p.customerName}`}
+      aria-label={`View payment details for ${p.salesOrderNumber || paymentCustomerLabel(p.customerName)}`}
       className={`ledger-mobile-card payment-data-row payment-${statusClass(p.status)}-row ${highlight ? "payment-highlight" : ""}`}
       onClick={onOpen}
       onKeyDown={activate}
     >
       <header>
         <div>
-          <strong className="viewer-card-company">{p.customerName}</strong>
+          <strong className="viewer-card-company">{paymentCustomerLabel(p.customerName)}</strong>
           <span className="mobile-reference">{p.salesOrderNumber || (p.utrReference ? `UTR ${p.utrReference}` : "Unlinked receipt")}</span>
         </div>
         <Overflow
@@ -2112,7 +2111,7 @@ function Overflow({
       <button
         ref={trigger}
         className="payment-overflow-trigger"
-        aria-label={`Actions for ${p.salesOrderNumber || p.customerName}`}
+        aria-label={`Actions for ${p.salesOrderNumber || paymentCustomerLabel(p.customerName)}`}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}

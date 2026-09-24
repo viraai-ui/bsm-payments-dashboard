@@ -3,7 +3,7 @@ const ui=fs.readFileSync('src/components/PaymentsClient.tsx','utf8'),css=fs.read
 for(const heading of ['Date','Company / Sales Order','Order Total','Receipt','Outstanding','Salesperson','Status'])assert.ok(ui.includes(`<th>${heading}</th>`),`table heading ${heading}`)
 assert.ok(!ui.includes('<th>Proof')&&!ui.includes('void-action'), 'no proof column or standalone void action')
 for(const section of ['Order Details','Payment Summary','Proofs &amp; Remarks'])assert.ok(ui.includes(`<h3>${section}</h3>`),`details section ${section}`)
-assert.match(ui,/paymentType[^\n]+unauthorised/);assert.match(ui,/UTR \/ Reference Number[\s\S]{0,300}<input\s+required/);assert.match(ui,/Salesperson[\s\S]{0,200}<select\s+required/)
+assert.match(ui,/paymentType[^\n]+unauthorised/);assert.match(ui,/UTR \/ Reference Number <small>Optional<\/small>[\s\S]{0,300}<input/);assert.doesNotMatch(ui,/UTR \/ Reference Number[\s\S]{0,300}<input\s+required/);assert.match(ui,/Payment Amount <span aria-hidden="true">\*<\/span>[\s\S]{0,200}<input\s+required/);assert.match(ui,/Salesperson[\s\S]{0,200}<select\s+required/)
 assert.ok(ui.indexOf('payments-add-button')<ui.indexOf('<NotificationCenter'), 'Add precedes notification bell')
 assert.match(css,/payments-toolbar\{position:static/);assert.match(css,/height:42px!important/)
 assert.match(api,/Accounts can only add unauthorised payments/);assert.match(api,/Select an active Salesperson/);assert.match(api,/\['Pending','Payment Received','Void'\]/)
