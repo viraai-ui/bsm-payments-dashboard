@@ -5,6 +5,8 @@ export type ViewerMetric = { label: string; amount: number; count: number }
 export type PeriodMetric = { amountPaise: number; count: number; start: Date }
 export type ChartBucket = { key: string; label: string; amountPaise: number; count: number; start: Date; end: Date }
 
+export const receiptCountLabel = (count: number) => `${count} ${count === 1 ? 'receipt' : 'receipts'}`
+
 export function localDateKey(value: string | Date): string {
   if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value
   const date = value instanceof Date ? value : new Date(value)

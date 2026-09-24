@@ -20,7 +20,7 @@ import {
   pendingOrderSummaries,
   sortPayments,
 } from "@/lib/payment-settlement";
-import { viewerPaymentMetrics, viewerPendingTotal, viewerRegularSummary } from "@/lib/viewer-payment-metrics";
+import { receiptCountLabel, viewerPaymentMetrics, viewerPendingTotal, viewerRegularSummary } from "@/lib/viewer-payment-metrics";
 import {
   PaymentProofViewer,
   type ViewerProof,
@@ -641,7 +641,7 @@ export function PaymentsClient({
         </div>
       )}
       {userRole === "Viewer" && tab === "all" && <div className="viewer-regular-insights" aria-label="Regular payment summary">
-        <article><div><b>Received</b><strong>{money(regularSummary.received.amountPaise/100)}</strong><small>{regularSummary.received.count}</small></div><div><b>Not Confirmed</b><strong>{money(regularSummary.notConfirmed.amountPaise/100)}</strong><small>{regularSummary.notConfirmed.count}</small></div></article>
+        <article><div><b>Received</b><strong>{money(regularSummary.received.amountPaise/100)}</strong><small>{receiptCountLabel(regularSummary.received.count)}</small></div><div><b>Not Confirmed</b><strong>{money(regularSummary.notConfirmed.amountPaise/100)}</strong><small>{receiptCountLabel(regularSummary.notConfirmed.count)}</small></div></article>
       </div>}
       {userRole === "Viewer" && tab === "pending" && <div className="viewer-pending-insights" aria-label="Pending payment summary">
         <article><span>Total pending amount</span><strong>{money(pendingSummary.amountPaise/100)}</strong><small>{pendingSummary.count} {pendingSummary.count === 1 ? "receipt" : "receipts"}</small></article>
