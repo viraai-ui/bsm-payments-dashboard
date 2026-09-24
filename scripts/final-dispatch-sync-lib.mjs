@@ -92,7 +92,7 @@ export function buildFinalDispatchSync(targetStore, sourceStore, orders, sourceS
   for(const p of output.payments)if(p.status!=='Void'&&p.salesOrderId&&p.salesOrderNumber)paid.set(norm(p.salesOrderNumber),(paid.get(norm(p.salesOrderNumber))||0)+Number(p.paymentAmount||0))
   // Historical stores contain reviewed legacy overpayments. This cut-over must
   // not broaden them, but it must fail closed for every newly inserted order.
-  const insertedOrderNumbers=SOURCE_ONLY_IDS.filter(id=>id!==GREAT_INDIA_ID).map(id=>norm(sourceById.get(id).salesOrderNumber))
+  const insertedOrderNumbers=SOURCE_ONLY_IDS.filter(id=>id!==GREAT_INDIA_ID).map(id=>outById.get(id)).filter(Boolean).map(payment=>norm(payment.salesOrderNumber))
   for(const number of insertedOrderNumbers){const amount=paid.get(number)||0;if(!orderTotals.has(number)||amount>orderTotals.get(number))throw new Error(`${number}: aggregate payment ${amount} exceeds/misses authoritative total ${orderTotals.get(number)}`)}
   const linked=output.payments.filter(p=>p.salesOrderId&&p.salesOrderNumber).length
   if(output.payments.some(p=>Boolean(p.salesOrderId)!==Boolean(p.salesOrderNumber)))throw new Error('Half-linked payment detected')
