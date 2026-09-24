@@ -11,6 +11,7 @@
     "verify:payment-table": "node scripts/verify-payment-table.cjs",
     "verify:settlement": "node --experimental-strip-types scripts/verify-payment-settlement.mjs",
     "verify:auth": "node scripts/verify-auth-roles.cjs",
+    "verify:change-password": "node scripts/verify-change-password.cjs",
     "verify:salesperson-ownership": "node scripts/verify-salesperson-ownership.cjs",
     "verify:proofs": "node scripts/verify-payment-proofs.cjs",
     "verify:github-store": "node --experimental-strip-types scripts/verify-github-data-store.mjs",

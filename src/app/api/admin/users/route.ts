@@ -33,7 +33,7 @@ export async function PATCH(request:Request){
     if(store.users.some(user=>user.id!==id&&(user.email.toLowerCase()===email.toLowerCase()||user.username.toLowerCase()===username.toLowerCase())))throw new Error('Email or username already exists')
     const active=typeof body.active==='boolean'?body.active:target.active
     if(target.role==='Admin'&&target.active&&(!active||role!=='Admin')&&activeAdmins(store.users).length===1)throw new Error('The last active admin cannot be deactivated or demoted')
-    updated=true;return{...store,users:store.users.map(user=>user.id===id?{...user,name,email,username,role,active,passwordHash:passwordHash||user.passwordHash,updatedAt:new Date().toISOString()}:user)}
+    updated=true;return{...store,users:store.users.map(user=>user.id===id?{...user,name,email,username,role,active,passwordHash:passwordHash||user.passwordHash,sessionVersion:passwordHash?(user.sessionVersion||0)+1:user.sessionVersion,updatedAt:new Date().toISOString()}:user)}
   });return updated?apiOk({}):apiError('User not found',404)}catch(error){return apiError(error instanceof Error?error.message:'Could not update user',400)}
 }
 

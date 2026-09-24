@@ -6,7 +6,7 @@ import { authKey, SESSION_COOKIE_NAME, SESSION_MAX_AGE_SECONDS } from './auth-co
 
 export type AppRole = 'Salesperson' | 'Accounts' | 'Admin' | 'Viewer'
 export type Permission = 'payments.view' | 'payments.createLinked' | 'payments.createUnauthorised' | 'payments.approve' | 'payments.claim' | 'payments.edit' | 'payments.delete' | 'users.manage' | 'roles.manage'
-export type AppUser = { id: string; name: string; email: string; username: string; role: AppRole; active: boolean; passwordHash: string; createdAt: string; updatedAt: string }
+export type AppUser = { id: string; name: string; email: string; username: string; role: AppRole; active: boolean; passwordHash: string; sessionVersion?: number; createdAt: string; updatedAt: string }
 export type SafeUser = Omit<AppUser, 'passwordHash'>
 export type RolePermissions = Record<AppRole, Permission[]>
 type UserStore = { users: AppUser[]; permissions: RolePermissions }
@@ -54,9 +54,9 @@ export async function hasPermission(user: AppUser, permission: Permission) { con
 export async function findUserByLogin(login:string) { const n=login.trim().toLowerCase(); return (await getUserStore()).users.find(u=>u.email.toLowerCase()===n||u.username.toLowerCase()===n)||null }
 export async function authenticate(login:string,password:string) { const u=await findUserByLogin(login); return u?.active && await bcrypt.compare(password,u.passwordHash) ? u : null }
 export async function hashPassword(password:string) { return bcrypt.hash(password,10) }
-export async function setSessionCookie(user:AppUser) { const token=await new SignJWT({role:user.role}).setProtectedHeader({alg:'HS256'}).setSubject(user.id).setIssuedAt().setExpirationTime(`${SESSION_MAX_AGE_SECONDS}s`).sign(authKey()); (await cookies()).set(SESSION_COOKIE_NAME,token,{httpOnly:true,sameSite:'lax',secure:process.env.NODE_ENV==='production',path:'/',maxAge:SESSION_MAX_AGE_SECONDS}) }
+export async function setSessionCookie(user:AppUser) { const token=await new SignJWT({role:user.role,sessionVersion:user.sessionVersion||0}).setProtectedHeader({alg:'HS256'}).setSubject(user.id).setIssuedAt().setExpirationTime(`${SESSION_MAX_AGE_SECONDS}s`).sign(authKey()); (await cookies()).set(SESSION_COOKIE_NAME,token,{httpOnly:true,sameSite:'lax',secure:process.env.NODE_ENV==='production',path:'/',maxAge:SESSION_MAX_AGE_SECONDS}) }
 export async function clearSessionCookie() { (await cookies()).set(SESSION_COOKIE_NAME,'',{httpOnly:true,sameSite:'lax',secure:process.env.NODE_ENV==='production',path:'/',maxAge:0}) }
-export async function getSessionUser() { try { const token=(await cookies()).get(SESSION_COOKIE_NAME)?.value; if(!token)return null; const {payload}=await jwtVerify(token,authKey()); const u=(await getUserStore()).users.find(x=>x.id===payload.sub); return u?.active?u:null } catch{return null} }
+export async function getSessionUser() { try { const token=(await cookies()).get(SESSION_COOKIE_NAME)?.value; if(!token)return null; const {payload}=await jwtVerify(token,authKey()); const u=(await getUserStore()).users.find(x=>x.id===payload.sub); return u?.active&&Number(payload.sessionVersion||0)===(u.sessionVersion||0)?u:null } catch{return null} }
 export async function requireUser(roles?:AppRole[]) { const user=await getSessionUser(); if(!user)return {ok:false as const,response:Response.json({ok:false,error:'Unauthorized'},{status:401})}; if(roles&&!roles.includes(user.role))return {ok:false as const,response:Response.json({ok:false,error:'Forbidden'},{status:403})}; return {ok:true as const,user} }
 export async function requirePermission(permission:Permission) { const auth=await requireUser(); if(!auth.ok)return auth; if(!await hasPermission(auth.user,permission)) return {ok:false as const,response:Response.json({ok:false,error:'Forbidden'},{status:403})}; return auth }
 
