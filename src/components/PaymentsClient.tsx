@@ -1238,7 +1238,7 @@ export function PaymentsClient({
       {deleting && (
         <Sheet
           title={deleting.parentPaymentId ? "Reverse claimed allocation?" : "Delete payment?"}
-          eyebrow={deleting.parentPaymentId ? "Admin allocation reversal" : "This cannot be undone"}
+          eyebrow={deleting.parentPaymentId ? "Allocation reversal" : "This cannot be undone"}
           close={() => setDeleting(null)}
           variant="delete"
         >
@@ -2054,7 +2054,7 @@ function Overflow({
           p.claimedBy === userId ||
           p.createdBy === userId)));
   const canDelete =
-    (role === "Admin" && Boolean(p.parentPaymentId) && p.status === "Payment Received") || (!p.parentPaymentId &&
+    (Boolean(p.parentPaymentId) && (p.status === "Payment Received" || p.status === "Pending") && (role === "Admin" || (role === "Salesperson" && p.ownerUserId === userId && p.claimedBy === userId))) || (!p.parentPaymentId &&
     ((p.status === "Unauthorised" &&
       !p.hasAllocationChildren &&
       (role === "Admin" || role === "Accounts") &&

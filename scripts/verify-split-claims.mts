@@ -28,12 +28,12 @@ assert.equal(management.find(m=>m.key==='received')?.amount,1000,'children repre
 assert.equal(management.find(m=>m.key==='unauthorised')?.amount,0,'exhausted parent has no unauthorised exposure')
 const viewer=viewerPaymentMetrics(rows,new Date())
 assert.equal(viewer[0].amount,1000,'exhausted parent is not double-counted in received-today metrics')
-const reversed=await reverseClaimedAllocation(first!.id,'u-admin','Wrong order selected')
+const reversed=await reverseClaimedAllocation(first!.id,{id:'u-admin',role:'Admin'},'Wrong order selected')
 assert.equal(reversed.changed,true);assert.equal(reversed.payment?.status,'Void');assert.equal(reversed.payment?.utrReference,'UTR-SPLIT-1')
 rows=await listPayments();source=rows.find(p=>p.id===parent.id)!
 assert.deepEqual([source.allocatedAmount,source.remainingAmount],[600,400]);assert.equal(source.audit?.at(-1)?.type,'allocation_reversed')
 assert.equal(rows.find(p=>p.id===first!.id)?.audit?.at(-1)?.type,'allocation_reversed')
-const retried=await reverseClaimedAllocation(first!.id,'u-admin','retry')
+const retried=await reverseClaimedAllocation(first!.id,{id:'u-admin',role:'Admin'},'retry')
 assert.equal(retried.changed,false);assert.equal((await listPayments()).find(p=>p.id===first!.id)?.audit?.filter(e=>e.type==='allocation_reversed').length,1)
 
 const concurrent=(await createUnlinkedPayment({customerName:'Unknown',utrReference:'UTR-RACE',paymentAmount:500,paymentMode:'UPI',status:'Unauthorised',createdBy:'accounts'},'parent_split_test_0002')).payment
