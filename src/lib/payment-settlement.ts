@@ -23,7 +23,13 @@ export const fromPaise=(paise:number)=>paise/100
 const normalizedOrder=(value?:string)=>String(value||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'')
 const sameOrder=(a?:string,b?:string)=>Boolean(normalizedOrder(a))&&normalizedOrder(a)===normalizedOrder(b)
 export function paymentStatusLabel(status:SettlementPayment['status']){return status==='Pending'?'Payment Pending':status==='Void'?'Payment Void':status}
-export function sortPayments<T extends SettlementPayment>(payments:T[]){return [...payments].sort((a,b)=>STATUS_ORDER[a.status]-STATUS_ORDER[b.status]||(b.createdAt||'').localeCompare(a.createdAt||'')||(b.id||'').localeCompare(a.id||''))}
+/** Durable receipt chronology. createdAt records when the receipt was added; paymentDate
+ * is only a legacy fallback. Mutable updated/status timestamps must never affect order. */
+export function comparePaymentsNewestFirst(a:SettlementPayment,b:SettlementPayment){
+  return (b.createdAt||b.paymentDate||'').localeCompare(a.createdAt||a.paymentDate||'')
+    ||(b.id||'').localeCompare(a.id||'')
+}
+export function sortPayments<T extends SettlementPayment>(payments:T[]){return [...payments].sort((a,b)=>STATUS_ORDER[a.status]-STATUS_ORDER[b.status]||comparePaymentsNewestFirst(a,b))}
 export function paymentMatchesSearch(payment:SettlementPayment,query:string,all:SettlementPayment[]){const q=query.trim().toLowerCase();if(!q)return true;const summary=payment.salesOrderNumber?orderSummary(all,payment.salesOrderNumber):undefined;return [payment.customerName,payment.salesOrderNumber,payment.paymentAmount,payment.orderTotal,summary?.orderTotal,summary?.received,summary?.outstanding,payment.paymentMode,payment.remarks,payment.paymentDate,payment.createdAt,paymentStatusLabel(payment.status)].some(v=>String(v??'').toLowerCase().includes(q))}
 
 export function orderSummary(payments:SettlementPayment[], so:string, orderTotal?:number, salesOrderId?:string){
@@ -67,6 +73,18 @@ export function paymentOutstandingById(payments:SettlementPayment[]){
 
 export function pendingOrderSummaries(payments:SettlementPayment[]){
   const orders=new Map<string,{salesOrderNumber:string;customerName:string}>()
-  for(const payment of payments)if(payment.salesOrderNumber&&payment.orderTotal&&!orders.has(payment.salesOrderNumber))orders.set(payment.salesOrderNumber,{salesOrderNumber:payment.salesOrderNumber,customerName:payment.customerName})
-  return [...orders.values()].map(order=>({...order,...orderSummary(payments,order.salesOrderNumber)})).filter(order=>typeof order.orderTotal==='number'&&order.orderTotal>0&&order.hasConfirmedReceipt&&!order.settled).sort((a,b)=>a.salesOrderNumber.localeCompare(b.salesOrderNumber))
+  for(const payment of payments)if(payment.salesOrderNumber&&payment.orderTotal&&!orders.has(normalizedOrder(payment.salesOrderNumber)))orders.set(normalizedOrder(payment.salesOrderNumber),{salesOrderNumber:payment.salesOrderNumber,customerName:payment.customerName})
+  return [...orders.values()].map(order=>{
+    const linked=payments.filter(payment=>sameOrder(payment.salesOrderNumber,order.salesOrderNumber))
+    // A newly-added Pending receipt is the event represented by this view. Orders with
+    // no current Pending receipt remain deterministic behind those that do.
+    const newestPending=[...linked].filter(payment=>payment.status==='Pending').sort(comparePaymentsNewestFirst)[0]
+    const newestReceipt=[...linked].filter(payment=>payment.status!=='Unauthorised'&&payment.status!=='Void').sort(comparePaymentsNewestFirst)[0]
+    return {...order,...orderSummary(payments,order.salesOrderNumber),pendingSortPayment:newestPending,newestReceipt}
+  }).filter(order=>typeof order.orderTotal==='number'&&order.orderTotal>0&&order.hasConfirmedReceipt&&!order.settled).sort((a,b)=>
+    Number(Boolean(b.pendingSortPayment))-Number(Boolean(a.pendingSortPayment))
+    ||(a.pendingSortPayment&&b.pendingSortPayment?comparePaymentsNewestFirst(a.pendingSortPayment,b.pendingSortPayment):0)
+    ||(!a.pendingSortPayment&&!b.pendingSortPayment&&a.newestReceipt&&b.newestReceipt?comparePaymentsNewestFirst(a.newestReceipt,b.newestReceipt):0)
+    ||b.salesOrderNumber.localeCompare(a.salesOrderNumber)
+  ).map(({pendingSortPayment:_,newestReceipt:__,...order})=>order)
 }
