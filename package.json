@@ -34,6 +34,7 @@
     "verify:payment-link-backfill": "node scripts/verify-payment-link-backfill.mjs",
     "verify:unlinked-claim-migration": "node scripts/verify-unlinked-claim-migration.mjs",
     "verify:final-dispatch-sync": "node scripts/verify-final-dispatch-sync.mjs",
+    "verify:migrated-proof-repair": "node scripts/verify-migrated-proof-repair.mjs",
     "sync:final-dispatch": "node --env-file=.env.local --experimental-strip-types scripts/final-dispatch-sync.mjs",
     "audit:payment-links": "node --env-file=.env.local --experimental-strip-types scripts/payment-link-backfill.mjs",
     "verify:zoho-orders:live": "node --env-file=.env.local --experimental-strip-types scripts/verify-zoho-payment-orders-live.mjs"
