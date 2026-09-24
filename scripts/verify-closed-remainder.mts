@@ -1,12 +1,11 @@
 import assert from 'node:assert/strict'
-import { mkdtemp, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
 process.env.APP_LOCAL_ONLY='true'
 const root=await mkdtemp(path.join(tmpdir(),'closed-remainder-'))
 process.chdir(root)
-await writeFile(path.join(root,'payments.json'),'') .catch(()=>{})
 const payments=await import('../src/lib/payments.ts')
 const metrics=await import('../src/lib/management-payment-metrics.ts')
 const now='2026-09-05T00:00:00.000Z'
@@ -18,4 +17,9 @@ assert.equal(derived[0].allocatedAmount,15200)
 assert.equal(derived[0].remainingAmount,0,'closed remainder leaves no allocatable amount')
 assert.equal(metrics.managementPaymentMetrics(derived).find(x=>x.key==='unauthorised')?.amount,0,'unauthorised metric excludes closed remainder')
 assert.equal(derived.filter(p=>p.status==='Unauthorised'&&(p.remainingAmount??p.paymentAmount)>0).length,0,'closed receipt is absent from active queue')
+await mkdir(path.join(root,'data'))
+await writeFile(path.join(root,'data','payments.json'),JSON.stringify({payments:[parent,child]}))
+const order={id:'new-order',salesOrderNumber:'SO-NEW',customerName:'Other',orderTotal:10000,orderDate:'2026-09-24'}
+await assert.rejects(()=>payments.claimPayment('parent','u-sales4','Karan Singh',order,1,'closed_claim_key'),/greater than zero|remaining amount/)
+await assert.rejects(()=>payments.reverseClaimedAllocation('child',{id:'u-admin',role:'Admin'},'attempt reopen'),/closed receipt/)
 console.log('closed-remainder: derivation, active tab/count, and metrics verified')
