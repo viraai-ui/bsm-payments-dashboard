@@ -471,6 +471,7 @@ export function PaymentsClient({
           salesOrderId: form.salesOrderId,
           salesOrderNumber: form.salesOrderNumber,
           claimAmount: form.paymentAmount,
+          ...(userRole === "Admin" ? { ownerUserId: form.ownerUserId } : {}),
           idempotencyKey: claimSubmissionKey.current || (claimSubmissionKey.current = crypto.randomUUID()),
         }),
       });
@@ -536,9 +537,11 @@ export function PaymentsClient({
       j = await r.json().catch(() => ({}));
     setSaving(false);
     if (!r.ok) return setError(j.error || "Could not delete payment");
-    setPayments((p) => p.filter((x) => x.id !== deleting.id));
+    if (j.data?.reversed && j.data.payment) setPayments((p) => sortPayments(p.map((x) => x.id === deleting.id ? j.data.payment : x)));
+    else setPayments((p) => p.filter((x) => x.id !== deleting.id));
     setDeleting(null);
     setDeleteReason("");
+    await refresh();
   }
   function beginEdit(p: Payment) {
     setEditing(p);
@@ -1064,12 +1067,22 @@ export function PaymentsClient({
                 <div><span>Customer reported</span><strong>{claiming.customerName || "Unidentified customer"}</strong></div>
               </div>
               <p className="claim-help">Choose the sales order this bank receipt settles. Its available balance is checked again when you claim.</p>
+              {userRole === "Admin" && (
+                <label>
+                  Salesperson
+                  <select required value={form.ownerUserId} onChange={(e) => { setClaimError(""); setForm({ ...emptyForm(), ownerUserId: e.target.value }); }}>
+                    <option value="">Select salesperson</option>
+                    {salespeople.map(u => <option key={u.id} value={u.id}>{u.name || u.username}{u.name && u.username ? ` (${u.username})` : ""}</option>)}
+                  </select>
+                </label>
+              )}
               <OrderCombobox
                 selected={form.salesOrderId}
                 selectedLabel={form.salesOrderId ? `${form.salesOrderNumber} · ${form.customerName}` : ""}
                 required
+                disabled={userRole === "Admin" && !form.ownerUserId}
                 onSelect={(o) => { setClaimError(""); selectOrder(o, "claim"); }}
-                onClear={() => { setForm(emptyForm()); setClaimError(""); }}
+                onClear={() => { setForm({ ...emptyForm(), ownerUserId: form.ownerUserId }); setClaimError(""); }}
               />
               {form.salesOrderId && (
                 <>
@@ -1089,7 +1102,7 @@ export function PaymentsClient({
               busy={saving}
               close={() => { setClaiming(null); setClaimError(""); }}
               label="Claim payment"
-              disabled={!form.salesOrderId || !form.paymentAmount}
+              disabled={!form.salesOrderId || !form.paymentAmount || (userRole === "Admin" && !form.ownerUserId)}
             />
           </form>
         </Sheet>
@@ -1205,17 +1218,14 @@ export function PaymentsClient({
       )}
       {deleting && (
         <Sheet
-          title="Delete payment?"
-          eyebrow="This cannot be undone"
+          title={deleting.parentPaymentId ? "Reverse claimed allocation?" : "Delete payment?"}
+          eyebrow={deleting.parentPaymentId ? "Admin allocation reversal" : "This cannot be undone"}
           close={() => setDeleting(null)}
           variant="delete"
         >
           <div className="void-confirm delete-confirm-body">
             <div className="delete-confirm-icon" aria-hidden="true">!</div>
-            <p>
-              The receipt, proofs and related notifications will be removed. A
-              permanent audit tombstone will remain.
-            </p>
+            <p>{deleting.parentPaymentId ? "This allocation will be voided and its amount restored to the original unauthorised receipt. Receipt proof, UTR and audit lineage will remain." : "The receipt, proofs and related notifications will be removed. A permanent audit tombstone will remain."}</p>
             <dl>
               <div>
                 <dt>Sales order</dt>
@@ -1247,7 +1257,7 @@ export function PaymentsClient({
                 disabled={saving}
                 onClick={() => void deletePayment()}
               >
-                {saving ? "Deleting…" : "Delete permanently"}
+                {saving ? (deleting.parentPaymentId ? "Reversing…" : "Deleting…") : (deleting.parentPaymentId ? "Reverse allocation" : "Delete permanently")}
               </button>
             </div>
           </div>
@@ -1297,12 +1307,14 @@ function OrderCombobox({
   selected,
   selectedLabel,
   required,
+  disabled,
   onSelect,
   onClear,
 }: {
   selected: string;
   selectedLabel?: string;
   required?: boolean;
+  disabled?: boolean;
   onSelect: (o: Order) => void;
   onClear: () => void;
 }) {
@@ -1413,6 +1425,7 @@ function OrderCombobox({
             aria-controls={listId}
             aria-autocomplete="list"
             required={required}
+            disabled={disabled}
             value={query}
             placeholder="Search SO number or company"
             onFocus={reveal}
@@ -1791,7 +1804,7 @@ function StatusControl({
       <option value="Payment Received">Payment Received</option>
       {role === "Admin" && <option value="Void">Payment Void</option>}
     </select>
-  ) : p.status === "Unauthorised" && role === "Salesperson" ? (
+  ) : p.status === "Unauthorised" && (role === "Salesperson" || role === "Admin") ? (
     <button className={`ledger-action ${isPartiallyClaimed(p) ? "partial-claim-action" : ""}`} onClick={onClaim}>
       {isPartiallyClaimed(p) ? `Claim ${money(p.remainingAmount ?? 0)} remaining` : "Claim receipt"}
     </button>
@@ -2022,7 +2035,7 @@ function Overflow({
           p.claimedBy === userId ||
           p.createdBy === userId)));
   const canDelete =
-    !p.parentPaymentId &&
+    (role === "Admin" && Boolean(p.parentPaymentId) && p.status === "Payment Received") || (!p.parentPaymentId &&
     ((p.status === "Unauthorised" &&
       !p.hasAllocationChildren &&
       (role === "Admin" || role === "Accounts") &&
@@ -2033,7 +2046,7 @@ function Overflow({
             p.status === "Pending" &&
             (p.ownerUserId === userId ||
               p.claimedBy === userId ||
-              p.createdBy === userId)))));
+              p.createdBy === userId))))));
   useEffect(() => {
     if (!open) return;
     position();

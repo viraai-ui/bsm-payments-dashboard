@@ -5,7 +5,7 @@ import path from 'node:path'
 
 const root=await mkdtemp(path.join(tmpdir(),'bsm-split-claims-'))
 process.chdir(root);process.env.APP_LOCAL_ONLY='true'
-const {createUnlinkedPayment,claimPayment,listPayments}=await import('../src/lib/payments.ts')
+const {createUnlinkedPayment,claimPayment,listPayments,reverseClaimedAllocation}=await import('../src/lib/payments.ts')
 const {managementPaymentMetrics}=await import('../src/lib/management-payment-metrics.ts')
 const {viewerPaymentMetrics}=await import('../src/lib/viewer-payment-metrics.ts')
 const parent=(await createUnlinkedPayment({customerName:'Unknown',utrReference:'UTR-SPLIT-1',paymentAmount:1000,paymentMode:'UPI',status:'Unauthorised',createdBy:'accounts'},'parent_split_test_0001')).payment
@@ -28,6 +28,13 @@ assert.equal(management.find(m=>m.key==='received')?.amount,1000,'children repre
 assert.equal(management.find(m=>m.key==='unauthorised')?.amount,0,'exhausted parent has no unauthorised exposure')
 const viewer=viewerPaymentMetrics(rows,new Date())
 assert.equal(viewer[0].amount,1000,'exhausted parent is not double-counted in received-today metrics')
+const reversed=await reverseClaimedAllocation(first!.id,'u-admin','Wrong order selected')
+assert.equal(reversed.changed,true);assert.equal(reversed.payment?.status,'Void');assert.equal(reversed.payment?.utrReference,'UTR-SPLIT-1')
+rows=await listPayments();source=rows.find(p=>p.id===parent.id)!
+assert.deepEqual([source.allocatedAmount,source.remainingAmount],[600,400]);assert.equal(source.audit?.at(-1)?.type,'allocation_reversed')
+assert.equal(rows.find(p=>p.id===first!.id)?.audit?.at(-1)?.type,'allocation_reversed')
+const retried=await reverseClaimedAllocation(first!.id,'u-admin','retry')
+assert.equal(retried.changed,false);assert.equal((await listPayments()).find(p=>p.id===first!.id)?.audit?.filter(e=>e.type==='allocation_reversed').length,1)
 
 const concurrent=(await createUnlinkedPayment({customerName:'Unknown',utrReference:'UTR-RACE',paymentAmount:500,paymentMode:'UPI',status:'Unauthorised',createdBy:'accounts'},'parent_split_test_0002')).payment
 const outcomes=await Promise.allSettled([
@@ -36,4 +43,4 @@ const outcomes=await Promise.allSettled([
 assert.equal(outcomes.filter(o=>o.status==='fulfilled').length,1);assert.equal(outcomes.filter(o=>o.status==='rejected').length,1)
 source=(await listPayments()).find(p=>p.id===concurrent.id)!;assert.deepEqual([source.allocatedAmount,source.remainingAmount,source.status],[400,100,'Unauthorised'])
 await rm(root,{recursive:true,force:true})
-console.log('PASS split claims: two-way allocation, derived remaining, exact exhaustion, limits, lineage, idempotency and concurrent over-allocation protection')
+console.log('PASS split claims: allocation, limits, lineage, idempotency, concurrent protection and safe reversal')
