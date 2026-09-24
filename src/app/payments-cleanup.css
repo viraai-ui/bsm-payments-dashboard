@@ -187,8 +187,10 @@ div.payment-command{display:grid!important;grid-template-columns:minmax(0,1fr) 1
   .ledger-mobile-card header{align-items:flex-start!important}
   .viewer-card-company{max-width:250px!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;font-size:14px!important;font-weight:750!important}
   .mobile-reference{display:block;margin-top:3px;color:#777178;font-size:11px;font-weight:550}
-  .viewer-card-meta{justify-content:flex-start!important;gap:10px!important;font-size:10px!important}
-  .viewer-card-meta span+span:before{content:'•';margin-right:10px;color:#bbb4ab}
+  .viewer-card-meta{display:flex!important;min-width:0;align-items:center;justify-content:flex-start!important;gap:10px!important;font-size:10px!important;white-space:nowrap}
+  .viewer-card-meta>span:not(.payment-salesperson-chip){flex:0 0 auto}
+  .viewer-card-meta span+span:not(.payment-salesperson-chip):before{content:'•';margin-right:10px;color:#bbb4ab}
+  .payment-salesperson-chip{box-sizing:border-box;display:inline-block;flex:0 1 120px;min-width:0;max-width:120px;height:12px;margin-left:0;padding:0 5px;border:1px solid #e0d4d7;border-radius:999px;background:#f8f2f3;color:#7f1830;font-size:8px;font-weight:750;line-height:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .ledger-mobile-card dl{display:grid!important;grid-template-columns:1.25fr 1fr 1fr!important;gap:8px!important;margin:2px 0 0!important;padding-top:10px!important;border-top:1px solid #eeeae4!important}
   .ledger-mobile-card dl div{padding:0!important;background:transparent!important}
   .ledger-mobile-card dt{font-size:9px!important;color:#89838a!important;text-transform:uppercase!important;letter-spacing:.04em!important}

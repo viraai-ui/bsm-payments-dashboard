@@ -2001,6 +2001,15 @@ function MobileCard({
       <div className="viewer-card-meta">
         <span>{date(p.paymentDate || p.createdAt)}</span>
         <span>{p.paymentMode || (p.utrReference ? `UTR ${p.utrReference}` : "Payment")}</span>
+        {role === "Admin" && (
+          <span
+            className="payment-salesperson-chip"
+            title={salesperson(p)}
+            aria-label={`Salesperson: ${salesperson(p)}`}
+          >
+            {salesperson(p)}
+          </span>
+        )}
       </div>
       <dl>
         <div>
