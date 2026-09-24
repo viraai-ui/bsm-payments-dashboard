@@ -831,9 +831,7 @@ export function PaymentsClient({
                     <th>Outstanding</th>
                     <th>Salesperson</th>
                     <th>Status</th>
-                    <th>
-                      <span className="sr-only">Actions</span>
-                    </th>
+                    <th className="payment-actions-heading">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2092,7 +2090,7 @@ function Overflow({
     });
   }, []);
   const canEdit =
-    (p.status === "Unauthorised" && !p.hasAllocationChildren && !p.ownerUserId && (role === "Admin" || role === "Accounts")) ||
+    (p.status === "Unauthorised" && !p.parentPaymentId && !p.salesOrderId && !p.salesOrderNumber && !p.hasAllocationChildren && (role === "Admin" || role === "Accounts")) ||
     (p.originalPaymentAmount === undefined &&
     ((role === "Admin" && !p.ownerUserId) ||
       (role === "Salesperson" &&
@@ -2103,9 +2101,10 @@ function Overflow({
   const canDelete =
     (Boolean(p.parentPaymentId) && (p.status === "Payment Received" || p.status === "Pending") && (role === "Admin" || (role === "Salesperson" && p.ownerUserId === userId && p.claimedBy === userId))) || (!p.parentPaymentId &&
     ((p.status === "Unauthorised" &&
+      !p.salesOrderId &&
+      !p.salesOrderNumber &&
       !p.hasAllocationChildren &&
-      (role === "Admin" || role === "Accounts") &&
-      !p.ownerUserId) ||
+      (role === "Admin" || role === "Accounts")) ||
       (p.originalPaymentAmount === undefined &&
         ((role === "Admin" && !p.ownerUserId) ||
           (role === "Salesperson" &&
