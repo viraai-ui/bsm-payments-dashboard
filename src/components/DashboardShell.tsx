@@ -60,7 +60,7 @@ function ShellBody({ children, active }: { children: React.ReactNode; active: st
     </aside>}
     {singleModule && <button className="dispatch-floating-logout" aria-label="Logout" title="Logout" onClick={logout}>⏻</button>}
     <main className="main">{children}</main>
-    <NotificationOnboarding user={user} />
+    <NotificationOnboarding user={user} autoPrompt={active === 'Payments'} />
   </div>
 }
 

@@ -35,10 +35,10 @@ try {
   for (const role of ['Admin', 'Accounts', 'Salesperson']) ok(page.includes(role) && shell.includes(role) && mobile.includes(role) && authGate.includes(role), `${role} Settings visibility`)
   ok(page.includes("!['Admin', 'Accounts', 'Salesperson'].includes(user.role)"), 'Viewer remains excluded')
   ok(card.includes('Enable notifications') && card.includes('payment-notifications:settings'), 'real enable action')
-  ok(onboarding.includes("method: 'POST'") && onboarding.includes("method: 'DELETE'"), 'subscribe and unsubscribe actions')
+  ok(onboarding.includes("method: 'POST'") && onboarding.includes("cache: 'no-store'"), 'subscribe and server verification actions')
   ok(onboarding.includes("Notification.permission === 'denied'") && onboarding.includes("setState('blocked')"), 'denial recovery state')
   ok(onboarding.includes('SETUP_TIMEOUT_MS = 10000') && onboarding.includes('Promise.race'), 'bounded setup action')
-  ok(onboarding.includes('[user.id, user.role]') && onboarding.includes('Push session registration'), 'session changes rebind existing endpoint')
+  ok(onboarding.includes('[autoPrompt, user.id, user.role]') && onboarding.includes('serverVerified(subscription, id)'), 'session changes verify current device binding without silent reassignment')
   ok(css.includes('.notification-settings-button{min-height:44px}'), '44px mobile-safe action')
   console.log(`notification settings: ${assertions} assertions passed`)
 } finally {

@@ -23,7 +23,7 @@
     "verify:split-claims": "tsx scripts/verify-split-claims.mts",
     "verify:closed-remainder": "tsx scripts/verify-closed-remainder.mts",
     "verify:notifications": "tsx scripts/verify-payment-notifications.mjs && tsx scripts/verify-notification-stability.mts",
-    "verify:notification-settings": "tsx scripts/verify-notification-settings.mts",
+    "verify:notification-settings": "tsx scripts/verify-notification-settings.mts && tsx scripts/verify-push-onboarding.mts",
     "verify:push-delivery": "tsx scripts/verify-push-delivery.mts",
     "verify:currency-display": "node scripts/verify-currency-display.cjs",
     "verify:live-sync": "tsx scripts/verify-live-sync.mjs",
