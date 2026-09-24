@@ -1,13 +1,16 @@
 self.addEventListener('push', (event) => {
   let data = {}
   try { data = event.data ? event.data.json() : {} } catch {}
-  event.waitUntil(self.registration.showNotification(data.title || 'New payment', {
-    body: data.body || 'A new payment is awaiting approval.',
-    icon: '/icons/icon-192.png',
-    badge: '/icons/icon-192.png',
-    tag: data.tag || 'new-payment',
-    data: { url: data.url || '/payments' },
-  }))
+  event.waitUntil(Promise.all([
+    self.registration.showNotification(data.title || 'New payment', {
+      body: data.body || 'A new payment is awaiting approval.',
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      tag: data.tag || 'new-payment',
+      data: { url: data.url || '/payments' },
+    }),
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windows => windows.forEach(client => client.postMessage({ type: 'payment-notification', eventId: data.tag }))),
+  ]))
 })
 
 self.addEventListener('notificationclick', (event) => {

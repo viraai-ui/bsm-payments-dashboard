@@ -1,7 +1,7 @@
 import { apiError, apiOk } from '@/lib/api'
 import { requireUser } from '@/lib/auth'
 import { listPaymentNotifications, markPaymentNotificationsRead } from '@/lib/payment-notifications'
-import { listPaymentsForUser } from '@/lib/payments'
+import { listPaymentsForUserFresh } from '@/lib/payments'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -12,8 +12,8 @@ export async function GET() {
   const auth = await requireUser()
   if (!auth.ok) return auth.response
   try {
-    const allowed=new Set((await listPaymentsForUser(auth.user)).map(payment=>payment.id))
-    const response = apiOk(await listPaymentNotifications(auth.user.id,allowed))
+    const allowed=new Set((await listPaymentsForUserFresh(auth.user)).map(payment=>payment.id))
+    const response = apiOk({...(await listPaymentNotifications(auth.user.id,allowed)),scope:auth.user.id})
     Object.entries(noStore).forEach(([key, value]) => response.headers.set(key, value))
     return response
   } catch (error) { return apiError(error instanceof Error ? error.message : 'Could not load notifications', 500) }
@@ -27,8 +27,8 @@ export async function PATCH(request: Request) {
   if (body.all !== true && !id) return apiError('Notification id or all is required', 400)
   try {
     await markPaymentNotificationsRead(auth.user.id, body.all === true ? undefined : id)
-    const allowed=new Set((await listPaymentsForUser(auth.user)).map(payment=>payment.id))
-    return apiOk(await listPaymentNotifications(auth.user.id,allowed))
+    const allowed=new Set((await listPaymentsForUserFresh(auth.user)).map(payment=>payment.id))
+    return apiOk({...(await listPaymentNotifications(auth.user.id,allowed)),scope:auth.user.id})
   }
   catch (error) { return apiError(error instanceof Error ? error.message : 'Could not update notifications', 500) }
 }

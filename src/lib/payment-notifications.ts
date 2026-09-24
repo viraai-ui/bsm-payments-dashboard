@@ -1,5 +1,5 @@
 import { getUserStore, type AppRole } from './auth'
-import { readLocalJson, updateLocalJson } from './local-store'
+import { readLocalJsonFresh, updateLocalJson } from './local-store'
 import type { Payment, PaymentStatus } from './payments'
 import { sendPaymentPushNotifications } from './payment-push'
 
@@ -91,7 +91,10 @@ export async function createStatusNotification(payment: Payment, status: 'Pendin
 export async function createClaimNotification(_payment: Payment) { return [] as PaymentNotification[] }
 
 export async function listPaymentNotifications(userId: string, allowedPaymentIds?: Set<string>) {
-  const items = (await readLocalJson(FILE, EMPTY)).notifications
+  // Notifications are live synchronization state. A process-local cached copy is
+  // unsafe on serverless: alternating instances otherwise return different
+  // generations for up to DATA_CACHE_TTL_SECONDS (the visible flicker).
+  const items = (await readLocalJsonFresh(FILE, EMPTY)).notifications
     .filter(item => Boolean(item.eventId && item.title && item.body) && item.recipientUserId === userId && (!allowedPaymentIds || allowedPaymentIds.has(item.paymentId)))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 50)
   return { notifications: items, unreadCount: items.filter(item => !item.readAt).length }
