@@ -619,9 +619,7 @@ export function PaymentsClient({
               className="btn red payments-add-button"
               onClick={() => startAdd()}
             >
-              {userRole === "Accounts"
-                ? "Add unauthorised payment"
-                : "Add payment"}
+              Add Payment
             </button>
             <NotificationCenter />
           </div>

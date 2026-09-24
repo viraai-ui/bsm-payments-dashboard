@@ -273,6 +273,7 @@ div.payment-command{display:grid!important;grid-template-columns:minmax(0,1fr) 1
 
 /* Mobile popup correction pass: one predictable sheet layout wins the legacy cascade. */
 .mobile-regular-add{display:none}
+.payments-toolbar .payments-add-button{min-height:44px!important;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden;text-align:center}
 @media(max-width:760px){
   .mobile-app-actions{min-width:88px;justify-content:flex-end}
   .mobile-appbar{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
