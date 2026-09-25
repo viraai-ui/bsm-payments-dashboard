@@ -8,6 +8,8 @@ const root=process.env.DATA_REPO_PATH
 assert(root,'DATA_REPO_PATH must point to a clean checkout of the production data repository')
 const apply=process.argv.includes('--apply'),file=path.join(root,'data/payment-order-index.json')
 const expected=[
+ ['SO-08039','2026-09-25','DERPA INDUSTRIAL POLYMERS P.LTD.','draft',0],
+ ['SO-08038','2026-09-25','Samu Sports','confirmed',51700],
  ['SO-08037','2026-09-25','Asian Footwear Pvt.Ltd. ( 280)','confirmed',36580],
  ['SO-08036','2026-09-25','VISHAL','closed',34999],
  ['SO-08034','2026-09-25','Asian Footwear Pvt.Ltd. ( 280)','confirmed',531000],
