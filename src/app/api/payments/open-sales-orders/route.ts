@@ -15,7 +15,10 @@ export async function GET(request: Request) {
     const result = await searchPaymentOrders(q, Math.min(Number(url.searchParams.get('limit')) || (q ? 25 : 10), 50))
     const payments = await listPayments()
     const orders = result.orders.map(order => ({...order, settlement: orderSummary(payments, order.salesOrderNumber, order.orderTotal, order.id)}))
-    return apiOk({ ...result, orders })
+    const response=apiOk({ ...result, orders })
+    response.headers.set('Cache-Control','private, no-store, max-age=0')
+    response.headers.set('Vary','Cookie')
+    return response
   } catch (error) {
     return apiError(error instanceof Error ? error.message : 'Could not load open sales orders', 502)
   }

@@ -137,16 +137,21 @@ export async function fetchAllZohoPaymentOrders(fetcher: FetchLike = fetch): Pro
 export async function searchZohoPaymentOrders(query = '', limit = 25, fetcher: FetchLike = fetch): Promise<ZohoPaymentOrder[]> {
   const wanted = Math.max(1, Math.min(limit, 50))
   const byId = new Map<string, NonNullable<ReturnType<typeof mapSummary>>>()
-  for (let page = 1; ; page++) {
-    const params = new URLSearchParams({ per_page: String(PAGE_SIZE), page: String(page), sort_column: 'created_time', sort_order: 'D' })
-    if (query.trim()) params.set('search_text', query.trim())
-    const data = await zohoGet(fetcher, `/inventory/v1/salesorders?${params}`), rows = data.salesorders || []
-    if (!Array.isArray(rows)) throw new Error(`Invalid Zoho sales-order search page ${page}`)
-    for (const raw of rows) { const mapped = mapSummary(raw); if (mapped && !byId.has(mapped.id)) byId.set(mapped.id, mapped) }
-    if (byId.size >= wanted || !data.page_context?.has_more_page) break
-    if (!rows.length) throw new Error(`Zoho reported another search page after empty page ${page}`)
+  const trimmed=query.trim(), compact=trimmed.replace(/[\s-]+/g,''), digits=compact.replace(/^so/i,'')
+  const variants=trimmed ? [...new Set([trimmed,compact,/^\d+$/.test(digits)?digits:'',/^\d+$/.test(digits)?`SO-${digits}`:''].filter(Boolean))] : ['']
+  for (const variant of variants) {
+    for (let page = 1; ; page++) {
+      const params = new URLSearchParams({ per_page: String(PAGE_SIZE), page: String(page), sort_column: 'created_time', sort_order: 'D' })
+      if (variant) params.set('search_text', variant)
+      const data = await zohoGet(fetcher, `/inventory/v1/salesorders?${params}`), rows = data.salesorders || []
+      if (!Array.isArray(rows)) throw new Error(`Invalid Zoho sales-order search page ${page}`)
+      for (const raw of rows) { const mapped = mapSummary(raw); if (mapped && !byId.has(mapped.id)) byId.set(mapped.id, mapped) }
+      if (!data.page_context?.has_more_page) break
+      if (!rows.length) throw new Error(`Zoho reported another search page after empty page ${page}`)
+    }
+    if (!trimmed || byId.size >= wanted) break
   }
-  return hydrateMissingTotals([...byId.values()].slice(0, wanted), fetcher)
+  return hydrateMissingTotals([...byId.values()].slice(0, Math.max(wanted,50)), fetcher)
 }
 
 export async function hydrateZohoPaymentOrders(orders: Array<ZohoPaymentOrder | ReturnType<typeof mapSummary>>, fetcher: FetchLike = fetch) {

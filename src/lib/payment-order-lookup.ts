@@ -17,10 +17,33 @@ export function paymentOrderStatus(rawStatus: unknown): PaymentOrderDisplayStatu
 }
 
 export function normalizePaymentOrderSearch(value: unknown) {
-  return String(value || '').toLocaleLowerCase().replace(/\s+/g, '')
+  return String(value || '').toLocaleLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '')
+}
+
+export function paymentOrderNumberKey(value: unknown) {
+  return normalizePaymentOrderSearch(value).replace(/^so/, '')
+}
+
+export function rankPaymentOrderSuggestions<T extends SearchablePaymentOrder>(orders: T[], query: string, limit = 50) {
+  const needle = normalizePaymentOrderSearch(query), numberNeedle = paymentOrderNumberKey(query)
+  const score = (order: T) => {
+    const number = normalizePaymentOrderSearch(order.salesOrderNumber), numberKey = paymentOrderNumberKey(order.salesOrderNumber)
+    const customer = normalizePaymentOrderSearch(order.customerName)
+    if (needle && (number === needle || (numberNeedle && numberKey === numberNeedle))) return 0
+    if (needle && (number.startsWith(needle) || (numberNeedle && numberKey.startsWith(numberNeedle)))) return 1
+    if (needle && (number.includes(needle) || (numberNeedle && numberKey.includes(numberNeedle)))) return 2
+    if (needle && customer.startsWith(needle)) return 3
+    if (needle && customer.includes(needle)) return 4
+    return needle ? 99 : 5
+  }
+  const unique = new Map<string, T>()
+  for (const order of orders) if (order.id && !unique.has(order.id)) unique.set(order.id, order)
+  return [...unique.values()].map((order, position) => ({ order, position, score: score(order) }))
+    .filter(item => item.score < 99)
+    .sort((a, b) => a.score - b.score || a.position - b.position || a.order.id.localeCompare(b.order.id))
+    .slice(0, Math.max(0, limit)).map(item => item.order)
 }
 
 export function filterPaymentOrderSuggestions<T extends SearchablePaymentOrder>(orders: T[], query: string, limit = 50) {
-  const needle = normalizePaymentOrderSearch(query)
-  return orders.filter((order) => !needle || normalizePaymentOrderSearch(`${order.salesOrderNumber}${order.customerName}`).includes(needle)).slice(0, needle ? limit : 10)
+  return rankPaymentOrderSuggestions(orders, query, query.trim() ? limit : Math.min(limit, 10))
 }

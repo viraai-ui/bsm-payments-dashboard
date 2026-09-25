@@ -1,6 +1,6 @@
-import { readLocalJson } from './local-store'
-import { normalizePaymentOrderSearch, paymentOrderStatus } from './payment-order-lookup'
-import { fetchZohoPaymentOrderDetail, searchZohoPaymentOrders, type ZohoPaymentOrder } from './zoho-payment-orders'
+import { readLocalJson, writeLocalJson } from './local-store'
+import { normalizePaymentOrderSearch, paymentOrderStatus, rankPaymentOrderSuggestions } from './payment-order-lookup'
+import { fetchAllZohoPaymentOrders, fetchZohoPaymentOrderDetail, searchZohoPaymentOrders, type ZohoPaymentOrder } from './zoho-payment-orders'
 
 const FILE = 'payment-order-index.json', FRESH_MS = 60_000
 export type PaymentOrderSuggestion = { id:string; salesOrderNumber:string; customerName:string; rawStatus:string; status:'Open'|'Closed'|'Status unknown'; orderDate:string; total:number; orderTotal:number; currency:string }
@@ -35,11 +35,22 @@ async function load(query='',limit=25,force=false) {
   })().then(result=>{caches.set(key,result);return result}).finally(()=>flights.delete(key))
   flights.set(key,flight);return flight
 }
-export async function refreshPaymentOrderIndex(_force=false){caches.clear();return load('',10,true)}
+export async function refreshPaymentOrderIndex(force=false){
+  caches.clear()
+  void force
+  return load('',10,true)
+}
 export async function searchPaymentOrders(query='',limit=10){
-  const started=performance.now(),bounded=Math.max(1,Math.min(limit,50)),current=await load(query,bounded),needle=normalizePaymentOrderSearch(query)
-  const orders=current.source==='local_fallback'?current.orders.filter(o=>!needle||normalizePaymentOrderSearch(`${o.salesOrderNumber} ${o.customerName}`).includes(needle)).slice(0,bounded):current.orders
+  const started=performance.now(),bounded=Math.max(1,Math.min(limit,50)),current=await load(query,bounded)
+  const orders=rankPaymentOrderSuggestions(current.orders,query,bounded)
   return {orders,total:orders.length,updatedAt:current.updatedAt,source:current.source,fallbackReason:current.fallbackReason,stale:current.source==='local_fallback',searchMs:performance.now()-started}
+}
+/** Explicit/cron refresh: one complete paginated Zoho walk updates the shared durable fallback. */
+export async function synchronizePaymentOrderIndex(){
+  const orders=(await fetchAllZohoPaymentOrders()).map(safe)
+  const snapshot:Snapshot={version:1,updatedAt:new Date().toISOString(),orders:orders.map(({id,salesOrderNumber,customerName,rawStatus,orderDate,orderTotal,currency})=>({id,salesOrderNumber,customerName,status:rawStatus,orderDate,orderTotal,currency}))}
+  await writeLocalJson(FILE,snapshot);caches.clear()
+  return {updatedAt:snapshot.updatedAt,count:snapshot.orders.length}
 }
 /** Exact selections are re-read from Zoho detail so settlement never trusts a list snapshot total. */
 export async function validatePaymentOrder(id:string,number:string,customer?:string){
