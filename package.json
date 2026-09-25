@@ -13,6 +13,7 @@
     "verify:settlement": "node --experimental-strip-types scripts/verify-payment-settlement.mjs",
     "verify:cross-role-pending": "tsx scripts/verify-cross-role-pending.mts",
     "verify:auth": "node scripts/verify-auth-roles.cjs",
+    "verify:auth-quota": "tsx scripts/verify-login-storage-fallback.mts",
     "verify:change-password": "node scripts/verify-change-password.cjs",
     "verify:salesperson-ownership": "node scripts/verify-salesperson-ownership.cjs",
     "verify:proofs": "node scripts/verify-payment-proofs.cjs",
