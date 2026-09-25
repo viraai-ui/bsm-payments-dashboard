@@ -35,7 +35,7 @@
     "verify:tablet": "TABLET_ONLY=1 node scripts/verify-responsive.cjs",
     "verify:ui-interactions": "node scripts/verify-responsive.cjs",
     "verify:mobile-app": "node scripts/verify-mobile-app.cjs && node scripts/verify-responsive.cjs",
-    "verify:zoho-orders": "node --experimental-strip-types scripts/verify-zoho-payment-orders.mjs",
+    "verify:zoho-orders": "tsx scripts/verify-zoho-payment-orders.mjs",
     "verify:payouts-outbox": "tsx scripts/verify-payouts-outbox.mjs",
     "verify:payment-link-backfill": "node scripts/verify-payment-link-backfill.mjs",
     "verify:unlinked-claim-migration": "node scripts/verify-unlinked-claim-migration.mjs",

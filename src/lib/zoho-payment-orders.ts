@@ -1,3 +1,5 @@
+import { assertZohoEligible, recordZohoFailure, recordZohoSuccess } from './zoho-circuit'
+
 export type ZohoPaymentOrder = {
   id: string
   salesOrderNumber: string
@@ -47,8 +49,9 @@ async function accessToken(fetcher: FetchLike, force = false) {
   return tokenFlight
 }
 
-type ZohoResponse = { code?: number; message?: string; salesorders?: unknown[]; salesorder?: unknown; page_context?: { has_more_page?: boolean; page?: number } }
+export type ZohoResponse = { code?: number; message?: string; salesorders?: unknown[]; salesorder?: unknown; page_context?: { has_more_page?: boolean; page?: number } }
 async function zohoGet(fetcher: FetchLike, path: string): Promise<ZohoResponse> {
+  await assertZohoEligible()
   let token = await accessToken(fetcher)
   const separator = path.includes('?') ? '&' : '?'
   const url = `${domains().api}${path}${separator}organization_id=${encodeURIComponent(process.env.ZOHO_ORGANIZATION_ID!)}`
@@ -58,10 +61,12 @@ async function zohoGet(fetcher: FetchLike, path: string): Promise<ZohoResponse> 
       const response = await fetchTimed(fetcher, url, { headers: { Authorization: `Zoho-oauthtoken ${token}`, 'X-com-zoho-inventory-organizationid': process.env.ZOHO_ORGANIZATION_ID! }, cache: 'no-store' })
       const data = await response.json() as ZohoResponse
       if (response.status === 401 && attempt === 0) { token = await accessToken(fetcher, true); continue }
-      if (response.ok && (!data.code || data.code === 0)) return data
+      if (response.ok && (!data.code || data.code === 0)) { await recordZohoSuccess(); return data }
       const retryable = response.status === 429 || response.status >= 500
-      if (!retryable) throw new Error(data.message || `Zoho request failed (${response.status})`)
-      last = new Error(data.message || `Zoho request failed (${response.status})`)
+      const message=data.message || `Zoho request failed (${response.status})`
+      if(response.status===429||/quota|rate.?limit|too many request|api usage/i.test(message)){await recordZohoFailure(response.status,message,Number(response.headers.get('retry-after'))||undefined);throw new Error(message)}
+      if (!retryable) { await recordZohoFailure(response.status,message); throw new Error(message) }
+      last = new Error(message)
       const retryAfter = Number(response.headers.get('retry-after'))
       await wait(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 250 * 2 ** attempt)
     } catch (error) {
@@ -97,6 +102,14 @@ function mapSummary(value: unknown): Omit<ZohoPaymentOrder, 'total'|'orderTotal'
   if (!id || !salesOrderNumber) return null
   const total = numericTotal(row.total)
   return { id, salesOrderNumber, customerName: String(row.customer_name || row.company_name || '').trim(), ...(total === undefined ? {} : { total, orderTotal: total }), orderDate: String(row.date || row.created_time || '').slice(0, 10), rawStatus: statusOf(row), currency: String(row.currency_code || row.currency_symbol || 'INR'), modifiedTime: String(row.last_modified_time || row.modified_time || row.updated_time || row.created_time || '') }
+}
+export async function fetchZohoPaymentOrderPage(page:number,options:{modifiedSince?:string;fetcher?:FetchLike}={}){
+  const params=new URLSearchParams({per_page:String(PAGE_SIZE),page:String(page),sort_column:options.modifiedSince?'last_modified_time':'created_time',sort_order:'A'})
+  if(options.modifiedSince)params.set('last_modified_time',options.modifiedSince)
+  const data=await zohoGet(options.fetcher||fetch,`/inventory/v1/salesorders?${params}`),rows=data.salesorders||[]
+  if(!Array.isArray(rows))throw new Error(`Invalid Zoho sales-order page ${page}`)
+  if(data.page_context?.page&&Number(data.page_context.page)!==page)throw new Error(`Unexpected Zoho pagination response on page ${page}`)
+  return {orders:rows.map(mapSummary).filter((x):x is NonNullable<typeof x>=>Boolean(x)),hasMore:Boolean(data.page_context?.has_more_page)}
 }
 export async function fetchZohoPaymentOrderDetail(id: string, fetcher: FetchLike = fetch, force = false): Promise<ZohoPaymentOrder> {
   const cached = detailCache.get(id)
