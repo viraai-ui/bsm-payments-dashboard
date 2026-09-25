@@ -45,8 +45,10 @@ export async function paymentReadModelForUserFresh(user:SafeUser){
  const users=(await getUserStore()).users
  const stored=withAllocationBalances((await readLocalJsonFresh(FILE,EMPTY)).payments)
  // Receipt amounts/history stay immutable; only the read projection receives current Zoho metadata.
- const {refreshStaleLinkedOrders,applySalesOrderSnapshots}=await import('./sales-order-reconciliation')
- const snapshots=await refreshStaleLinkedOrders(stored)
+ const {readSalesOrderSnapshots,applySalesOrderSnapshots}=await import('./sales-order-reconciliation')
+ // Dashboard polling must remain read-only. Background reconciliation refreshes
+ // snapshots; payment creation separately performs an authoritative Zoho read.
+ const snapshots=await readSalesOrderSnapshots().catch(()=>({}))
  const all=sortPayments(applySalesOrderSnapshots(stored,snapshots).map(p=>{const owner=users.find(u=>u.id===(p.ownerUserId||p.claimedBy||p.createdBy));return{...p,attachments:paymentAttachments(p),salespersonName:p.salespersonName||owner?.name||((p.addedBy&&!/^u[-_]/i.test(p.addedBy))?p.addedBy:undefined)}}))
  return {payments:visiblePaymentsForUser(all,user),pendingOrders:pendingOrdersForUser(all,user)}
 }
