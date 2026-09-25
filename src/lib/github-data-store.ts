@@ -28,6 +28,30 @@ async function getGitHubDataObjectViaGraphql(objectPath:string):Promise<GitHubOb
   return{bytes:Buffer.from(object.text,'utf8'),sha:object.oid}
 }
 
+async function repositoryHeadAndObject(objectPath:string){
+  const {token,owner,repo,branch}=githubDataConfig(),qualifiedName=`refs/heads/${branch||'main'}`,expression=`${branch||'HEAD'}:${objectPath}`
+  const response=await fetch(`${API}/graphql`,{method:'POST',headers:{...headers(token),'Content-Type':'application/json'},body:JSON.stringify({query:'query($owner:String!,$repo:String!,$qualifiedName:String!,$expression:String!){repository(owner:$owner,name:$repo){ref(qualifiedName:$qualifiedName){target{oid}} object(expression:$expression){... on Blob{oid}}}}',variables:{owner,repo,qualifiedName,expression}}),cache:'no-store',signal:AbortSignal.timeout(TIMEOUT_MS)})
+  const body=await response.json().catch(()=>({})) as {data?:{repository?:{ref?:{target?:{oid?:string}};object?:{oid?:string}}};errors?:Array<{message?:string}>}
+  if(!response.ok||body.errors?.length)throw new Error(body.errors?.[0]?.message||`GitHub data store GraphQL head read failed (${response.status})`)
+  const headOid=body.data?.repository?.ref?.target?.oid
+  if(!headOid)throw new Error('GitHub data store branch was not found')
+  return{headOid,objectOid:body.data?.repository?.object?.oid}
+}
+
+/** GraphQL commit mutations use a quota independent of the REST Contents API.
+ * expectedHeadOid plus the object OID check preserves compare-and-swap. */
+async function mutateGitHubDataObjectViaGraphql(objectPath:string,message:string,bytes?:Buffer,expectedObjectOid?:string){
+  const {token,owner,repo,branch}=githubDataConfig(),path=decodeURIComponent(safePath(objectPath)),head=await repositoryHeadAndObject(objectPath)
+  if(expectedObjectOid!==undefined&&head.objectOid!==expectedObjectOid)return false
+  if(bytes===undefined&&!head.objectOid)return false
+  const additions=bytes===undefined?[]:[{path,contents:bytes.toString('base64')}],deletions=bytes===undefined?[{path}]:[]
+  const response=await fetch(`${API}/graphql`,{method:'POST',headers:{...headers(token),'Content-Type':'application/json'},body:JSON.stringify({query:'mutation($input:CreateCommitOnBranchInput!){createCommitOnBranch(input:$input){commit{oid}}}',variables:{input:{branch:{repositoryNameWithOwner:`${owner}/${repo}`,branchName:branch||'main'},message:{headline:message},expectedHeadOid:head.headOid,fileChanges:{additions,deletions}}}}),cache:'no-store',signal:AbortSignal.timeout(TIMEOUT_MS)})
+  const body=await response.json().catch(()=>({})) as {data?:{createCommitOnBranch?:{commit?:{oid?:string}}};errors?:Array<{message?:string}>}
+  if(body.errors?.some(error=>/expected head oid|branch was modified|not a fast forward/i.test(error.message||'')))return false
+  if(!response.ok||body.errors?.length||!body.data?.createCommitOnBranch?.commit?.oid)throw new Error(body.errors?.[0]?.message||`GitHub data store GraphQL write failed (${response.status})`)
+  return true
+}
+
 /** Reads only from the dedicated private data repository. */
 export async function getGitHubDataObject(objectPath:string):Promise<GitHubObject|null>{
   const {token,owner,repo,branch}=githubDataConfig(),query=branch?`?ref=${encodeURIComponent(branch)}`:''
@@ -47,6 +71,7 @@ export async function getGitHubDataObject(objectPath:string):Promise<GitHubObjec
 export async function putGitHubDataObject(objectPath:string,bytes:Buffer,message:string,sha?:string){
   const {token,owner,repo,branch}=githubDataConfig(),body:Record<string,string>={message,content:bytes.toString('base64')};if(sha)body.sha=sha;if(branch)body.branch=branch
   const response=await fetch(`${API}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${safePath(objectPath)}`,{method:'PUT',headers:{...headers(token),'Content-Type':'application/json'},body:JSON.stringify(body),cache:'no-store',signal:AbortSignal.timeout(TIMEOUT_MS)})
+  if(response.status===403){const error=await response.clone().json().catch(()=>({})) as {message?:string};if(/rate limit/i.test(error.message||''))return mutateGitHubDataObjectViaGraphql(objectPath,message,bytes,sha)}
   if(response.status===409||response.status===422)return false
   await result(response,'write');return true
 }
@@ -54,6 +79,7 @@ export async function deleteGitHubDataObject(objectPath:string,sha?:string){
   const existing=sha?{sha}:await getGitHubDataObject(objectPath);if(!existing)return false
   const {token,owner,repo,branch}=githubDataConfig(),body:Record<string,string>={message:`Delete ${objectPath}`,sha:existing.sha};if(branch)body.branch=branch
   const response=await fetch(`${API}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${safePath(objectPath)}`,{method:'DELETE',headers:{...headers(token),'Content-Type':'application/json'},body:JSON.stringify(body),cache:'no-store',signal:AbortSignal.timeout(TIMEOUT_MS)})
+  if(response.status===403){const error=await response.clone().json().catch(()=>({})) as {message?:string};if(/rate limit/i.test(error.message||''))return mutateGitHubDataObjectViaGraphql(objectPath,`Delete ${objectPath}`,undefined,existing.sha)}
   if(response.status===404)return false
   if(response.status===409||response.status===422)return false
   await result(response,'delete');return true

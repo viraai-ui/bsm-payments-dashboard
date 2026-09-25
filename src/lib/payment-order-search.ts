@@ -67,6 +67,11 @@ export async function synchronizePaymentOrderIndex(options:{maxPages?:number;max
 }
 async function markBackoff(id:string,c:{failureClass:string;failureCount:number;nextEligibleAt:string},message=''){await updateLocalJson<Snapshot|Legacy>(FILE,empty(),raw=>{const s=migrate(raw);if(s.state.lease?.id!==id)return s;s.state.mode='backoff';s.state.failureClass=c.failureClass||'request';s.state.failureCount=c.failureCount||1;s.state.nextEligibleAt=c.nextEligibleAt;s.updatedAt=new Date().toISOString();void message;return s})}
 function report(s:Snapshot,calls:number,error=''){return{indexedCount:Object.keys(s.orders).length,mode:s.state.mode,page:s.state.nextPage,perPage:s.state.perPage,pagesProcessed:s.state.pagesProcessed,rowsSeen:s.state.rowsSeen,complete:Boolean(s.state.completedAt),lastSyncedAt:s.state.lastSuccessfulSync,watermark:s.state.highWatermark,callsThisRun:calls,nextEligibleAt:s.state.nextEligibleAt,error:error||undefined}}
-/** A chosen order must be authoritatively re-read. Never accept a stale total during an outage. */
-export async function validatePaymentOrder(id:string,number:string,customer?:string){const order=safe(await fetchZohoPaymentOrderDetail(id));return order.salesOrderNumber===number&&(!customer||order.customerName===customer)?order:null}
+/** Prefer a live detail read. During provider backoff, accept only the exact
+ * ID/number/customer tuple persisted by the server-side index. Client totals
+ * and customer names are never accepted as authority. */
+export async function validatePaymentOrder(id:string,number:string,customer?:string){
+ try{const order=safe(await fetchZohoPaymentOrderDetail(id));return order.salesOrderNumber===number&&(!customer||order.customerName===customer)?order:null}
+ catch(error){const s=await snapshot(),order=s.orders[id];if(!order||order.salesOrderNumber!==number||(customer&&order.customerName!==customer))throw error;console.warn(`Zoho detail unavailable for ${number}; using exact persisted order index entry`,error);return safe(order)}
+}
 export function resetPaymentOrderSearchForTests(){}
