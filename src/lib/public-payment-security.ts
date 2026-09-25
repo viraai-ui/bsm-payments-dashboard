@@ -3,6 +3,7 @@ import { updateLocalJson } from './local-store'
 
 const WINDOW_MS = 60_000
 type RateStore={buckets:Record<string,{count:number;reset:number}>}
+const emergencyBuckets=new Map<string,{count:number;reset:number}>()
 
 function secret() {
   return process.env.PUBLIC_PAYMENT_SECRET || process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'bsm-public-payment-local-only'
@@ -20,7 +21,14 @@ export function clientIp(request: Request) {
 export async function checkRateLimit(request: Request, scope: string, limit: number) {
   const now = Date.now()
   const key=crypto.createHash('sha256').update(`${scope}:${clientIp(request)}`).digest('hex'),max=Math.max(1,Math.min(10_000,limit));let bucket={count:1,reset:now+WINDOW_MS}
-  await updateLocalJson<RateStore>('rate-limits.json',{buckets:{}},store=>{const buckets=Object.fromEntries(Object.entries(store.buckets||{}).filter(([,v])=>v.reset>now).slice(-4999)),current=buckets[key];bucket=!current?{count:1,reset:now+WINDOW_MS}:{count:Math.min(current.count+1,max+1),reset:current.reset};buckets[key]=bucket;return{buckets}})
+  try{await updateLocalJson<RateStore>('rate-limits.json',{buckets:{}},store=>{const buckets=Object.fromEntries(Object.entries(store.buckets||{}).filter(([,v])=>v.reset>now).slice(-4999)),current=buckets[key];bucket=!current?{count:1,reset:now+WINDOW_MS}:{count:Math.min(current.count+1,max+1),reset:current.reset};buckets[key]=bucket;return{buckets}})}
+  catch(error){
+    // Read-only lookup remains available during a durable-provider outage,
+    // while a conservative per-instance limiter still bounds abuse.
+    const current=emergencyBuckets.get(key);bucket=!current||current.reset<=now?{count:1,reset:now+WINDOW_MS}:{count:Math.min(current.count+1,max+1),reset:current.reset};emergencyBuckets.set(key,bucket)
+    for(const [entry,value] of emergencyBuckets)if(value.reset<=now)emergencyBuckets.delete(entry)
+    console.warn('Durable public rate limit unavailable; using instance-local limiter',error)
+  }
   return { allowed: bucket.count <= max, retryAfter: Math.max(1, Math.ceil((bucket.reset - now) / 1000)) }
 }
 

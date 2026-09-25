@@ -50,6 +50,7 @@ async function accessToken(fetcher: FetchLike, force = false) {
 }
 
 export type ZohoResponse = { code?: number; message?: string; salesorders?: unknown[]; salesorder?: unknown; page_context?: { has_more_page?: boolean; page?: number } }
+class ZohoQuotaError extends Error {}
 async function zohoGet(fetcher: FetchLike, path: string): Promise<ZohoResponse> {
   await assertZohoEligible()
   let token = await accessToken(fetcher)
@@ -64,13 +65,14 @@ async function zohoGet(fetcher: FetchLike, path: string): Promise<ZohoResponse> 
       if (response.ok && (!data.code || data.code === 0)) { await recordZohoSuccess(); return data }
       const retryable = response.status === 429 || response.status >= 500
       const message=data.message || `Zoho request failed (${response.status})`
-      if(response.status===429||/quota|rate.?limit|too many request|api usage/i.test(message)){await recordZohoFailure(response.status,message,Number(response.headers.get('retry-after'))||undefined);throw new Error(message)}
+      if(response.status===429||/quota|rate.?limit|too many request|api usage/i.test(message)){await recordZohoFailure(response.status,message,Number(response.headers.get('retry-after'))||undefined);if(/exceeded (?:the )?maximum|quota exceeded/i.test(message))throw new ZohoQuotaError(message);throw new Error(message)}
       if (!retryable) { await recordZohoFailure(response.status,message); throw new Error(message) }
       last = new Error(message)
       const retryAfter = Number(response.headers.get('retry-after'))
       await wait(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 250 * 2 ** attempt)
     } catch (error) {
       last = error
+      if(error instanceof ZohoQuotaError)throw error
       if (error instanceof Error && /^Zoho request failed \(4\d\d\)/.test(error.message)) throw error
       if (attempt < RETRIES - 1) await wait(250 * 2 ** attempt)
     }

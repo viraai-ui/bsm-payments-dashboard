@@ -1,10 +1,1111 @@
 {
-  "version": 1,
-  "updatedAt": "2026-09-16T00:00:00.000Z",
-  "orders": [
-    {"id":"local-SO-07812","salesOrderNumber":"SO-07812","customerName":"Nepal Jutta Factory Pvt Ltd","status":"Open","orderDate":"2026-08-20","orderTotal":56200},
-    {"id":"local-SO-07830","salesOrderNumber":"SO-07830","customerName":"ROSEUS PRIVATE LIMITED","status":"Open","orderDate":"2026-08-25","orderTotal":17110},
-    {"id":"local-SO-07832","salesOrderNumber":"SO-07832","customerName":"KC ARTS","status":"Open","orderDate":"2026-08-26","orderTotal":25000},
-    {"id":"local-SO-07833","salesOrderNumber":"SO-07833","customerName":"3NG","status":"Open","orderDate":"2026-08-26","orderTotal":62500}
-  ]
+  "version": 2,
+  "updatedAt": "2026-09-25T08:30:44.836Z",
+  "orders": {
+    "local-SO-07812": {
+      "id": "local-SO-07812",
+      "salesOrderNumber": "SO-07812",
+      "customerName": "Nepal Jutta Factory Pvt Ltd",
+      "status": "Open",
+      "orderDate": "2026-08-20",
+      "orderTotal": 56200,
+      "currency": "INR",
+      "modifiedTime": "2026-09-16T00:00:00.000Z"
+    },
+    "local-SO-07830": {
+      "id": "local-SO-07830",
+      "salesOrderNumber": "SO-07830",
+      "customerName": "ROSEUS PRIVATE LIMITED",
+      "status": "Open",
+      "orderDate": "2026-08-25",
+      "orderTotal": 17110,
+      "currency": "INR",
+      "modifiedTime": "2026-09-16T00:00:00.000Z"
+    },
+    "local-SO-07832": {
+      "id": "local-SO-07832",
+      "salesOrderNumber": "SO-07832",
+      "customerName": "KC ARTS",
+      "status": "Open",
+      "orderDate": "2026-08-26",
+      "orderTotal": 25000,
+      "currency": "INR",
+      "modifiedTime": "2026-09-16T00:00:00.000Z"
+    },
+    "local-SO-07833": {
+      "id": "local-SO-07833",
+      "salesOrderNumber": "SO-07833",
+      "customerName": "3NG",
+      "status": "Open",
+      "orderDate": "2026-08-26",
+      "orderTotal": 62500,
+      "currency": "INR",
+      "modifiedTime": "2026-09-16T00:00:00.000Z"
+    },
+    "1154219000037205001": {
+      "id": "1154219000037205001",
+      "salesOrderNumber": "SO-07987",
+      "customerName": "Shri Balaji Enterprises - Bahadurgarh",
+      "status": "confirmed",
+      "orderDate": "2026-09-19",
+      "orderTotal": 1881340,
+      "currency": "INR",
+      "modifiedTime": "2026-09-24T19:20:07+0530"
+    },
+    "1154219000037249013": {
+      "id": "1154219000037249013",
+      "salesOrderNumber": "SO-08009",
+      "customerName": "Veekesy Polymers Pvt Ltd (Wayanad Branch)",
+      "status": "confirmed",
+      "orderDate": "2026-09-22",
+      "orderTotal": 207300,
+      "currency": "INR",
+      "modifiedTime": "2026-09-23T10:33:31+0530"
+    },
+    "1154219000037357008": {
+      "id": "1154219000037357008",
+      "salesOrderNumber": "SO-08032",
+      "customerName": "AMBEY ENTERPRISES",
+      "status": "confirmed",
+      "orderDate": "2026-09-24",
+      "orderTotal": 57230,
+      "currency": "INR",
+      "modifiedTime": "2026-09-25T10:59:04+0530"
+    },
+    "1154219000037378005": {
+      "id": "1154219000037378005",
+      "salesOrderNumber": "SO-08031",
+      "customerName": "Mehak International",
+      "status": "confirmed",
+      "orderDate": "2026-09-24",
+      "orderTotal": 74160,
+      "currency": "INR",
+      "modifiedTime": "2026-09-25T10:59:04+0530"
+    },
+    "1154219000037363007": {
+      "id": "1154219000037363007",
+      "salesOrderNumber": "SO-08030",
+      "customerName": "Lord's Mark Industries Limited",
+      "status": "confirmed",
+      "orderDate": "2026-09-24",
+      "orderTotal": 73726,
+      "currency": "INR",
+      "modifiedTime": "2026-09-25T10:59:34+0530"
+    },
+    "1154219000037360029": {
+      "id": "1154219000037360029",
+      "salesOrderNumber": "SO-08029",
+      "customerName": "MANSA UPPER",
+      "status": "closed",
+      "orderDate": "2026-09-24",
+      "orderTotal": 41300,
+      "currency": "INR",
+      "modifiedTime": "2026-09-24T18:53:50+0530"
+    },
+    "1154219000037373003": {
+      "id": "1154219000037373003",
+      "salesOrderNumber": "SO-08028",
+      "customerName": "LEPERA INDUSTRIES PRIVATE LIMITED",
+      "status": "confirmed",
+      "orderDate": "2026-09-24",
+      "orderTotal": 5192,
+      "currency": "INR",
+      "modifiedTime": "2026-09-24T18:19:53+0530"
+    },
+    "1154219000036112004": {
+      "id": "1154219000036112004",
+      "salesOrderNumber": "SO-07832",
+      "customerName": "KC ARTS",
+      "status": "closed",
+      "orderDate": "2026-08-27",
+      "orderTotal": 134520,
+      "currency": "INR",
+      "modifiedTime": "2026-09-05T11:35:47+0530"
+    },
+    "1154219000036903001": {
+      "id": "1154219000036903001",
+      "salesOrderNumber": "SO-07940",
+      "customerName": "GURUJI FOOTWEAR",
+      "status": "closed",
+      "orderDate": "2026-09-12",
+      "orderTotal": 55460,
+      "currency": "INR",
+      "modifiedTime": "2026-09-18T13:44:55+0530"
+    },
+    "1154219000037367014": {
+      "id": "1154219000037367014",
+      "salesOrderNumber": "SO-08027",
+      "customerName": "Sai Products And Grafiq Pvt. Ltd",
+      "status": "confirmed",
+      "orderDate": "2026-09-24",
+      "orderTotal": 578200,
+      "currency": "INR",
+      "modifiedTime": "2026-09-24T14:59:05+0530"
+    },
+    "1154219000034633005": {
+      "id": "1154219000034633005",
+      "salesOrderNumber": "SO-07560",
+      "customerName": "THREE STAR FOOTWEARS",
+      "status": "closed",
+      "orderDate": "2026-07-23",
+      "orderTotal": 359900,
+      "currency": "INR",
+      "modifiedTime": "2026-09-24T18:55:47+0530"
+    },
+    "1154219000037120001": {
+      "id": "1154219000037120001",
+      "salesOrderNumber": "SO-07976",
+      "customerName": "V.S. ENTERPRISES",
+      "status": "closed",
+      "orderDate": "2026-09-18",
+      "orderTotal": 53100,
+      "currency": "INR",
+      "modifiedTime": "2026-09-18T15:22:38+0530"
+    },
+    "1154219000035838014": {
+      "id": "1154219000035838014",
+      "salesOrderNumber": "SO-07758",
+      "customerName": "STEP STON FOOTWEARS LLP",
+      "status": "closed",
+      "orderDate": "2026-08-18",
+      "orderTotal": 18880,
+      "currency": "INR",
+      "modifiedTime": "2026-08-19T10:41:45+0530"
+    },
+    "1154219000006837003": {
+      "id": "1154219000006837003",
+      "salesOrderNumber": "SO-01976",
+      "customerName": "LAMBA POLY SOLUTIONS",
+      "status": "closed",
+      "orderDate": "2024-03-12",
+      "orderTotal": 31978,
+      "currency": "INR",
+      "modifiedTime": "2024-04-30T15:53:15+0530"
+    },
+    "1154219000031446006": {
+      "id": "1154219000031446006",
+      "salesOrderNumber": "SO-07106",
+      "customerName": "VAQRO SOLTRAC LLP",
+      "status": "confirmed",
+      "orderDate": "2026-05-15",
+      "orderTotal": 1958082,
+      "currency": "INR",
+      "modifiedTime": "2026-09-24T13:00:29+0530"
+    },
+    "1154219000036013008": {
+      "id": "1154219000036013008",
+      "salesOrderNumber": "SO-07804",
+      "customerName": "JEET INDUSTRIES",
+      "status": "closed",
+      "orderDate": "2026-08-25",
+      "orderTotal": 556670,
+      "currency": "INR",
+      "modifiedTime": "2026-09-16T14:11:55+0530"
+    },
+    "1154219000036022017": {
+      "id": "1154219000036022017",
+      "salesOrderNumber": "SO-07812",
+      "customerName": "Nepal Jutta Factory Pvt Ltd",
+      "status": "closed",
+      "orderDate": "2026-08-25",
+      "orderTotal": 56300,
+      "currency": "INR",
+      "modifiedTime": "2026-09-02T17:05:55+0530"
+    },
+    "1154219000036281030": {
+      "id": "1154219000036281030",
+      "salesOrderNumber": "SO-07856",
+      "customerName": "ACCLAIM INDUSTRIS",
+      "status": "closed",
+      "orderDate": "2026-08-31",
+      "orderTotal": 660800,
+      "currency": "INR",
+      "modifiedTime": "2026-09-08T13:21:26+0530"
+    },
+    "1154219000036474014": {
+      "id": "1154219000036474014",
+      "salesOrderNumber": "SO-07895",
+      "customerName": "Print Well Graphics",
+      "status": "confirmed",
+      "orderDate": "2026-09-05",
+      "orderTotal": 26182,
+      "currency": "INR",
+      "modifiedTime": "2026-09-14T15:24:10+0530"
+    },
+    "1154219000037080004": {
+      "id": "1154219000037080004",
+      "salesOrderNumber": "SO-07972",
+      "customerName": "Mahakal Enterprises",
+      "status": "closed",
+      "orderDate": "2026-09-17",
+      "orderTotal": 510350,
+      "currency": "INR",
+      "modifiedTime": "2026-09-22T18:20:37+0530"
+    },
+    "1154219000036134002": {
+      "id": "1154219000036134002",
+      "salesOrderNumber": "SO-07833",
+      "customerName": "3NG",
+      "status": "closed",
+      "orderDate": "2026-08-27",
+      "orderTotal": 62511,
+      "currency": "INR",
+      "modifiedTime": "2026-09-05T13:58:21+0530"
+    },
+    "1154219000037367001": {
+      "id": "1154219000037367001",
+      "salesOrderNumber": "SO-08025",
+      "customerName": "NMCEE WORLDWIDE PVT. LTD",
+      "status": "closed",
+      "orderDate": "2026-09-24",
+      "orderTotal": 37760,
+      "currency": "INR",
+      "modifiedTime": "2026-09-24T18:49:28+0530"
+    },
+    "1154219000037147429": {
+      "id": "1154219000037147429",
+      "salesOrderNumber": "SO-07983",
+      "customerName": "DILVIKA ORFIT",
+      "status": "closed",
+      "orderDate": "2026-09-19",
+      "orderTotal": 549880,
+      "currency": "INR",
+      "modifiedTime": "2026-09-22T18:17:51+0530"
+    },
+    "1154219000037014001": {
+      "id": "1154219000037014001",
+      "salesOrderNumber": "SO-07962",
+      "customerName": "3NG",
+      "status": "closed",
+      "orderDate": "2026-09-16",
+      "orderTotal": 9382,
+      "currency": "INR",
+      "modifiedTime": "2026-09-16T18:08:18+0530"
+    },
+    "1154219000035890003": {
+      "id": "1154219000035890003",
+      "salesOrderNumber": "SO-07774",
+      "customerName": "Auto Foam Industries (Alwar)",
+      "status": "closed",
+      "orderDate": "2026-08-20",
+      "orderTotal": 584100,
+      "currency": "INR",
+      "modifiedTime": "2026-09-14T16:24:05+0530"
+    },
+    "1154219000037360001": {
+      "id": "1154219000037360001",
+      "salesOrderNumber": "SO-08022",
+      "customerName": "IBS Safety India Pvt Ltd",
+      "status": "closed",
+      "orderDate": "2026-09-24",
+      "orderTotal": 598500,
+      "currency": "INR",
+      "modifiedTime": "2026-09-24T13:53:26+0530"
+    },
+    "1154219000037162001": {
+      "id": "1154219000037162001",
+      "salesOrderNumber": "SO-07979",
+      "customerName": "NMCEE INTERNATIONAL PVT. LTD.",
+      "status": "confirmed",
+      "orderDate": "2026-09-18",
+      "orderTotal": 144490,
+      "currency": "INR",
+      "modifiedTime": "2026-09-19T10:22:22+0530"
+    },
+    "1154219000035795016": {
+      "id": "1154219000035795016",
+      "salesOrderNumber": "SO-07749",
+      "customerName": "Rajyog Enterprises",
+      "status": "closed",
+      "orderDate": "2026-08-17",
+      "orderTotal": 542800,
+      "currency": "INR",
+      "modifiedTime": "2026-09-11T17:13:06+0530"
+    },
+    "1154219000036479002": {
+      "id": "1154219000036479002",
+      "salesOrderNumber": "SO-07890",
+      "customerName": "Vrindawan Bihari Rubber Products Pvt Ltd",
+      "status": "closed",
+      "orderDate": "2026-09-04",
+      "orderTotal": 356510,
+      "currency": "INR",
+      "modifiedTime": "2026-09-08T16:01:44+0530"
+    },
+    "1154219000037307007": {
+      "id": "1154219000037307007",
+      "salesOrderNumber": "SO-08018",
+      "customerName": "Great Indian Footwear",
+      "status": "confirmed",
+      "orderDate": "2026-09-23",
+      "orderTotal": 48380,
+      "currency": "INR",
+      "modifiedTime": "2026-09-23T16:02:04+0530"
+    },
+    "1154219000037039001": {
+      "id": "1154219000037039001",
+      "salesOrderNumber": "SO-07965",
+      "customerName": "MGMT TOOLS AND HARDWARE PVT LTD",
+      "status": "closed",
+      "orderDate": "2026-09-17",
+      "orderTotal": 105003,
+      "currency": "INR",
+      "modifiedTime": "2026-09-19T17:16:41+0530"
+    },
+    "1154219000035009003": {
+      "id": "1154219000035009003",
+      "salesOrderNumber": "SO-07619",
+      "customerName": "Unique Star International",
+      "status": "closed",
+      "orderDate": "2026-07-31",
+      "orderTotal": 35400,
+      "currency": "INR",
+      "modifiedTime": "2026-08-20T12:38:23+0530"
+    },
+    "1154219000036705011": {
+      "id": "1154219000036705011",
+      "salesOrderNumber": "SO-07933",
+      "customerName": "Ram & Sons Footcare Private Limited",
+      "status": "closed",
+      "orderDate": "2026-09-11",
+      "orderTotal": 95580,
+      "currency": "INR",
+      "modifiedTime": "2026-09-14T10:56:42+0530"
+    },
+    "1154219000037160004": {
+      "id": "1154219000037160004",
+      "salesOrderNumber": "SO-07984",
+      "customerName": "A - MAX INDIA",
+      "status": "closed",
+      "orderDate": "2026-09-19",
+      "orderTotal": 252390,
+      "currency": "INR",
+      "modifiedTime": "2026-09-22T15:03:10+0530"
+    },
+    "1154219000037204025": {
+      "id": "1154219000037204025",
+      "salesOrderNumber": "SO-07994",
+      "customerName": "Competence Exports Pvt Ltd",
+      "status": "confirmed",
+      "orderDate": "2026-09-21",
+      "orderTotal": 21240,
+      "currency": "INR",
+      "modifiedTime": "2026-09-22T17:40:54+0530"
+    },
+    "1154219000036469001": {
+      "id": "1154219000036469001",
+      "salesOrderNumber": "SO-07886",
+      "customerName": "Vigneshwara Enterprises",
+      "status": "closed",
+      "orderDate": "2026-09-04",
+      "orderTotal": 115200,
+      "currency": "INR",
+      "modifiedTime": "2026-09-07T15:55:52+0530"
+    },
+    "1154219000037274001": {
+      "id": "1154219000037274001",
+      "salesOrderNumber": "SO-08001",
+      "customerName": "Laxmi Enterprises",
+      "status": "closed",
+      "orderDate": "2026-09-22",
+      "orderTotal": 17700,
+      "currency": "INR",
+      "modifiedTime": "2026-09-22T17:07:46+0530"
+    },
+    "1154219000037261001": {
+      "id": "1154219000037261001",
+      "salesOrderNumber": "SO-07995",
+      "customerName": "United Products",
+      "status": "closed",
+      "orderDate": "2026-09-22",
+      "orderTotal": 19175,
+      "currency": "INR",
+      "modifiedTime": "2026-09-23T12:41:39+0530"
+    },
+    "1154219000037309001": {
+      "id": "1154219000037309001",
+      "salesOrderNumber": "SO-08013",
+      "customerName": "Dev Cleaning Services Private Limited",
+      "status": "confirmed",
+      "orderDate": "2026-09-23",
+      "orderTotal": 63450,
+      "currency": "INR",
+      "modifiedTime": "2026-09-23T11:55:01+0530"
+    },
+    "1154219000037274021": {
+      "id": "1154219000037274021",
+      "salesOrderNumber": "SO-08007",
+      "customerName": "KHUSHI UPPER",
+      "status": "closed",
+      "orderDate": "2026-09-22",
+      "orderTotal": 34220,
+      "currency": "INR",
+      "modifiedTime": "2026-09-22T18:26:39+0530"
+    },
+    "1154219000037285004": {
+      "id": "1154219000037285004",
+      "salesOrderNumber": "SO-08005",
+      "customerName": "RNC IMPEX PRIVATE LIMITED",
+      "status": "confirmed",
+      "orderDate": "2026-09-22",
+      "orderTotal": 1062000,
+      "currency": "INR",
+      "modifiedTime": "2026-09-22T15:26:18+0530"
+    },
+    "1154219000037264001": {
+      "id": "1154219000037264001",
+      "salesOrderNumber": "SO-07996",
+      "customerName": "Flamingo Designs Pvt Ltd",
+      "status": "closed",
+      "orderDate": "2026-09-22",
+      "orderTotal": 70328,
+      "currency": "INR",
+      "modifiedTime": "2026-09-22T16:18:21+0530"
+    },
+    "1154219000037225017": {
+      "id": "1154219000037225017",
+      "salesOrderNumber": "SO-07992",
+      "customerName": "Anil Upper & Footwear",
+      "status": "closed",
+      "orderDate": "2026-09-21",
+      "orderTotal": 21240,
+      "currency": "INR",
+      "modifiedTime": "2026-09-22T18:16:22+0530"
+    },
+    "1154219000037173014": {
+      "id": "1154219000037173014",
+      "salesOrderNumber": "SO-07986",
+      "customerName": "Footwarrior kreations",
+      "status": "closed",
+      "orderDate": "2026-09-19",
+      "orderTotal": 47200,
+      "currency": "INR",
+      "modifiedTime": "2026-09-21T12:27:23+0530"
+    },
+    "1154219000037155011": {
+      "id": "1154219000037155011",
+      "salesOrderNumber": "SO-07985",
+      "customerName": "M & U FOOTWEAR TRADING",
+      "status": "closed",
+      "orderDate": "2026-09-19",
+      "orderTotal": 44860,
+      "currency": "INR",
+      "modifiedTime": "2026-09-24T13:02:03+0530"
+    },
+    "1154219000037224004": {
+      "id": "1154219000037224004",
+      "salesOrderNumber": "SO-07988",
+      "customerName": "Jai Enterprises",
+      "status": "closed",
+      "orderDate": "2026-09-21",
+      "orderTotal": 85100,
+      "currency": "INR",
+      "modifiedTime": "2026-09-22T18:21:42+0530"
+    },
+    "1154219000037173001": {
+      "id": "1154219000037173001",
+      "salesOrderNumber": "SO-07980",
+      "customerName": "Laklite Aashirwad Footcare Private Limited",
+      "status": "closed",
+      "orderDate": "2026-09-19",
+      "orderTotal": 47250,
+      "currency": "INR",
+      "modifiedTime": "2026-09-19T13:23:14+0530"
+    },
+    "1154219000037224017": {
+      "id": "1154219000037224017",
+      "salesOrderNumber": "SO-07989",
+      "customerName": "Easan Fine Arts",
+      "status": "confirmed",
+      "orderDate": "2026-09-21",
+      "orderTotal": 69246,
+      "currency": "INR",
+      "modifiedTime": "2026-09-22T11:07:55+0530"
+    },
+    "1154219000036072023": {
+      "id": "1154219000036072023",
+      "salesOrderNumber": "SO-07828",
+      "customerName": "GARWARE FULFLEX I PVT LTD",
+      "status": "closed",
+      "orderDate": "2026-08-27",
+      "orderTotal": 331580,
+      "currency": "INR",
+      "modifiedTime": "2026-09-03T13:08:11+0530"
+    },
+    "1154219000037125001": {
+      "id": "1154219000037125001",
+      "salesOrderNumber": "SO-07977",
+      "customerName": "LIYAN TRADERS",
+      "status": "closed",
+      "orderDate": "2026-09-18",
+      "orderTotal": 44100,
+      "currency": "INR",
+      "modifiedTime": "2026-09-19T17:10:40+0530"
+    },
+    "1154219000037104003": {
+      "id": "1154219000037104003",
+      "salesOrderNumber": "SO-07975",
+      "customerName": "SILVER SHEEN ENTERPRISES PVT LTD",
+      "status": "closed",
+      "orderDate": "2026-09-18",
+      "orderTotal": 62540,
+      "currency": "INR",
+      "modifiedTime": "2026-09-18T16:36:44+0530"
+    },
+    "1154219000037105003": {
+      "id": "1154219000037105003",
+      "salesOrderNumber": "SO-07973",
+      "customerName": "SHAKTI ENTERPRISES",
+      "status": "closed",
+      "orderDate": "2026-09-18",
+      "orderTotal": 27878,
+      "currency": "INR",
+      "modifiedTime": "2026-09-18T12:04:28+0530"
+    },
+    "1154219000036958001": {
+      "id": "1154219000036958001",
+      "salesOrderNumber": "SO-07960",
+      "customerName": "Yogesh Upper",
+      "status": "closed",
+      "orderDate": "2026-09-16",
+      "orderTotal": 625400,
+      "currency": "INR",
+      "modifiedTime": "2026-09-16T17:37:20+0530"
+    },
+    "1154219000036137001": {
+      "id": "1154219000036137001",
+      "salesOrderNumber": "SO-07831",
+      "customerName": "Capital Footwear Pvt. Ltd. - Nepal",
+      "status": "closed",
+      "orderDate": "2026-08-27",
+      "orderTotal": 219100,
+      "currency": "INR",
+      "modifiedTime": "2026-09-24T16:52:56+0530"
+    },
+    "1154219000037017001": {
+      "id": "1154219000037017001",
+      "salesOrderNumber": "SO-07964",
+      "customerName": "V R SEWING MACHINE",
+      "status": "closed",
+      "orderDate": "2026-09-16",
+      "orderTotal": 11800,
+      "currency": "INR",
+      "modifiedTime": "2026-09-17T12:21:55+0530"
+    },
+    "1154219000036916004": {
+      "id": "1154219000036916004",
+      "salesOrderNumber": "SO-07949",
+      "customerName": "XO FOOTWEAR PVT LTD (34B)",
+      "status": "confirmed",
+      "orderDate": "2026-09-15",
+      "orderTotal": 1327500,
+      "currency": "INR",
+      "modifiedTime": "2026-09-15T10:47:13+0530"
+    },
+    "1154219000036558002": {
+      "id": "1154219000036558002",
+      "salesOrderNumber": "SO-07901",
+      "customerName": "Inaya Enterprises",
+      "status": "closed",
+      "orderDate": "2026-09-07",
+      "orderTotal": 306800,
+      "currency": "INR",
+      "modifiedTime": "2026-09-17T18:19:31+0530"
+    },
+    "1154219000036924009": {
+      "id": "1154219000036924009",
+      "salesOrderNumber": "SO-07957",
+      "customerName": "DHATRI SALES (Noida)",
+      "status": "closed",
+      "orderDate": "2026-09-15",
+      "orderTotal": 35400,
+      "currency": "INR",
+      "modifiedTime": "2026-09-16T17:37:54+0530"
+    },
+    "1154219000037053014": {
+      "id": "1154219000037053014",
+      "salesOrderNumber": "SO-07967",
+      "customerName": "Jim enterprises",
+      "status": "closed",
+      "orderDate": "2026-09-17",
+      "orderTotal": 35000,
+      "currency": "INR",
+      "modifiedTime": "2026-09-19T17:14:52+0530"
+    },
+    "1154219000036914152": {
+      "id": "1154219000036914152",
+      "salesOrderNumber": "SO-07945",
+      "customerName": "EMPOWER PRAGATI LEARNING SOLUTIONS LIMITED",
+      "status": "closed",
+      "orderDate": "2026-09-14",
+      "orderTotal": 89380,
+      "currency": "INR",
+      "modifiedTime": "2026-09-16T18:35:46+0530"
+    },
+    "1154219000036926011": {
+      "id": "1154219000036926011",
+      "salesOrderNumber": "SO-07954",
+      "customerName": "NAZ ENTERPRISES",
+      "status": "closed",
+      "orderDate": "2026-09-15",
+      "orderTotal": 17110,
+      "currency": "INR",
+      "modifiedTime": "2026-09-15T16:00:41+0530"
+    },
+    "1154219000036712023": {
+      "id": "1154219000036712023",
+      "salesOrderNumber": "SO-07930",
+      "customerName": "Aldas India Pvt. Ltd. (Unit 3)",
+      "status": "closed",
+      "orderDate": "2026-09-11",
+      "orderTotal": 56640,
+      "currency": "INR",
+      "modifiedTime": "2026-09-14T13:36:07+0530"
+    },
+    "1154219000036917006": {
+      "id": "1154219000036917006",
+      "salesOrderNumber": "SO-07943",
+      "customerName": "Neeraj Yadav (URP)",
+      "status": "closed",
+      "orderDate": "2026-09-14",
+      "orderTotal": 26550,
+      "currency": "INR",
+      "modifiedTime": "2026-09-14T15:07:02+0530"
+    },
+    "1154219000036922008": {
+      "id": "1154219000036922008",
+      "salesOrderNumber": "SO-07950",
+      "customerName": "KIDS LEGACY",
+      "status": "closed",
+      "orderDate": "2026-09-15",
+      "orderTotal": 46640,
+      "currency": "INR",
+      "modifiedTime": "2026-09-16T18:36:23+0530"
+    },
+    "1154219000035854013": {
+      "id": "1154219000035854013",
+      "salesOrderNumber": "SO-07759",
+      "customerName": "D Zone",
+      "status": "closed",
+      "orderDate": "2026-08-19",
+      "orderTotal": 336300,
+      "currency": "INR",
+      "modifiedTime": "2026-09-14T15:51:26+0530"
+    },
+    "1154219000036935005": {
+      "id": "1154219000036935005",
+      "salesOrderNumber": "SO-07955",
+      "customerName": "Ridhaan Ventures Private Limited",
+      "status": "closed",
+      "orderDate": "2026-09-15",
+      "orderTotal": 59000,
+      "currency": "INR",
+      "modifiedTime": "2026-09-15T15:59:37+0530"
+    },
+    "1154219000036696007": {
+      "id": "1154219000036696007",
+      "salesOrderNumber": "SO-07923",
+      "customerName": "Ashoka Hawai & Shoes Pvt. Ltd.",
+      "status": "closed",
+      "orderDate": "2026-09-10",
+      "orderTotal": 113280,
+      "currency": "INR",
+      "modifiedTime": "2026-09-14T11:00:37+0530"
+    },
+    "1154219000036863001": {
+      "id": "1154219000036863001",
+      "salesOrderNumber": "SO-07937",
+      "customerName": "V R SEWING MACHINE",
+      "status": "closed",
+      "orderDate": "2026-09-12",
+      "orderTotal": 42480,
+      "currency": "INR",
+      "modifiedTime": "2026-09-14T17:43:10+0530"
+    },
+    "1154219000036708018": {
+      "id": "1154219000036708018",
+      "salesOrderNumber": "SO-07922",
+      "customerName": "FORTUNE ELASTOMERS PVT LTD",
+      "status": "closed",
+      "orderDate": "2026-09-10",
+      "orderTotal": 34830,
+      "currency": "INR",
+      "modifiedTime": "2026-09-14T18:18:06+0530"
+    },
+    "1154219000036712009": {
+      "id": "1154219000036712009",
+      "salesOrderNumber": "SO-07928",
+      "customerName": "KOUSHAL ENTERPRISES",
+      "status": "closed",
+      "orderDate": "2026-09-10",
+      "orderTotal": 17700,
+      "currency": "INR",
+      "modifiedTime": "2026-09-10T18:11:03+0530"
+    },
+    "1154219000036724026": {
+      "id": "1154219000036724026",
+      "salesOrderNumber": "SO-07920",
+      "customerName": "Assert Footwears",
+      "status": "closed",
+      "orderDate": "2026-09-10",
+      "orderTotal": 24150,
+      "currency": "INR",
+      "modifiedTime": "2026-09-14T15:21:07+0530"
+    },
+    "1154219000036882003": {
+      "id": "1154219000036882003",
+      "salesOrderNumber": "SO-07938",
+      "customerName": "GARG INDUSTRIES",
+      "status": "closed",
+      "orderDate": "2026-09-12",
+      "orderTotal": 44840,
+      "currency": "INR",
+      "modifiedTime": "2026-09-14T12:27:14+0530"
+    },
+    "1154219000036665008": {
+      "id": "1154219000036665008",
+      "salesOrderNumber": "SO-07909",
+      "customerName": "Doershappy",
+      "status": "confirmed",
+      "orderDate": "2026-09-08",
+      "orderTotal": 69030,
+      "currency": "INR",
+      "modifiedTime": "2026-09-08T16:59:48+0530"
+    },
+    "1154219000036656001": {
+      "id": "1154219000036656001",
+      "salesOrderNumber": "SO-07905",
+      "customerName": "T.A. Enterprise",
+      "status": "closed",
+      "orderDate": "2026-09-08",
+      "orderTotal": 84370,
+      "currency": "INR",
+      "modifiedTime": "2026-09-09T10:34:42+0530"
+    },
+    "1154219000036720001": {
+      "id": "1154219000036720001",
+      "salesOrderNumber": "SO-07912",
+      "customerName": "LEPERA INDUSTRIES PRIVATE LIMITED",
+      "status": "closed",
+      "orderDate": "2026-09-09",
+      "orderTotal": 15623,
+      "currency": "INR",
+      "modifiedTime": "2026-09-14T15:21:55+0530"
+    },
+    "1154219000036667001": {
+      "id": "1154219000036667001",
+      "salesOrderNumber": "SO-07906",
+      "customerName": "International Trade Organization",
+      "status": "closed",
+      "orderDate": "2026-09-08",
+      "orderTotal": 133340,
+      "currency": "INR",
+      "modifiedTime": "2026-09-08T16:04:00+0530"
+    },
+    "1154219000036567001": {
+      "id": "1154219000036567001",
+      "salesOrderNumber": "SO-07902",
+      "customerName": "SUMER CHAND & SONS",
+      "status": "closed",
+      "orderDate": "2026-09-07",
+      "orderTotal": 254750,
+      "currency": "INR",
+      "modifiedTime": "2026-09-10T12:49:46+0530"
+    },
+    "1154219000036669001": {
+      "id": "1154219000036669001",
+      "salesOrderNumber": "SO-07907",
+      "customerName": "Tactix Defence Systems LLP",
+      "status": "closed",
+      "orderDate": "2026-09-08",
+      "orderTotal": 83873,
+      "currency": "INR",
+      "modifiedTime": "2026-09-09T10:33:55+0530"
+    },
+    "1154219000036460009": {
+      "id": "1154219000036460009",
+      "salesOrderNumber": "SO-07897",
+      "customerName": "SHAKTI ENTERPRISES",
+      "status": "closed",
+      "orderDate": "2026-09-06",
+      "orderTotal": 27878,
+      "currency": "INR",
+      "modifiedTime": "2026-09-08T16:34:19+0530"
+    },
+    "1154219000036466001": {
+      "id": "1154219000036466001",
+      "salesOrderNumber": "SO-07885",
+      "customerName": "NEW CUT FOOTWEAR",
+      "status": "closed",
+      "orderDate": "2026-09-04",
+      "orderTotal": 101480,
+      "currency": "INR",
+      "modifiedTime": "2026-09-05T11:21:01+0530"
+    },
+    "1154219000036466015": {
+      "id": "1154219000036466015",
+      "salesOrderNumber": "SO-07888",
+      "customerName": "ACTION FOOTWEAR INDUSTRIES PVT LTD - NEPAL",
+      "status": "confirmed",
+      "orderDate": "2026-09-04",
+      "orderTotal": 770000,
+      "currency": "INR",
+      "modifiedTime": "2026-09-04T13:29:05+0530"
+    },
+    "1154219000036482005": {
+      "id": "1154219000036482005",
+      "salesOrderNumber": "SO-07893",
+      "customerName": "KOUSHAL ENTERPRISES",
+      "status": "confirmed",
+      "orderDate": "2026-09-03",
+      "orderTotal": 76700,
+      "currency": "INR",
+      "modifiedTime": "2026-09-05T14:26:24+0530"
+    },
+    "1154219000036548004": {
+      "id": "1154219000036548004",
+      "salesOrderNumber": "SO-07903",
+      "customerName": "Paramita Stitching Centre",
+      "status": "closed",
+      "orderDate": "2026-09-07",
+      "orderTotal": 20650,
+      "currency": "INR",
+      "modifiedTime": "2026-09-14T15:22:40+0530"
+    },
+    "1154219000036483004": {
+      "id": "1154219000036483004",
+      "salesOrderNumber": "SO-07889",
+      "customerName": "Parshvaprem Industries Pvt. Ltd.",
+      "status": "closed",
+      "orderDate": "2026-09-04",
+      "orderTotal": 139520,
+      "currency": "INR",
+      "modifiedTime": "2026-09-08T13:35:19+0530"
+    },
+    "1154219000036438003": {
+      "id": "1154219000036438003",
+      "salesOrderNumber": "SO-07879",
+      "customerName": "KOUSHAL ENTERPRISES",
+      "status": "closed",
+      "orderDate": "2026-09-03",
+      "orderTotal": 17700,
+      "currency": "INR",
+      "modifiedTime": "2026-09-05T11:17:15+0530"
+    },
+    "1154219000036443007": {
+      "id": "1154219000036443007",
+      "salesOrderNumber": "SO-07881",
+      "customerName": "GARG INDUSTRIES",
+      "status": "closed",
+      "orderDate": "2026-09-03",
+      "orderTotal": 56640,
+      "currency": "INR",
+      "modifiedTime": "2026-09-18T13:48:26+0530"
+    },
+    "1154219000036475001": {
+      "id": "1154219000036475001",
+      "salesOrderNumber": "SO-07887",
+      "customerName": "Assert Footwears",
+      "status": "closed",
+      "orderDate": "2026-09-04",
+      "orderTotal": 24150,
+      "currency": "INR",
+      "modifiedTime": "2026-09-05T11:21:33+0530"
+    },
+    "1154219000036378001": {
+      "id": "1154219000036378001",
+      "salesOrderNumber": "SO-07865",
+      "customerName": "GURUJI FOOTWEAR",
+      "status": "closed",
+      "orderDate": "2026-09-02",
+      "orderTotal": 235410,
+      "currency": "INR",
+      "modifiedTime": "2026-09-02T14:25:39+0530"
+    },
+    "1154219000036424001": {
+      "id": "1154219000036424001",
+      "salesOrderNumber": "SO-07878",
+      "customerName": "AJAY FOOTWEAR",
+      "status": "closed",
+      "orderDate": "2026-09-03",
+      "orderTotal": 23625,
+      "currency": "INR",
+      "modifiedTime": "2026-09-05T11:16:18+0530"
+    },
+    "1154219000036384021": {
+      "id": "1154219000036384021",
+      "salesOrderNumber": "SO-07874",
+      "customerName": "KAMAL SONS",
+      "status": "closed",
+      "orderDate": "2026-09-03",
+      "orderTotal": 62540,
+      "currency": "INR",
+      "modifiedTime": "2026-09-03T13:32:04+0530"
+    },
+    "1154219000035991020": {
+      "id": "1154219000035991020",
+      "salesOrderNumber": "SO-07808",
+      "customerName": "SHAKTI INDUSTRIES",
+      "status": "closed",
+      "orderDate": "2026-08-25",
+      "orderTotal": 168000,
+      "currency": "INR",
+      "modifiedTime": "2026-09-01T13:09:28+0530"
+    },
+    "1154219000036294001": {
+      "id": "1154219000036294001",
+      "salesOrderNumber": "SO-07852",
+      "customerName": "AMAZOX SOLUTIONS PRIVATE LIMITED",
+      "status": "closed",
+      "orderDate": "2026-08-31",
+      "orderTotal": 51920,
+      "currency": "INR",
+      "modifiedTime": "2026-09-02T15:39:13+0530"
+    },
+    "1154219000036263131": {
+      "id": "1154219000036263131",
+      "salesOrderNumber": "SO-07849",
+      "customerName": "SHREE RAM POLYMER",
+      "status": "closed",
+      "orderDate": "2026-08-31",
+      "orderTotal": 108560,
+      "currency": "INR",
+      "modifiedTime": "2026-09-02T17:07:08+0530"
+    },
+    "1154219000036383001": {
+      "id": "1154219000036383001",
+      "salesOrderNumber": "SO-07867",
+      "customerName": "GURUJI FOOTWEAR",
+      "status": "closed",
+      "orderDate": "2026-09-02",
+      "orderTotal": 20060,
+      "currency": "INR",
+      "modifiedTime": "2026-09-02T15:24:22+0530"
+    },
+    "1154219000036263889": {
+      "id": "1154219000036263889",
+      "salesOrderNumber": "SO-07853",
+      "customerName": "P & M SAFETY PRODUCTS",
+      "status": "closed",
+      "orderDate": "2026-08-31",
+      "orderTotal": 16520,
+      "currency": "INR",
+      "modifiedTime": "2026-08-31T17:13:31+0530"
+    },
+    "1154219000017953009": {
+      "id": "1154219000017953009",
+      "salesOrderNumber": "SO-04580",
+      "customerName": "NEW TRENDZ FOOTWEAR",
+      "status": "closed",
+      "orderDate": "2025-05-02",
+      "orderTotal": 20650,
+      "currency": "INR",
+      "modifiedTime": "2026-02-19T12:00:49+0530"
+    },
+    "1154219000036206001": {
+      "id": "1154219000036206001",
+      "salesOrderNumber": "SO-07844",
+      "customerName": "Upright Luggage Industries",
+      "status": "closed",
+      "orderDate": "2026-08-29",
+      "orderTotal": 10620,
+      "currency": "INR",
+      "modifiedTime": "2026-09-02T15:40:53+0530"
+    },
+    "1154219000037279003": {
+      "id": "1154219000037279003",
+      "salesOrderNumber": "SO-08010",
+      "customerName": "Rajdhani Laminates",
+      "status": "closed",
+      "orderDate": "2026-09-22",
+      "orderTotal": 185450,
+      "currency": "INR",
+      "modifiedTime": "2026-09-24T18:51:01+0530"
+    },
+    "1154219000036103087": {
+      "id": "1154219000036103087",
+      "salesOrderNumber": "SO-07830",
+      "customerName": "ROSEUS PRIVATE LIMITED",
+      "status": "closed",
+      "orderDate": "2026-08-27",
+      "orderTotal": 17110,
+      "currency": "INR",
+      "modifiedTime": "2026-09-05T13:55:57+0530"
+    },
+    "1154219000036164006": {
+      "id": "1154219000036164006",
+      "salesOrderNumber": "SO-07843",
+      "customerName": "A.P. Footwear(Bahadurgarh)",
+      "status": "closed",
+      "orderDate": "2026-08-29",
+      "orderTotal": 49560,
+      "currency": "INR",
+      "modifiedTime": "2026-08-29T17:58:57+0530"
+    },
+    "1154219000036179029": {
+      "id": "1154219000036179029",
+      "salesOrderNumber": "SO-07841",
+      "customerName": "NITCO SEWING MACHINE COMPANY",
+      "status": "closed",
+      "orderDate": "2026-08-29",
+      "orderTotal": 90300,
+      "currency": "INR",
+      "modifiedTime": "2026-09-05T13:06:09+0530"
+    },
+    "1154219000036271001": {
+      "id": "1154219000036271001",
+      "salesOrderNumber": "SO-07845",
+      "customerName": "SHREENATHJI RUBBER INDUSTRIES",
+      "status": "closed",
+      "orderDate": "2026-08-30",
+      "orderTotal": 349280,
+      "currency": "INR",
+      "modifiedTime": "2026-09-09T11:48:46+0530"
+    },
+    "1154219000037338003": {
+      "id": "1154219000037338003",
+      "salesOrderNumber": "SO-08021",
+      "customerName": "JN International",
+      "status": "confirmed",
+      "orderDate": "2026-09-23",
+      "orderTotal": 24300,
+      "currency": "INR",
+      "modifiedTime": "2026-09-23T17:52:06+0530"
+    },
+    "1154219000037325001": {
+      "id": "1154219000037325001",
+      "salesOrderNumber": "SO-08017",
+      "customerName": "AIRCITY SHOES PRIVATE LIMITED",
+      "status": "closed",
+      "orderDate": "2026-09-23",
+      "orderTotal": 74025,
+      "currency": "INR",
+      "modifiedTime": "2026-09-24T18:50:00+0530"
+    },
+    "1154219000037372003": {
+      "id": "1154219000037372003",
+      "salesOrderNumber": "SO-08033",
+      "customerName": "Mata Bala Sundari Enterprises",
+      "status": "confirmed",
+      "orderDate": "2026-09-24",
+      "orderTotal": 108929,
+      "currency": "INR",
+      "modifiedTime": "2026-09-25T10:47:34+0530"
+    }
+  },
+  "state": {
+    "schema": 2,
+    "mode": "backoff",
+    "nextPage": 1,
+    "perPage": 200,
+    "startedAt": "2026-09-25T07:59:23.862Z",
+    "completedAt": "",
+    "highWatermark": "",
+    "lastSuccessfulSync": "",
+    "nextEligibleAt": "2026-09-26T08:00:39.595Z",
+    "failureClass": "quota",
+    "failureCount": 12,
+    "pagesProcessed": 0,
+    "rowsSeen": 0
+  }
 }
