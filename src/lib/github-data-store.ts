@@ -76,7 +76,14 @@ export async function putGitHubDataObject(objectPath:string,bytes:Buffer,message
   await result(response,'write');return true
 }
 export async function deleteGitHubDataObject(objectPath:string,sha?:string){
-  const existing=sha?{sha}:await getGitHubDataObject(objectPath);if(!existing)return false
+  let existing:{sha:string}|null
+  try{existing=sha?{sha}:await getGitHubDataObject(objectPath)}catch(error){
+    // GraphQL cannot return binary blob bytes, but its commit mutation can still
+    // remove the exact path with branch-head CAS when REST reads are exhausted.
+    console.warn(`GitHub REST object read unavailable while deleting ${objectPath}; using GraphQL CAS`,error)
+    return mutateGitHubDataObjectViaGraphql(objectPath,`Delete ${objectPath}`)
+  }
+  if(!existing)return false
   const {token,owner,repo,branch}=githubDataConfig(),body:Record<string,string>={message:`Delete ${objectPath}`,sha:existing.sha};if(branch)body.branch=branch
   const response=await fetch(`${API}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${safePath(objectPath)}`,{method:'DELETE',headers:{...headers(token),'Content-Type':'application/json'},body:JSON.stringify(body),cache:'no-store',signal:AbortSignal.timeout(TIMEOUT_MS)})
   if(response.status===403){const error=await response.clone().json().catch(()=>({})) as {message?:string};if(/rate limit/i.test(error.message||''))return mutateGitHubDataObjectViaGraphql(objectPath,`Delete ${objectPath}`,undefined,existing.sha)}

@@ -21,6 +21,7 @@ globalThis.fetch=async(url,init={})=>{
 }
 const {createLinkedPayment,setPaymentAttachments}=await import('../src/lib/payments.ts')
 const {storeProofFiles}=await import('../src/lib/local-payment-proofs.ts')
+const {deleteGitHubDataObject}=await import('../src/lib/github-data-store.ts')
 const key='quota-regression-key-0001',input={customerName:'Quota QA',salesOrderId:'so-quota',salesOrderNumber:'SO-QUOTA',orderTotal:100,paymentAmount:10,paymentMode:'Bank Transfer' as const,createdBy:'sales-qa',ownerUserId:'sales-qa',addedBy:'QA',salespersonName:'QA'}
 const first=await createLinkedPayment(input,key),proof=Uint8Array.from([82,73,70,70,4,0,0,0,87,69,66,80,86,80,56,32]),attachments=await storeProofFiles(first.payment.id,[new File([proof],'quota.webp',{type:'image/webp'})])
 await setPaymentAttachments(first.payment.id,attachments)
@@ -28,4 +29,5 @@ const retry=await createLinkedPayment(input,key)
 assert.equal(first.duplicate,false);assert.equal(retry.duplicate,true);assert.equal(retry.payment.id,first.payment.id)
 const persisted=JSON.parse(files.get('data/payments.json')!.bytes.toString());assert.equal(persisted.payments.filter((p:any)=>p.idempotencyKey===key).length,1)
 assert.equal(attachments[0].contentType,'image/webp');assert(files.has(attachments[0].key));assert(rest.length>0);assert(commits.length>=3)
-console.log('PASS REST quota blocked: GraphQL CAS commits persisted one idempotent salesperson payment and WebP proof')
+assert.equal(await deleteGitHubDataObject(attachments[0].key),true);assert.equal(files.has(attachments[0].key),false)
+console.log('PASS REST quota blocked: GraphQL CAS commits persisted one idempotent salesperson payment and WebP proof; proof cleanup succeeded')
