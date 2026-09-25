@@ -38,7 +38,7 @@ async function refreshToken(fetcher: FetchLike) {
   const body = new URLSearchParams({ refresh_token: process.env.ZOHO_REFRESH_TOKEN!, client_id: process.env.ZOHO_CLIENT_ID!, client_secret: process.env.ZOHO_CLIENT_SECRET!, grant_type: 'refresh_token' })
   const response = await fetchTimed(fetcher, `${domains().accounts}/oauth/v2/token`, { method: 'POST', body, cache: 'no-store' })
   const data = await response.json() as { access_token?: string; expires_in?: number; api_domain?: string; error?: string }
-  if (!response.ok || !data.access_token) throw new Error(data.error || 'Unable to refresh Zoho token')
+  if (!response.ok || !data.access_token) { const message=data.error||'Unable to refresh Zoho token';await recordZohoFailure(response.status,message);throw new Error(message) }
   tokenCache = { value: data.access_token, expiresAt: Date.now() + Number(data.expires_in || 3600) * 1000 }
   return data.access_token
 }

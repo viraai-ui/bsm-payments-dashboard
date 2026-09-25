@@ -48,7 +48,7 @@ export async function synchronizePaymentOrderIndex(options:{maxPages?:number;max
   let deltaSince=s.state.deltaSince
   if(!isBackfill&&!deltaSince){const base=Date.parse(s.state.highWatermark||s.state.lastSuccessfulSync||new Date().toISOString());deltaSince=new Date(base-DELTA_OVERLAP_MS).toISOString()}
   for(let i=0;i<maxPages&&Date.now()-now<maxMs;i++){
-   const result=await fetchZohoPaymentOrderPage(page,{modifiedSince:isBackfill?undefined:deltaSince,fetcher:options.fetcher});calls++
+   calls++;const result=await fetchZohoPaymentOrderPage(page,{modifiedSince:isBackfill?undefined:deltaSince,fetcher:options.fetcher})
    const at=new Date().toISOString()
    await updateLocalJson<Snapshot|Legacy>(FILE,empty(),raw=>{const x=migrate(raw);if(x.state.lease?.id!==leaseId)return x;let max=x.state.deltaMax||x.state.highWatermark
     for(const item of result.orders){const o=stored(item);if(!o)continue;if(newer(x.orders[o.id],o))x.orders[o.id]=o;if(o.modifiedTime&&(!max||Date.parse(o.modifiedTime)>Date.parse(max)))max=o.modifiedTime}
