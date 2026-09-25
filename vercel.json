@@ -1,7 +1,7 @@
 {
   "crons": [
-    { "path": "/api/integrations/payouts/retry", "schedule": "* * * * *" },
-    { "path": "/api/integrations/push/retry", "schedule": "* * * * *" },
+    { "path": "/api/integrations/payouts/retry", "schedule": "*/5 * * * *" },
+    { "path": "/api/integrations/push/retry", "schedule": "*/5 * * * *" },
     { "path": "/api/integrations/zoho-sales-orders/reconcile", "schedule": "*/10 * * * *" },
     { "path": "/api/integrations/payment-order-index", "schedule": "*/15 * * * *" },
     { "path": "/api/integrations/payment-proof-retention", "schedule": "17 2 * * *" }

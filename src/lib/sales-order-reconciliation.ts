@@ -7,6 +7,12 @@ type Store={orders:Record<string,SalesOrderSnapshot>}
 const FILE='sales-order-snapshots.json',EMPTY:Store={orders:{}}
 const norm=(value?:string)=>String(value||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'')
 export function linkedOrderIds(payments:Payment[]){return [...new Set(payments.map(p=>p.salesOrderId).filter((id):id is string=>Boolean(id)))]}
+/** Select a bounded, oldest-first reconciliation batch. A full sweep every ten
+ * minutes can exhaust Zoho's organization-wide daily allowance and block the
+ * authoritative detail lookup required when a payment is created. */
+export function reconciliationBatch(ids:string[],snapshots:Record<string,SalesOrderSnapshot>,limit=10){
+ return [...new Set(ids)].sort((a,b)=>(Date.parse(snapshots[a]?.syncedAt||'')||0)-(Date.parse(snapshots[b]?.syncedAt||'')||0)).slice(0,Math.max(1,limit))
+}
 export function applySalesOrderSnapshots(payments:Payment[],orders:Record<string,SalesOrderSnapshot>){
  const byNumber=new Map(Object.values(orders).map(o=>[norm(o.salesOrderNumber),o]))
  return payments.map(payment=>{const order=(payment.salesOrderId&&orders[payment.salesOrderId])||byNumber.get(norm(payment.salesOrderNumber));return order?.available?{...payment,salesOrderId:order.salesOrderId,salesOrderNumber:order.salesOrderNumber,customerName:order.customerName,orderTotal:order.orderTotal,salesOrderDate:order.orderDate}:payment})
@@ -40,7 +46,7 @@ export async function reconcileSalesOrders(ids:string[],options:{limit?:number;f
 }
 /** Best-effort bounded refresh for reads. Durable stale snapshots remain usable on outage. */
 export async function refreshStaleLinkedOrders(payments:Payment[],max=4){
- const snapshots=await readSalesOrderSnapshots().catch(()=>({} as Record<string,SalesOrderSnapshot>)),cutoff=Date.now()-5*60_000
+ const snapshots=await readSalesOrderSnapshots().catch(()=>({} as Record<string,SalesOrderSnapshot>)),cutoff=Date.now()-60*60_000
  const ids=linkedOrderIds(payments).filter(id=>!snapshots[id]||Date.parse(snapshots[id].syncedAt)<cutoff).slice(0,max)
  const baselines=Object.fromEntries(payments.filter(p=>p.salesOrderId).map(p=>[p.salesOrderId!,{orderTotal:p.orderTotal,customerName:p.customerName}]))
  if(ids.length)await reconcileSalesOrders(ids,{limit:max,baselines})
