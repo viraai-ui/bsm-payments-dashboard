@@ -21,6 +21,15 @@ function migrate(value:Snapshot|Legacy|unknown):Snapshot{
 function safe(o:StoredOrder|ZohoPaymentOrder):PaymentOrderSuggestion{const rawStatus='rawStatus'in o?o.rawStatus:o.status,orderTotal=Number(o.orderTotal);return{id:o.id,salesOrderNumber:o.salesOrderNumber,customerName:o.customerName,rawStatus,status:paymentOrderStatus(rawStatus),orderDate:o.orderDate,total:orderTotal,orderTotal,currency:o.currency||'INR',modifiedTime:o.modifiedTime||''}}
 function stored(o:{id:string;salesOrderNumber:string;customerName:string;rawStatus:string;orderDate:string;orderTotal?:number;total?:number;currency:string;modifiedTime:string}):StoredOrder|null{const total=Number(o.orderTotal??o.total);return Number.isFinite(total)?{id:o.id,salesOrderNumber:o.salesOrderNumber,customerName:o.customerName,status:o.rawStatus,orderDate:o.orderDate,orderTotal:total,currency:o.currency||'INR',modifiedTime:o.modifiedTime||''}:null}
 function newer(old:StoredOrder|undefined,next:StoredOrder){if(!old)return true;const a=Date.parse(old.modifiedTime)||0,b=Date.parse(next.modifiedTime)||0;return b>a||(b===a&&JSON.stringify(old)!==JSON.stringify(next))}
+const canonicalOrderNumber=(value:string)=>value.replace(/[^a-z0-9]/gi,'').toUpperCase()
+/** A temporary/manual row is keyed differently from the eventual Zoho row.
+ * Drop that temporary key as soon as Zoho supplies the canonical record, so a
+ * provider recovery cannot leave two searchable copies of one SO number. */
+function mergeCanonicalOrder(orders:Record<string,StoredOrder>,next:StoredOrder){
+ const number=canonicalOrderNumber(next.salesOrderNumber)
+ for(const [id,old] of Object.entries(orders))if(id!==next.id&&canonicalOrderNumber(old.salesOrderNumber)===number)delete orders[id]
+ if(newer(orders[next.id],next))orders[next.id]=next
+}
 async function snapshot(fresh=false){return migrate(await(fresh?readLocalJsonFresh:readLocalJson)(FILE,empty()))}
 export async function searchPaymentOrders(query='',limit=10){
  const started=performance.now(),s=await snapshot(),all=Object.values(s.orders).map(safe),bounded=Math.max(1,Math.min(limit,50)),orders=rankPaymentOrderSuggestions(all,query,bounded)
@@ -55,7 +64,7 @@ export async function synchronizePaymentOrderIndex(options:{maxPages?:number;max
    calls++;const result=await fetchZohoPaymentOrderPage(page,{modifiedSince:isBackfill?undefined:deltaSince,fetcher:options.fetcher})
    const at=new Date().toISOString()
    await updateLocalJson<Snapshot|Legacy>(FILE,empty(),raw=>{const x=migrate(raw);if(x.state.lease?.id!==leaseId)return x;let max=x.state.deltaMax||x.state.highWatermark
-    for(const item of result.orders){const o=stored(item);if(!o)continue;if(newer(x.orders[o.id],o))x.orders[o.id]=o;if(o.modifiedTime&&(!max||Date.parse(o.modifiedTime)>Date.parse(max)))max=o.modifiedTime}
+    for(const item of result.orders){const o=stored(item);if(!o)continue;mergeCanonicalOrder(x.orders,o);if(o.modifiedTime&&(!max||Date.parse(o.modifiedTime)>Date.parse(max)))max=o.modifiedTime}
     x.updatedAt=at;x.state.rowsSeen+=result.orders.length;x.state.pagesProcessed++;x.state.failureClass='';x.state.failureCount=0;x.state.nextEligibleAt=''
     if(isBackfill){if(result.hasMore)x.state.nextPage=page+1;else{x.state.completedAt=at;x.state.mode='ready';x.state.nextPage=1;x.state.highWatermark=max||at;x.state.lastSuccessfulSync=at}}
     else if(result.hasMore){x.state.mode='delta';x.state.deltaSince=deltaSince;x.state.deltaMax=max;x.state.nextPage=page+1}else{x.state.mode='ready';x.state.nextPage=1;x.state.highWatermark=max||x.state.highWatermark;x.state.lastSuccessfulSync=at;delete x.state.deltaSince;delete x.state.deltaMax}

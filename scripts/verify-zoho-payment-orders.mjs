@@ -46,7 +46,7 @@ assert.equal((await fetchZohoPaymentOrderDetail('id-1',missingTotalFetch)).total
 
 // Legacy migration and local search must perform no Zoho call.
 const indexFile=path.join(root,'data/payment-order-index.json'),legacyAt='2026-09-20T10:00:00.000Z'
-await writeFile(indexFile,JSON.stringify({version:1,updatedAt:legacyAt,orders:[{id:'legacy',salesOrderNumber:'SO-LEGACY',customerName:'Legacy Customer',status:'confirmed',orderDate:'2026-09-20',orderTotal:50}]}))
+await writeFile(indexFile,JSON.stringify({version:1,updatedAt:legacyAt,orders:[{id:'legacy',salesOrderNumber:'SO-LEGACY',customerName:'Legacy Customer',status:'confirmed',orderDate:'2026-09-20',orderTotal:50},{id:'manual-index-2',salesOrderNumber:'SO INDEX 2',customerName:'Temporary screenshot row',status:'confirmed',orderDate:'2026-09-20',orderTotal:1}]}))
 let networkCalls=0
 const local=await searchPaymentOrders('legacy',10);assert.equal(local.orders[0].id,'legacy');assert.equal(networkCalls,0,'local index search makes zero Zoho calls')
 
@@ -62,7 +62,7 @@ const indexFetch=async input=>{networkCalls++;const url=String(input);if(url.inc
 let result=await synchronizePaymentOrderIndex({maxPages:1,fetcher:indexFetch});assert.equal(result.complete,false);assert.equal(result.page,2);assert.equal(result.mode,'backfill')
 result=await synchronizePaymentOrderIndex({maxPages:1,fetcher:indexFetch});assert.equal(result.complete,true);assert.equal(result.indexedCount,3,'legacy and resumed backfill rows retained')
 phase='delta';result=await synchronizePaymentOrderIndex({maxPages:1,fetcher:indexFetch});assert.equal(result.mode,'delta');assert.equal(result.page,2)
-result=await synchronizePaymentOrderIndex({maxPages:1,fetcher:indexFetch});assert.equal(result.mode,'ready');assert.equal(result.indexedCount,4);assert.equal((await searchPaymentOrders('SO-INDEX-2',1)).orders[0].orderTotal,25)
+result=await synchronizePaymentOrderIndex({maxPages:1,fetcher:indexFetch});assert.equal(result.mode,'ready');assert.equal(result.indexedCount,4);const canonical=(await searchPaymentOrders('SO-INDEX-2',50)).orders.filter(o=>o.salesOrderNumber==='SO-INDEX-2');assert.equal(canonical.length,1,'Zoho row replaces canonical-number manual row');assert.equal(canonical[0].id,'index-2');assert.equal(canonical[0].orderTotal,25)
 assert.ok(deltaSince.length===2&&deltaSince.every(value=>value===deltaSince[0]),'delta resume preserves one overlapping watermark')
 assert.ok(Date.parse(deltaSince[0])<Date.parse(times[1]),'delta watermark overlaps the high watermark')
 
