@@ -8,6 +8,7 @@ const root=process.env.DATA_REPO_PATH
 assert(root,'DATA_REPO_PATH must point to a clean checkout of the production data repository')
 const apply=process.argv.includes('--apply'),file=path.join(root,'data/payment-order-index.json')
 const expected=[
+ ['SO-08040','2026-09-25','CLASSIC POLYMERS','draft',188580,'Delivery'],
  ['SO-08039','2026-09-25','DERPA INDUSTRIAL POLYMERS P.LTD.','draft',0],
  ['SO-08038','2026-09-25','Samu Sports','confirmed',51700],
  ['SO-08037','2026-09-25','Asian Footwear Pvt.Ltd. ( 280)','confirmed',36580],
@@ -23,12 +24,12 @@ const expected=[
 ]
 const canonical=v=>String(v).replace(/[^a-z0-9]/gi,'').toUpperCase(),sha=b=>crypto.createHash('sha256').update(b).digest('hex')
 const before=await readFile(file),store=JSON.parse(before),at=new Date().toISOString(),added=[],preserved=[]
-for(const [number,orderDate,customerName,status,orderTotal] of expected){
+for(const [number,orderDate,customerName,status,orderTotal,orderType] of expected){
  const matches=Object.values(store.orders||{}).filter(o=>canonical(o.salesOrderNumber)===canonical(number))
  assert(matches.length<=1,`Duplicate production records for ${number}`)
  if(matches.length){preserved.push({number,id:matches[0].id,record:matches[0]});continue}
  const id=`manual-screenshot-20260925-${number.toLowerCase()}`
- store.orders[id]={id,salesOrderNumber:number,customerName,status,orderDate,orderTotal,currency:'INR',modifiedTime:at,manualSource:{kind:'authorized-screenshot-index-only',sourceDate:'2026-09-25',enteredAt:at,reconcileBy:'canonical-sales-order-number'}}
+ store.orders[id]={id,salesOrderNumber:number,customerName,status,orderDate,orderTotal,currency:'INR',modifiedTime:at,manualSource:{kind:'authorized-screenshot-index-only',sourceDate:'2026-09-25',sourceFile:'img_fe9cf395c6ab.png',enteredAt:at,reconcileBy:'canonical-sales-order-number',...(orderType?{orderType}: {})}}
  added.push(number)
 }
 store.updatedAt=at
