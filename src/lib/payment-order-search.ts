@@ -44,6 +44,10 @@ export async function synchronizePaymentOrderIndex(options:{maxPages?:number;max
   let s=await snapshot(true);const circuit=await zohoCircuitStatus()
   if(circuit.nextEligibleAt&&Date.parse(circuit.nextEligibleAt)>Date.now()){await markBackoff(leaseId,circuit);return report(await snapshot(true),0,'backoff')}
   const isBackfill=!s.state.completedAt
+  // A previous failed run leaves mode=backoff. Once the durable circuit is
+  // eligible again, advertise the work that is actually being resumed.
+  await updateLocalJson<Snapshot|Legacy>(FILE,empty(),raw=>{const x=migrate(raw);if(x.state.lease?.id===leaseId){x.state.mode=isBackfill?'backfill':'delta';x.state.nextEligibleAt=''}return x})
+  s=await snapshot(true)
   let page=isBackfill?s.state.nextPage:(s.state.mode==='delta'&&s.state.deltaSince?s.state.nextPage:1)
   let deltaSince=s.state.deltaSince
   if(!isBackfill&&!deltaSince){const base=Date.parse(s.state.highWatermark||s.state.lastSuccessfulSync||new Date().toISOString());deltaSince=new Date(base-DELTA_OVERLAP_MS).toISOString()}

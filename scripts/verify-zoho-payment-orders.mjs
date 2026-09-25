@@ -1,7 +1,19 @@
 import assert from 'node:assert/strict'
-import { fetchAllZohoPaymentOrders, fetchZohoPaymentOrderDetail, mapZohoPaymentOrder, resetZohoPaymentOrdersForTests, searchZohoPaymentOrders } from '../src/lib/zoho-payment-orders.ts'
-import { paymentOrderStatus, filterPaymentOrderSuggestions, normalizePaymentOrderSearch, rankPaymentOrderSuggestions } from '../src/lib/payment-order-lookup.ts'
-Object.assign(process.env,{ZOHO_CLIENT_ID:'test-client',ZOHO_CLIENT_SECRET:'test-secret',ZOHO_REFRESH_TOKEN:'test-refresh',ZOHO_ORGANIZATION_ID:'test-org',ZOHO_DC:'in'})
+import {mkdtemp,readFile,rm,writeFile,mkdir} from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
+
+// local-store resolves its local data directory at module initialization. Set
+// the cwd and backend before importing any application module so this test can
+// never read or mutate .env.local's production durable store.
+const originalCwd=process.cwd(),root=await mkdtemp(path.join(os.tmpdir(),'bsm-zoho-orders-'))
+process.chdir(root)
+Object.assign(process.env,{APP_LOCAL_ONLY:'true',NODE_ENV:'test',ZOHO_CLIENT_ID:'test-client',ZOHO_CLIENT_SECRET:'test-secret',ZOHO_REFRESH_TOKEN:'test-refresh',ZOHO_ORGANIZATION_ID:'test-org',ZOHO_DC:'in'})
+await mkdir(path.join(root,'data'),{recursive:true})
+const { fetchAllZohoPaymentOrders, fetchZohoPaymentOrderDetail, mapZohoPaymentOrder, resetZohoPaymentOrdersForTests, searchZohoPaymentOrders } = await import('../src/lib/zoho-payment-orders.ts')
+const { paymentOrderStatus, filterPaymentOrderSuggestions, normalizePaymentOrderSearch, rankPaymentOrderSuggestions } = await import('../src/lib/payment-order-lookup.ts')
+const {searchPaymentOrders,synchronizePaymentOrderIndex}=await import('../src/lib/payment-order-search.ts')
+const {recordZohoFailure,recordZohoSuccess,zohoCircuitStatus}=await import('../src/lib/zoho-circuit.ts')
 const statuses=['draft','confirmed','open','overdue','partially_invoiced','partially_shipped','invoiced','closed','void','cancelled']
 const row=(i,status=statuses[i%statuses.length],total=i+.5)=>({salesorder_id:`id-${i}`,salesorder_number:`SO-${String(i).padStart(5,'0')}`,customer_name:`Customer ${i}`,total,date:`2026-09-${String(1+i%15).padStart(2,'0')}`,status,currency_code:'INR'})
 let tokenCalls=0,listCalls=0,retried=false
@@ -31,4 +43,42 @@ resetZohoPaymentOrdersForTests();let detailCalls=0
 const missingTotalFetch=async input=>{const url=String(input);if(url.includes('/oauth/'))return Response.json({access_token:'token',expires_in:3600});if(url.includes('/salesorders/id-1')){detailCalls++;return Response.json({salesorder:row(1,'confirmed','9,876.50')})}return Response.json({salesorders:[{...row(1),total:undefined}],page_context:{page:1,has_more_page:false}})}
 const hydrated=await searchZohoPaymentOrders('SO-00001',10,missingTotalFetch);assert.equal(hydrated[0].total,9876.5);assert.equal(hydrated[0].orderTotal,9876.5);assert.equal(detailCalls,1,'missing list total detail-hydrated once')
 assert.equal((await fetchZohoPaymentOrderDetail('id-1',missingTotalFetch)).total,9876.5);assert.equal(detailCalls,1,'detail is cached')
-console.log(`Zoho payment lookup verified: ${orders.length} unique orders; all statuses, retry, dedupe, totals and detail hydration passed`)
+
+// Legacy migration and local search must perform no Zoho call.
+const indexFile=path.join(root,'data/payment-order-index.json'),legacyAt='2026-09-20T10:00:00.000Z'
+await writeFile(indexFile,JSON.stringify({version:1,updatedAt:legacyAt,orders:[{id:'legacy',salesOrderNumber:'SO-LEGACY',customerName:'Legacy Customer',status:'confirmed',orderDate:'2026-09-20',orderTotal:50}]}))
+let networkCalls=0
+const local=await searchPaymentOrders('legacy',10);assert.equal(local.orders[0].id,'legacy');assert.equal(networkCalls,0,'local index search makes zero Zoho calls')
+
+// Checkpoint a backfill, resume it, then run/resume an overlapping delta.
+resetZohoPaymentOrdersForTests();await recordZohoSuccess()
+const times=['2026-09-21T10:00:00.000Z','2026-09-22T10:00:00.000Z','2026-09-23T10:00:00.000Z']
+let phase='backfill',deltaSince=[]
+const indexFetch=async input=>{networkCalls++;const url=String(input);if(url.includes('/oauth/'))return Response.json({access_token:'index-token',expires_in:3600})
+ const parsed=new URL(url),page=Number(parsed.searchParams.get('page'));if(parsed.searchParams.has('last_modified_time'))deltaSince.push(parsed.searchParams.get('last_modified_time'))
+ const item=(id,modified,total)=>({...row(id,'confirmed',total),salesorder_id:`index-${id}`,salesorder_number:`SO-INDEX-${id}`,last_modified_time:modified})
+ if(phase==='backfill')return Response.json({salesorders:page===1?[item(1,times[0],10)]:[item(2,times[1],20)],page_context:{page,has_more_page:page===1}})
+ return Response.json({salesorders:page===1?[item(2,times[2],25)]:[item(3,times[2],30)],page_context:{page,has_more_page:page===1}})}
+let result=await synchronizePaymentOrderIndex({maxPages:1,fetcher:indexFetch});assert.equal(result.complete,false);assert.equal(result.page,2);assert.equal(result.mode,'backfill')
+result=await synchronizePaymentOrderIndex({maxPages:1,fetcher:indexFetch});assert.equal(result.complete,true);assert.equal(result.indexedCount,3,'legacy and resumed backfill rows retained')
+phase='delta';result=await synchronizePaymentOrderIndex({maxPages:1,fetcher:indexFetch});assert.equal(result.mode,'delta');assert.equal(result.page,2)
+result=await synchronizePaymentOrderIndex({maxPages:1,fetcher:indexFetch});assert.equal(result.mode,'ready');assert.equal(result.indexedCount,4);assert.equal((await searchPaymentOrders('SO-INDEX-2',1)).orders[0].orderTotal,25)
+assert.ok(deltaSince.length===2&&deltaSince.every(value=>value===deltaSince[0]),'delta resume preserves one overlapping watermark')
+assert.ok(Date.parse(deltaSince[0])<Date.parse(times[1]),'delta watermark overlaps the high watermark')
+
+// Durable circuit prevents all calls, and leases are released even on the
+// early backoff return. Future leases block; expired leases are recoverable.
+const failureAt=new Date('2030-01-01T00:00:00.000Z');await recordZohoFailure(429,'quota exceeded',3600,failureAt)
+let forbiddenCalls=0;result=await synchronizePaymentOrderIndex({fetcher:async()=>{forbiddenCalls++;throw new Error('must not call')}})
+assert.equal(result.mode,'backoff');assert.equal(result.callsThisRun,0);assert.equal(forbiddenCalls,0)
+let persisted=JSON.parse(await readFile(indexFile,'utf8'));assert.equal(persisted.state.lease,undefined,'backoff releases lease')
+await recordZohoSuccess(new Date('2030-01-01T02:00:00.000Z'))
+persisted.state.lease={id:'other-worker',expiresAt:new Date(Date.now()+60_000).toISOString()};await writeFile(indexFile,JSON.stringify(persisted))
+result=await synchronizePaymentOrderIndex({fetcher:indexFetch});assert.equal(result.callsThisRun,0);assert.equal(result.error,'lease-active')
+persisted=JSON.parse(await readFile(indexFile,'utf8'));persisted.state.lease.expiresAt=new Date(Date.now()-1).toISOString();await writeFile(indexFile,JSON.stringify(persisted))
+result=await synchronizePaymentOrderIndex({maxPages:1,fetcher:indexFetch});assert.ok(result.callsThisRun>0,'expired lease is reclaimed')
+persisted=JSON.parse(await readFile(indexFile,'utf8'));assert.equal(persisted.state.lease,undefined,'recovered run releases lease')
+assert.equal((await zohoCircuitStatus()).failureCount,0)
+
+process.chdir(originalCwd);await rm(root,{recursive:true,force:true})
+console.log(`Zoho payment lookup/index verified in isolated ${path.basename(root)}: migration, checkpoint/resume, delta watermark, zero-call search, circuit backoff and lease recovery passed`)
