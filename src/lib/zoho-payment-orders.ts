@@ -67,7 +67,8 @@ async function zohoGet(fetcher: FetchLike, path: string, maxAttempts=RETRIES): P
       const message=data.message || `Zoho request failed (${response.status})`
       // Quota responses are hard stops. Never amplify a 429 with retries.
       if(response.status===429||/quota|rate.?limit|too many request|api usage/i.test(message)){await recordZohoFailure(response.status,message,Number(response.headers.get('retry-after'))||undefined);throw new ZohoQuotaError(message)}
-      if (!retryable) { await recordZohoFailure(response.status,message); throw new Error(message) }
+      // Per-order 4xx failures are not global outages and must not poison ingestion.
+      if (!retryable) { if(response.status===401||response.status===403)await recordZohoFailure(response.status,message);throw Object.assign(new Error(message),{status:response.status}) }
       if(attempt===maxAttempts-1)await recordZohoFailure(response.status,message,Number(response.headers.get('retry-after'))||undefined)
       last = new Error(message)
       const retryAfter = Number(response.headers.get('retry-after'))
@@ -107,13 +108,22 @@ function mapSummary(value: unknown): Omit<ZohoPaymentOrder, 'total'|'orderTotal'
   const total = numericTotal(row.total)
   return { id, salesOrderNumber, customerName: String(row.customer_name || row.company_name || '').trim(), ...(total === undefined ? {} : { total, orderTotal: total }), orderDate: String(row.date || row.created_time || '').slice(0, 10), rawStatus: statusOf(row), currency: String(row.currency_code || row.currency_symbol || 'INR'), modifiedTime: String(row.last_modified_time || row.modified_time || row.updated_time || row.created_time || '') }
 }
-export async function fetchZohoPaymentOrderPage(page:number,options:{modifiedSince?:string;fetcher?:FetchLike}={}){
-  const params=new URLSearchParams({per_page:String(PAGE_SIZE),page:String(page),sort_column:options.modifiedSince?'last_modified_time':'created_time',sort_order:'A'})
+export async function fetchZohoPaymentOrderPage(page:number,options:{modifiedSince?:string;fetcher?:FetchLike;newestFirst?:boolean}={}){
+  const params=new URLSearchParams({per_page:String(PAGE_SIZE),page:String(page),sort_column:options.modifiedSince||options.newestFirst?'last_modified_time':'created_time',sort_order:options.newestFirst?'D':'A'})
   if(options.modifiedSince)params.set('last_modified_time',options.modifiedSince)
   const data=await zohoGet(options.fetcher||fetch,`/inventory/v1/salesorders?${params}`),rows=data.salesorders||[]
   if(!Array.isArray(rows))throw new Error(`Invalid Zoho sales-order page ${page}`)
   if(data.page_context?.page&&Number(data.page_context.page)!==page)throw new Error(`Unexpected Zoho pagination response on page ${page}`)
   return {orders:rows.map(mapSummary).filter((x):x is NonNullable<typeof x>=>Boolean(x)),hasMore:Boolean(data.page_context?.has_more_page)}
+}
+/** Resolve a temporary ID with one narrow list call. Only one exact canonical
+ * number is accepted; this never paginates, guesses or detail-hydrates. */
+export async function resolveExactZohoPaymentOrderId(number:string,fetcher:FetchLike=fetch){
+ const params=new URLSearchParams({per_page:String(PAGE_SIZE),page:'1',search_text:number,sort_column:'created_time',sort_order:'D'})
+ const data=await zohoGet(fetcher,`/inventory/v1/salesorders?${params}`,1),wanted=number.replace(/[^a-z0-9]/gi,'').toUpperCase()
+ const exact=(data.salesorders||[]).map(mapSummary).filter((x):x is NonNullable<typeof x>=>x!==null).filter(x=>x.salesOrderNumber.replace(/[^a-z0-9]/gi,'').toUpperCase()===wanted)
+ const ids=[...new Set(exact.map(x=>x.id))]
+ return ids.length===1?ids[0]:null
 }
 export async function fetchZohoPaymentOrderDetail(id: string, fetcher: FetchLike = fetch, force = false, oneAttempt = false): Promise<ZohoPaymentOrder> {
   const cached = detailCache.get(id)

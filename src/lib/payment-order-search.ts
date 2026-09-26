@@ -53,27 +53,19 @@ export async function synchronizePaymentOrderIndex(options:{maxPages?:number;max
   let s=await snapshot(true);const circuit=await zohoCircuitStatus()
   if(circuit.nextEligibleAt&&Date.parse(circuit.nextEligibleAt)>Date.now()){await markBackoff(leaseId,circuit);return report(await snapshot(true),0,'backoff')}
   const isBackfill=!s.state.completedAt
-  // History is deliberately one page/run. Once complete, deltas may consume
-  // two pages but always checkpoint after each page and keep one fixed window.
-  const maxPages=isBackfill?1:Math.max(1,Math.min(options.maxPages||2,2))
-  // A previous failed run leaves mode=backoff. Once the durable circuit is
-  // eligible again, advertise the work that is actually being resumed.
-  await updateLocalJson<Snapshot|Legacy>(FILE,empty(),raw=>{const x=migrate(raw);if(x.state.lease?.id===leaseId){x.state.mode=isBackfill?'backfill':'delta';x.state.nextEligibleAt=''}return x})
-  s=await snapshot(true)
-  let page=isBackfill?s.state.nextPage:(s.state.mode==='delta'&&s.state.deltaSince?s.state.nextPage:1)
-  let deltaSince=s.state.deltaSince
-  if(!isBackfill&&!deltaSince){const base=Date.parse(s.state.highWatermark||s.state.lastSuccessfulSync||new Date().toISOString());deltaSince=new Date(base-DELTA_OVERLAP_MS).toISOString()}
-  for(let i=0;i<maxPages&&Date.now()-now<maxMs;i++){
-   calls++;const result=await fetchZohoPaymentOrderPage(page,{modifiedSince:isBackfill?undefined:deltaSince,fetcher:options.fetcher})
-   const at=new Date().toISOString()
-   await updateLocalJson<Snapshot|Legacy>(FILE,empty(),raw=>{const x=migrate(raw);if(x.state.lease?.id!==leaseId)return x;let max=x.state.deltaMax||x.state.highWatermark
-    for(const item of result.orders){const o=stored(item);if(!o)continue;mergeCanonicalOrder(x.orders,o);if(o.modifiedTime&&(!max||Date.parse(o.modifiedTime)>Date.parse(max)))max=o.modifiedTime}
-    x.updatedAt=at;x.state.rowsSeen+=result.orders.length;x.state.pagesProcessed++;x.state.failureClass='';x.state.failureCount=0;x.state.nextEligibleAt=''
-    if(isBackfill){if(result.hasMore)x.state.nextPage=page+1;else{x.state.completedAt=at;x.state.mode='ready';x.state.nextPage=1;x.state.highWatermark=max||at;x.state.lastSuccessfulSync=at}}
-    else if(result.hasMore){x.state.mode='delta';x.state.deltaSince=deltaSince;x.state.deltaMax=max;x.state.nextPage=page+1}else{x.state.mode='ready';x.state.nextPage=1;x.state.highWatermark=max||x.state.highWatermark;x.state.lastSuccessfulSync=at;delete x.state.deltaSince;delete x.state.deltaMax}
-    return x})
-   page++;if(!result.hasMore)break
-  }
+  await updateLocalJson<Snapshot|Legacy>(FILE,empty(),raw=>{const x=migrate(raw);if(x.state.lease?.id===leaseId){x.state.mode=isBackfill?'backfill':'ready';x.state.nextEligibleAt=''}return x})
+  // Lane 1 always runs first: Zoho page 1 sorted by last modification,
+  // newest-first. This bounded feed makes new/changed orders searchable on the
+  // next five-minute cron even while old history is still walking forward.
+  calls++;const recent=await fetchZohoPaymentOrderPage(1,{newestFirst:true,fetcher:options.fetcher})
+  const merge=async(result:typeof recent,historyPage?:number)=>{const at=new Date().toISOString();await updateLocalJson<Snapshot|Legacy>(FILE,empty(),raw=>{const x=migrate(raw);if(x.state.lease?.id!==leaseId)return x;let max=x.state.highWatermark
+   for(const item of result.orders){const o=stored(item);if(!o)continue;mergeCanonicalOrder(x.orders,o);if(o.modifiedTime&&(!max||Date.parse(o.modifiedTime)>Date.parse(max)))max=o.modifiedTime}
+   x.updatedAt=at;x.state.rowsSeen+=result.orders.length;x.state.pagesProcessed++;x.state.failureClass='';x.state.failureCount=0;x.state.nextEligibleAt='';x.state.highWatermark=max||x.state.highWatermark;x.state.lastSuccessfulSync=at
+   if(historyPage!==undefined){if(result.hasMore){x.state.nextPage=historyPage+1;x.state.mode='backfill'}else{x.state.completedAt=at;x.state.nextPage=1;x.state.mode='ready'}}
+   return x})}
+  await merge(recent)
+  // Lane 2: at most one durable historical page. There is no detail fanout.
+  if(isBackfill&&Date.now()-now<maxMs){s=await snapshot(true);const page=s.state.nextPage;calls++;const history=await fetchZohoPaymentOrderPage(page,{fetcher:options.fetcher});await merge(history,page)}
  }catch(e){error=e instanceof Error?e.message:'Zoho synchronization failed';const c=await zohoCircuitStatus();await markBackoff(leaseId,c,error)}finally{await updateLocalJson<Snapshot|Legacy>(FILE,empty(),raw=>{const s=migrate(raw);if(s.state.lease?.id===leaseId)delete s.state.lease;return s})}
  return report(await snapshot(true),calls,error)
 }

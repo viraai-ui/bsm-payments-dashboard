@@ -1750,7 +1750,7 @@ function PaymentDetails({
           </div>
           <div>
             <dt>Sales Order</dt>
-            <dd className="sales-order-sync-line"><span>{p.salesOrderNumber || "Unassigned"}</span>{p.salesOrderNumber&&(role==="Admin"||role==="Accounts")&&<button type="button" className={`sales-order-sync ${sync?.state==="loading"?"is-loading":""}`} title="Sync sales order" aria-label="Sync sales order" disabled={sync?.state==="loading"} onClick={onSync}><SyncIcon /></button>}</dd>
+            <dd className="sales-order-sync-line"><span>{p.salesOrderNumber || "Unassigned"}</span>{p.salesOrderNumber&&role==="Salesperson"&&<button type="button" className={`sales-order-sync ${sync?.state==="loading"?"is-loading":""}`} title="Sync sales order" aria-label="Sync sales order" disabled={sync?.state==="loading"} onClick={onSync}><SyncIcon /></button>}</dd>
             {sync&&<small className={`sales-order-sync-feedback ${sync.state}`} role={sync.state==="error"?"alert":"status"}>{sync.state==="loading"?"Syncing…":sync.message}</small>}
           </div>
           <div>

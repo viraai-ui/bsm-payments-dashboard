@@ -1,5 +1,5 @@
 import { readLocalJsonFresh, updateLocalJson } from './local-store'
-import { fetchZohoPaymentOrderDetail, type ZohoPaymentOrder } from './zoho-payment-orders'
+import { fetchZohoPaymentOrderDetail, resolveExactZohoPaymentOrderId, type ZohoPaymentOrder } from './zoho-payment-orders'
 import { commitSalesOrder, isCanonicalZohoOrderId } from './sales-order-reconciliation'
 import { migrateExactOrderLink, type Payment } from './payments'
 
@@ -18,12 +18,15 @@ async function acquire(userId:string,key:string,now=Date.now()){
  if(!acquired)throw new SyncLimitError(retry===60?429:503,retry,retry===60?'Sync limit reached. Try again in a minute.':'This sales order is already syncing.')
  return async()=>updateLocalJson('sales-order-sync-limits.json',EMPTY,s=>{if(s.inflight?.[key]?.owner===owner)delete s.inflight[key];return s})
 }
+export function canSyncPaymentSalesOrder(payment:Payment,userId:string){return (payment.ownerUserId||payment.claimedBy||payment.createdBy)===userId}
 export async function syncPaymentSalesOrder(paymentId:string,userId:string){
  const store=await readLocalJsonFresh<{payments:Payment[]}>('payments.json',{payments:[]}),payment=store.payments.find(p=>p.id===paymentId)
  if(!payment||!payment.salesOrderNumber)throw Object.assign(new Error('Linked payment not found'),{status:404})
+ if(!canSyncPaymentSalesOrder(payment,userId))throw Object.assign(new Error('You can only sync your own sales orders'),{status:403})
  const index=await readLocalJsonFresh<{orders:Record<string,{salesOrderNumber?:string}>}>('payment-order-index.json',{orders:{}})
- const id=isCanonicalZohoOrderId(payment.salesOrderId||'')?payment.salesOrderId!:exactIndexedOrderId(payment.salesOrderNumber,index.orders||{})
- if(!id)throw Object.assign(new Error('Exact sales order is not available in the server index'),{status:404})
+ const indexed=isCanonicalZohoOrderId(payment.salesOrderId||'')?payment.salesOrderId!:exactIndexedOrderId(payment.salesOrderNumber,index.orders||{})
+ const id=indexed||await resolveExactZohoPaymentOrderId(payment.salesOrderNumber)
+ if(!id)throw Object.assign(new Error('Exact sales order was not found in Zoho'),{status:404})
  const release=await acquire(userId,`${id}:${canonical(payment.salesOrderNumber)}`)
  try{const order=await fetchZohoPaymentOrderDetail(id,fetch,true,true);if(canonical(order.salesOrderNumber)!==canonical(payment.salesOrderNumber))throw Object.assign(new Error('Zoho returned a different sales order'),{status:409})
   const changed=await commitSalesOrder(order,new Date().toISOString(),{orderTotal:payment.orderTotal,customerName:payment.customerName})
