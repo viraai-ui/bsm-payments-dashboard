@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto'
+
 const API = 'https://api.github.com'
 const TIMEOUT_MS = 15_000
 
@@ -21,11 +23,21 @@ async function result(response:Response,operation:string){const body=await respo
 async function getGitHubDataObjectViaGraphql(objectPath:string):Promise<GitHubObject|null>{
   const {token,owner,repo,branch}=githubDataConfig(),expression=`${branch||'HEAD'}:${objectPath}`
   const response=await fetch(`${API}/graphql`,{method:'POST',headers:{...headers(token),'Content-Type':'application/json'},body:JSON.stringify({query:'query($owner:String!,$repo:String!,$expression:String!){repository(owner:$owner,name:$repo){object(expression:$expression){... on Blob{oid byteSize text isBinary}}}}',variables:{owner,repo,expression}}),cache:'no-store',signal:AbortSignal.timeout(TIMEOUT_MS)})
-  const body=await response.json().catch(()=>({})) as {data?:{repository?:{object?:{oid?:string;text?:string|null;isBinary?:boolean}}};errors?:Array<{message?:string}>}
+  const body=await response.json().catch(()=>({})) as {data?:{repository?:{object?:{oid?:string;byteSize?:number;text?:string|null;isBinary?:boolean}}};errors?:Array<{message?:string}>}
   if(!response.ok||body.errors?.length)throw new Error(body.errors?.[0]?.message||`GitHub data store GraphQL read failed (${response.status})`)
   const object=body.data?.repository?.object;if(!object)return null
-  if(!object.oid||object.isBinary||typeof object.text!=='string')throw new Error('GitHub data store GraphQL returned an unreadable object')
-  return{bytes:Buffer.from(object.text,'utf8'),sha:object.oid}
+  if(!object.oid)throw new Error('GitHub data store GraphQL returned an unreadable object')
+  const inline=typeof object.text==='string'?Buffer.from(object.text,'utf8'):null
+  if(!object.isBinary&&inline&&inline.length===object.byteSize)return{bytes:inline,sha:object.oid}
+  // GraphQL silently truncates Blob.text at 500 KiB. The authenticated raw
+  // host is independent of the exhausted REST quota and streams the full
+  // private blob. Verify its Git object id before allowing it into the store.
+  const rawUrl=`https://raw.githubusercontent.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${encodeURIComponent(branch||'HEAD')}/${safePath(objectPath)}`
+  const raw=await fetch(rawUrl,{headers:{Authorization:`Bearer ${token}`,Accept:'application/octet-stream'},cache:'no-store',signal:AbortSignal.timeout(TIMEOUT_MS)})
+  if(!raw.ok)throw new Error(`GitHub data store raw read failed (${raw.status})`)
+  const bytes=Buffer.from(await raw.arrayBuffer()),oid=createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex')
+  if(oid!==object.oid||object.byteSize!==undefined&&bytes.length!==object.byteSize)throw new Error('GitHub data store raw object failed integrity verification')
+  return{bytes,sha:object.oid,contentType:raw.headers.get('content-type')||undefined}
 }
 
 async function repositoryHeadAndObject(objectPath:string){
