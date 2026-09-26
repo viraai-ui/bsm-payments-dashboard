@@ -5,7 +5,7 @@ import type { Payment, PaymentStatus } from './payments'
 import { activePaymentPushSubscriptions, createPushOutboxItem, sendPaymentPushNotifications, type PushOutboxItem } from './payment-push'
 import { paymentCustomerLabel } from './payment-domain'
 
-export type NotificationType = 'boss-payment-created' | 'unauthorised-created' | 'status-received' | 'status-pending' | 'status-void' | 'system-test'
+export type NotificationType = 'linked-payment-created' | 'boss-payment-created' | 'unauthorised-created' | 'status-received' | 'status-pending' | 'status-void' | 'system-test'
 export type PaymentNotification = {
   id: string
   eventId: string
@@ -61,25 +61,28 @@ async function notify(payment: Payment, type: NotificationType, recipients: Arra
   return made
 }
 
-/** Creation events have deliberately disjoint audiences: the shared claim queue
- * goes to Salespeople, while linked payments go only to Viewer/Boss accounts. */
+/** The authoritative creation matrix. The actor is resolved again here so a
+ * future non-route caller cannot broaden an audience by supplying an arbitrary
+ * creator id. Public/anonymous submissions intentionally emit no notification. */
 export async function createPaymentNotifications(payment: Payment, creator: string) {
   const users = (await getUserStore()).users
+  const actor = users.find(user => user.id === creator && user.active)
   if (payment.status === 'Unauthorised') {
-    const recipients = users.filter(user => user.active && user.role === 'Salesperson' && user.id !== creator)
+    if (!actor || (actor.role !== 'Admin' && actor.role !== 'Accounts')) return []
+    const recipients = users.filter(user => user.active && user.role === 'Salesperson')
     const reference = payment.utrReference ? ` • UTR / Reference: ${payment.utrReference}` : ''
-    return notify(payment, 'unauthorised-created', recipients, 'Unauthorised payment available to claim', `${paymentSummary(payment)}${reference}`, `unauthorised-created:${payment.id}`, '/payments?view=unauthorised')
+    return notify(payment, 'unauthorised-created', recipients, 'Unauthorised payment added', `${paymentSummary(payment)}${reference} • Available to claim`, `unauthorised-created:${payment.id}`, '/payments?view=unauthorised')
   }
-  if (!payment.salesOrderNumber || (payment.status !== 'Pending' && payment.status !== 'Payment Received')) return []
-  const recipients = users.filter(user => user.active && user.role === 'Viewer')
+  if (!actor || actor.role !== 'Salesperson' || !payment.salesOrderNumber || (payment.status !== 'Pending' && payment.status !== 'Payment Received')) return []
+  const recipients = users.filter(user => user.active && user.id !== creator && (user.role === 'Admin' || user.role === 'Accounts' || user.role === 'Viewer'))
   const title = payment.status === 'Payment Received' ? 'New payment received' : 'New payment added'
-  const body = `${formatPaymentAmount(payment.paymentAmount)} • Sales Order ${payment.salesOrderNumber}`
-  return notify(payment, 'boss-payment-created', recipients, title, body, `boss-payment-created:${payment.id}`)
+  const body = `${formatPaymentAmount(payment.paymentAmount)} from ${paymentCustomerLabel(payment.customerName)} • Sales Order ${payment.salesOrderNumber}`
+  return notify(payment, 'linked-payment-created', recipients, title, body, `linked-payment-created:${payment.id}`)
 }
 
 /** Status events are private to the stable salesperson owner/claimant. */
 export async function createStatusNotification(payment: Payment, status: 'Pending' | 'Payment Received' | 'Void', previousStatus?: PaymentStatus) {
-  if (status === 'Pending' && previousStatus !== 'Payment Received') return []
+  if (status === 'Pending' || status === previousStatus) return []
   const ownerId = payment.ownerUserId || payment.claimedBy || payment.createdBy
   const owner = (await getUserStore()).users.find(user => user.id === ownerId && user.active && user.role === 'Salesperson')
   if (!owner) return []
@@ -88,8 +91,8 @@ export async function createStatusNotification(payment: Payment, status: 'Pendin
     ? { type: 'status-received' as const, title: 'Payment received', body: `Your payment of ${amountCompany} has been received.` }
     : status === 'Void'
       ? { type: 'status-void' as const, title: 'Payment voided', body: `Your payment of ${amountCompany} was marked void.` }
-      : { type: 'status-pending' as const, title: 'Payment moved to pending', body: `Your payment of ${amountCompany} was moved to pending.` }
-  return notify(payment, copy.type, [owner], copy.title, copy.body, `status:${payment.id}:${previousStatus || 'unknown'}:${status}:${payment.updatedAt}`)
+      : { type: 'status-void' as const, title: 'Payment voided', body: `Your payment of ${amountCompany} was marked void.` }
+  return notify(payment, copy.type, [owner], copy.title, copy.body, `status:${payment.id}:${status}`)
 }
 
 /** Claiming establishes ownership but intentionally emits no notification. */
@@ -115,9 +118,9 @@ export async function listPaymentNotifications(userId: string, allowedPaymentIds
 }
 export async function markPaymentNotificationsRead(userId: string, id?: string) {
   const now = new Date().toISOString()
-  await updateLocalJson(FILE, EMPTY, store => ({ notifications: store.notifications.map(item => item.recipientUserId === userId && !item.readAt && (!id || id === item.id) ? { ...item, readAt: now } : item) }))
+  await updateLocalJson(FILE, EMPTY, store => ({ ...store, notifications: store.notifications.map(item => item.recipientUserId === userId && !item.readAt && (!id || id === item.id) ? { ...item, readAt: now } : item) }))
   return listPaymentNotifications(userId)
 }
 export async function removePaymentNotifications(paymentId: string) {
-  return updateLocalJson(FILE, EMPTY, store => ({ notifications: store.notifications.filter(item => item.paymentId !== paymentId) }))
+  return updateLocalJson(FILE, EMPTY, store => ({ ...store, notifications: store.notifications.filter(item => item.paymentId !== paymentId) }))
 }
