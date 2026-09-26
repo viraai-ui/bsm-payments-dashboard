@@ -97,7 +97,16 @@ export function NotificationOnboarding({ user, autoPrompt = true }: { user: Safe
       if (!configResponse.ok || !config.data?.configured || !config.data.publicKey) throw new Error(config.error || 'Push is not configured on this server')
       const registration = await timed(navigator.serviceWorker.register('/payment-push-sw.js', { scope: '/' }), 'Service worker registration')
       await timed(navigator.serviceWorker.ready, 'Service worker activation')
-      const existing = await timed(registration.pushManager.getSubscription(), 'Push subscription check')
+      let existing = await timed(registration.pushManager.getSubscription(), 'Push subscription check')
+      if (existing) {
+        const query = new URLSearchParams({ endpoint: existing.endpoint, deviceId: deviceId() })
+        const check = await timed(fetch(`/api/payments/push-subscription?${query}`, { cache: 'no-store' }), 'Push key check')
+        const current = await check.json().catch(() => ({}))
+        if (!check.ok || current.data?.registered !== true || current.data?.keyFingerprint !== config.data.keyFingerprint || current.data?.keyVersion !== config.data.keyVersion) {
+          await timed(existing.unsubscribe(), 'Old push subscription removal')
+          existing = null
+        }
+      }
       const subscription = existing || await timed(registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: decodeKey(config.data.publicKey) }), 'Push subscription')
       const id = deviceId()
       const response = await timed(fetch('/api/payments/push-subscription', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ subscription: subscription.toJSON(), deviceId: id }) }), 'Push registration')
