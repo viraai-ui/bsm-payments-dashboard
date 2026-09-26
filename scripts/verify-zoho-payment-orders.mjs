@@ -58,13 +58,29 @@ const times=['2026-09-21T10:00:00.000Z','2026-09-22T10:00:00.000Z','2026-09-23T1
 let phase='backfill',deltaSince=[]
 const indexFetch=async input=>{networkCalls++;const url=String(input);if(url.includes('/oauth/'))return Response.json({access_token:'index-token',expires_in:3600})
  const parsed=new URL(url),page=Number(parsed.searchParams.get('page'));if(parsed.searchParams.has('last_modified_time'))deltaSince.push(parsed.searchParams.get('last_modified_time'))
- const item=(id,modified,total)=>({...row(id,'confirmed',total),salesorder_id:`index-${id}`,salesorder_number:`SO-INDEX-${id}`,last_modified_time:modified})
- if(phase==='backfill')return Response.json({salesorders:page===1?[item(1,times[0],10)]:[item(2,times[1],20)],page_context:{page,has_more_page:page===1}})
- return Response.json({salesorders:page===1?[item(2,times[2],25),item(3,times[2],30)]:[],page_context:{page,has_more_page:false}})}
+ const item=(id,modified,total)=>({...row(id,'confirmed',total),salesorder_id:`index-${id}`,salesorder_number:`SO-INDEX-${id}`,created_time:modified,last_modified_time:modified})
+ const pageContext=has_more_page=>({page,has_more_page,sort_column:parsed.searchParams.get('sort_column'),sort_order:parsed.searchParams.get('sort_order')})
+ if(phase==='backfill')return Response.json({salesorders:page===1?[item(1,times[0],10)]:[item(2,times[1],20)],page_context:pageContext(page===1)})
+ return Response.json({salesorders:page===1?[item(2,times[2],25),item(3,times[2],30)]:[],page_context:pageContext(false)})}
 let result=await synchronizePaymentOrderIndex({maxPages:1,fetcher:indexFetch});assert.equal(result.complete,false);assert.equal(result.page,2);assert.equal(result.mode,'backfill')
 result=await synchronizePaymentOrderIndex({maxPages:1,fetcher:indexFetch});assert.equal(result.complete,true);assert.equal(result.indexedCount,3,'legacy and resumed backfill rows retained')
 phase='delta';result=await synchronizePaymentOrderIndex({maxPages:1,fetcher:indexFetch});assert.equal(result.mode,'ready');assert.equal(result.callsThisRun,1,'completed history uses only the bounded recent lane');assert.equal(result.indexedCount,4);const canonical=(await searchPaymentOrders('SO-INDEX-2',50)).orders.filter(o=>o.salesOrderNumber==='SO-INDEX-2');assert.equal(canonical.length,1,'Zoho row replaces canonical-number manual row');assert.equal(canonical[0].id,'index-2');assert.equal(canonical[0].orderTotal,25)
 const beforeManual=networkCalls;result=await synchronizePaymentOrderIndex({recentOnly:true,fetcher:indexFetch});assert.equal(networkCalls-beforeManual,1,'manual refresh performs exactly one recent list call');assert.equal(result.callsThisRun,1);assert.equal((await searchPaymentOrders('',10)).syncState,'live','recent success is presented as live indexed mirror')
+
+// A provider-shaped newest-created page ingests the authoritative four rows,
+// including CLOSED/fulfilled, while an ignored sort can never claim Live.
+const latest=[
+ ['1154219000037469001','SO-08044','SHAKTI ENTERPRISES',27878,'confirmed','2026-09-26T14:39:26+0530'],
+ ['1154219000037449002','SO-08043','SELFIEE FOOTWEAR',46200,'confirmed','2026-09-26T13:01:46+0530'],
+ ['1154219000037464001','SO-08042','shaukat',22420,'fulfilled','2026-09-26T12:52:26+0530'],
+ ['1154219000037433003','SO-08041','Uni Horn',37200,'confirmed','2026-09-25T18:53:08+0530'],
+].map(([id,number,customer,total,status,created])=>({salesorder_id:id,salesorder_number:number,customer_name:customer,total,status,date:String(created).slice(0,10),created_time:created,last_modified_time:created,currency_code:'INR'}))
+const providerFetch=async input=>{networkCalls++;const url=String(input);if(url.includes('/oauth/'))return Response.json({access_token:'latest-token',expires_in:3600});const u=new URL(url);return Response.json({salesorders:latest,page_context:{page:1,has_more_page:true,sort_column:u.searchParams.get('sort_column'),sort_order:u.searchParams.get('sort_order')}})}
+resetZohoPaymentOrdersForTests();result=await synchronizePaymentOrderIndex({recentOnly:true,fetcher:providerFetch});assert.equal(result.callsThisRun,1)
+for(const expected of latest){const match=(await searchPaymentOrders(expected.salesorder_number,10)).orders[0];assert.equal(match.salesOrderNumber,expected.salesorder_number);assert.equal(match.customerName,expected.customer_name);assert.equal(match.orderTotal,expected.total)}
+assert.equal((await searchPaymentOrders('SO-08042',10)).orders[0].status,'Closed','CLOSED/fulfilled remains selectable')
+const ignoredSortFetch=async input=>{const url=String(input);if(url.includes('/oauth/'))return Response.json({access_token:'ignored',expires_in:3600});return Response.json({salesorders:[latest[3],latest[0]],page_context:{page:1,has_more_page:true,sort_column:'last_modified_time',sort_order:'D'}})}
+resetZohoPaymentOrdersForTests();result=await synchronizePaymentOrderIndex({recentOnly:true,fetcher:ignoredSortFetch});assert.match(result.error,/did not prove newest-created/);assert.equal((await searchPaymentOrders('',10)).syncState,'stale','ignored sort is never reported Live')
 
 // Backfill ignores a caller's larger page budget and completed history never
 // restarts page 1 without a modified-time delta filter.

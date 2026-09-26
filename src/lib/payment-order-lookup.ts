@@ -1,7 +1,7 @@
 export type PaymentOrderDisplayStatus = 'Open' | 'Closed' | 'Status unknown'
 export type SearchablePaymentOrder = { id: string; salesOrderNumber: string; customerName: string; status: PaymentOrderDisplayStatus; rawStatus: string }
 
-const TERMINAL = new Set(['closed', 'void', 'cancelled', 'canceled', 'shipped', 'invoiced'])
+const TERMINAL = new Set(['closed', 'fulfilled', 'void', 'cancelled', 'canceled', 'shipped', 'invoiced'])
 const KNOWN_OPEN = new Set(['open', 'draft', 'confirmed', 'partially shipped', 'partially invoiced', 'overdue', 'pending', 'approved', 'accepted', 'declined'])
 
 export function paymentOrderStatus(rawStatus: unknown): PaymentOrderDisplayStatus {

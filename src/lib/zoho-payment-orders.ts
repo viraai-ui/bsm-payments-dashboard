@@ -49,7 +49,7 @@ async function accessToken(fetcher: FetchLike, force = false) {
   return tokenFlight
 }
 
-export type ZohoResponse = { code?: number; message?: string; salesorders?: unknown[]; salesorder?: unknown; page_context?: { has_more_page?: boolean; page?: number } }
+export type ZohoResponse = { code?: number; message?: string; salesorders?: unknown[]; salesorder?: unknown; page_context?: { has_more_page?: boolean; page?: number; sort_column?: string; sort_order?: string } }
 class ZohoQuotaError extends Error {}
 async function zohoGet(fetcher: FetchLike, path: string, maxAttempts=RETRIES): Promise<ZohoResponse> {
   await assertZohoEligible()
@@ -109,12 +109,25 @@ function mapSummary(value: unknown): Omit<ZohoPaymentOrder, 'total'|'orderTotal'
   return { id, salesOrderNumber, customerName: String(row.customer_name || row.company_name || '').trim(), ...(total === undefined ? {} : { total, orderTotal: total }), orderDate: String(row.date || row.created_time || '').slice(0, 10), rawStatus: statusOf(row), currency: String(row.currency_code || row.currency_symbol || 'INR'), modifiedTime: String(row.last_modified_time || row.modified_time || row.updated_time || row.created_time || '') }
 }
 export async function fetchZohoPaymentOrderPage(page:number,options:{modifiedSince?:string;fetcher?:FetchLike;newestFirst?:boolean}={}){
-  const params=new URLSearchParams({per_page:String(PAGE_SIZE),page:String(page),sort_column:options.modifiedSince||options.newestFirst?'last_modified_time':'created_time',sort_order:options.newestFirst?'D':'A'})
+  // New-order discovery must use creation order. last_modified_time page 1 is
+  // dominated by old orders edited/fulfilled today and can push brand-new,
+  // otherwise untouched orders outside the 200-row window.
+  const sortColumn=options.modifiedSince?'last_modified_time':'created_time'
+  const sortOrder=options.newestFirst?'D':'A'
+  const params=new URLSearchParams({per_page:String(PAGE_SIZE),page:String(page),sort_column:sortColumn,sort_order:sortOrder})
   if(options.modifiedSince)params.set('last_modified_time',options.modifiedSince)
   const data=await zohoGet(options.fetcher||fetch,`/inventory/v1/salesorders?${params}`),rows=data.salesorders||[]
   if(!Array.isArray(rows))throw new Error(`Invalid Zoho sales-order page ${page}`)
   if(data.page_context?.page&&Number(data.page_context.page)!==page)throw new Error(`Unexpected Zoho pagination response on page ${page}`)
-  return {orders:rows.map(mapSummary).filter((x):x is NonNullable<typeof x>=>Boolean(x)),hasMore:Boolean(data.page_context?.has_more_page)}
+  let recencyVerified=false
+  if(options.newestFirst){
+    const context=data.page_context
+    const times=rows.map(value=>Date.parse(String((value as Record<string,unknown>)?.created_time||'')))
+    const descending=times.every((time,index)=>Number.isFinite(time)&&(index===0||times[index-1]>=time))
+    recencyVerified=context?.sort_column===sortColumn&&String(context?.sort_order).toUpperCase()==='D'&&descending
+    if(!recencyVerified)throw new Error('Zoho did not prove newest-created sales-order ordering')
+  }
+  return {orders:rows.map(mapSummary).filter((x):x is NonNullable<typeof x>=>Boolean(x)),hasMore:Boolean(data.page_context?.has_more_page),recencyVerified}
 }
 /** Resolve a temporary ID with one narrow list call. Only one exact canonical
  * number is accepted; this never paginates, guesses or detail-hydrates. */

@@ -6,7 +6,7 @@ import { zohoCircuitStatus } from './zoho-circuit'
 const FILE='payment-order-index.json',PER_PAGE=200,LEASE_MS=4*60_000,FRESH_MS=15*60_000
 export type PaymentOrderSuggestion={id:string;salesOrderNumber:string;customerName:string;rawStatus:string;status:'Open'|'Closed'|'Status unknown';orderDate:string;total:number;orderTotal:number;currency:string;modifiedTime:string}
 type StoredOrder={id:string;salesOrderNumber:string;customerName:string;status:string;orderDate:string;orderTotal:number;currency:string;modifiedTime:string}
-type State={schema:2;mode:'backfill'|'delta'|'ready'|'backoff';nextPage:number;perPage:200;startedAt:string;completedAt:string;highWatermark:string;lastSuccessfulSync:string;nextEligibleAt:string;failureClass:string;failureCount:number;pagesProcessed:number;rowsSeen:number;lease?:{id:string;expiresAt:string};deltaSince?:string;deltaMax?:string}
+type State={schema:2;mode:'backfill'|'delta'|'ready'|'backoff';nextPage:number;perPage:200;startedAt:string;completedAt:string;highWatermark:string;lastSuccessfulSync:string;recencyVerifiedAt?:string;nextEligibleAt:string;failureClass:string;failureCount:number;pagesProcessed:number;rowsSeen:number;lease?:{id:string;expiresAt:string};deltaSince?:string;deltaMax?:string}
 type Snapshot={version:2;updatedAt:string;orders:Record<string,StoredOrder>;state:State}
 type Legacy={version:1;updatedAt:string;orders:Array<Omit<StoredOrder,'currency'|'modifiedTime'>>}
 const state=():State=>({schema:2,mode:'backfill',nextPage:1,perPage:200,startedAt:'',completedAt:'',highWatermark:'',lastSuccessfulSync:'',nextEligibleAt:'',failureClass:'',failureCount:0,pagesProcessed:0,rowsSeen:0})
@@ -38,7 +38,8 @@ export async function searchPaymentOrders(query='',limit=10){
 }
 async function paymentOrderIndexStatus(existing?:Snapshot){const s=existing||await snapshot(true),circuit=await zohoCircuitStatus(),lastSyncedAt=s.state.lastSuccessfulSync||s.updatedAt,age=lastSyncedAt?Date.now()-Date.parse(lastSyncedAt):Infinity,backoffAt=circuit.nextEligibleAt||s.state.nextEligibleAt
  const syncing=Boolean(s.state.lease&&Date.parse(s.state.lease.expiresAt)>Date.now()),backoff=Boolean(backoffAt&&Date.parse(backoffAt)>Date.now())
- return{syncState:syncing?'syncing':backoff?'backoff':age<=FRESH_MS?'live':'stale',stale:age>FRESH_MS,lastSyncedAt,nextEligibleAt:backoffAt||'',failureClass:circuit.failureClass||s.state.failureClass||''}}
+ const proofAge=s.state.recencyVerifiedAt?Date.now()-Date.parse(s.state.recencyVerifiedAt):Infinity,proven=proofAge<=FRESH_MS
+ return{syncState:syncing?'syncing':backoff?'backoff':s.state.mode==='backoff'||!proven?'stale':age<=FRESH_MS?'live':'stale',stale:age>FRESH_MS||!proven||s.state.mode==='backoff',lastSyncedAt,nextEligibleAt:backoffAt||'',failureClass:circuit.failureClass||s.state.failureClass||''}}
 async function seedKnown(){
  let seeds:StoredOrder[]=[]
  try{const x=await readLocalJsonFresh<{orders:Record<string,{salesOrderId:string;salesOrderNumber:string;customerName:string;orderTotal:number;orderDate:string;rawStatus:string;currency:string;modifiedTime:string}>}>('sales-order-snapshots.json',{orders:{}});seeds=Object.values(x.orders||{}).map(o=>stored({id:o.salesOrderId,...o})!).filter(Boolean)}catch{}
@@ -56,13 +57,13 @@ export async function synchronizePaymentOrderIndex(options:{maxPages?:number;max
   if(circuit.nextEligibleAt&&Date.parse(circuit.nextEligibleAt)>Date.now()){await markBackoff(leaseId,circuit);return report(await snapshot(true),0,'backoff')}
   const isBackfill=!s.state.completedAt
   await updateLocalJson<Snapshot|Legacy>(FILE,empty(),raw=>{const x=migrate(raw);if(x.state.lease?.id===leaseId){x.state.mode=isBackfill?'backfill':'ready';x.state.nextEligibleAt=''}return x})
-  // Lane 1 always runs first: Zoho page 1 sorted by last modification,
-  // newest-first. This bounded feed makes new/changed orders searchable on the
+  // Lane 1 always runs first: Zoho page 1 sorted by creation time,
+  // newest-first. This bounded feed makes new orders searchable on the
   // next five-minute cron even while old history is still walking forward.
   calls++;const recent=await fetchZohoPaymentOrderPage(1,{newestFirst:true,fetcher:options.fetcher})
   const merge=async(result:typeof recent,historyPage?:number)=>{const at=new Date().toISOString();await updateLocalJson<Snapshot|Legacy>(FILE,empty(),raw=>{const x=migrate(raw);if(x.state.lease?.id!==leaseId)return x;let max=x.state.highWatermark
    for(const item of result.orders){const o=stored(item);if(!o)continue;mergeCanonicalOrder(x.orders,o);if(o.modifiedTime&&(!max||Date.parse(o.modifiedTime)>Date.parse(max)))max=o.modifiedTime}
-   x.updatedAt=at;x.state.rowsSeen+=result.orders.length;x.state.pagesProcessed++;x.state.failureClass='';x.state.failureCount=0;x.state.nextEligibleAt='';x.state.highWatermark=max||x.state.highWatermark;x.state.lastSuccessfulSync=at
+   x.updatedAt=at;x.state.rowsSeen+=result.orders.length;x.state.pagesProcessed++;x.state.failureClass='';x.state.failureCount=0;x.state.nextEligibleAt='';x.state.highWatermark=max||x.state.highWatermark;x.state.lastSuccessfulSync=at;if(result.recencyVerified)x.state.recencyVerifiedAt=at
    if(historyPage!==undefined){if(result.hasMore){x.state.nextPage=historyPage+1;x.state.mode='backfill'}else{x.state.completedAt=at;x.state.nextPage=1;x.state.mode='ready'}}
    return x})}
   await merge(recent)
