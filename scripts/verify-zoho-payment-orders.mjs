@@ -23,8 +23,10 @@ const mockedFetch=async input=>{const url=String(input);if(url.includes('/oauth/
  if(!retried){retried=true;return Response.json({message:'throttle'},{status:429,headers:{'retry-after':'0'}})}
  if(page===1)return Response.json({salesorders:Array.from({length:200},(_,i)=>row(i)),page_context:{page:1,has_more_page:true}})
  return Response.json({salesorders:[row(200),row(201),row(10,'closed')],page_context:{page:2,has_more_page:false}})}
-resetZohoPaymentOrdersForTests();const orders=await fetchAllZohoPaymentOrders(mockedFetch)
-assert.equal(orders.length,202);assert.equal(tokenCalls,1);assert.ok(listCalls>=3,'429 is retried')
+resetZohoPaymentOrdersForTests();await assert.rejects(()=>fetchAllZohoPaymentOrders(mockedFetch),/throttle/)
+assert.equal(listCalls,1,'429 is a hard stop and is never retried in-request')
+await recordZohoSuccess();retried=true;const orders=await fetchAllZohoPaymentOrders(mockedFetch)
+assert.equal(orders.length,202);assert.equal(tokenCalls,1);assert.equal(listCalls,3)
 for(const status of statuses)assert.ok(orders.some(o=>o.rawStatus===status),`retains ${status}`)
 assert.equal(mapZohoPaymentOrder(row(1,'closed','1,234.50'))?.total,1234.5)
 assert.equal(mapZohoPaymentOrder(row(2,'confirmed',0))?.orderTotal,0)
@@ -65,6 +67,12 @@ phase='delta';result=await synchronizePaymentOrderIndex({maxPages:1,fetcher:inde
 result=await synchronizePaymentOrderIndex({maxPages:1,fetcher:indexFetch});assert.equal(result.mode,'ready');assert.equal(result.indexedCount,4);const canonical=(await searchPaymentOrders('SO-INDEX-2',50)).orders.filter(o=>o.salesOrderNumber==='SO-INDEX-2');assert.equal(canonical.length,1,'Zoho row replaces canonical-number manual row');assert.equal(canonical[0].id,'index-2');assert.equal(canonical[0].orderTotal,25)
 assert.ok(deltaSince.length===2&&deltaSince.every(value=>value===deltaSince[0]),'delta resume preserves one overlapping watermark')
 assert.ok(Date.parse(deltaSince[0])<Date.parse(times[1]),'delta watermark overlaps the high watermark')
+
+// Backfill ignores a caller's larger page budget and completed history never
+// restarts page 1 without a modified-time delta filter.
+await writeFile(indexFile,JSON.stringify({version:2,updatedAt:'',orders:{},state:{schema:2,mode:'backfill',nextPage:1,perPage:200,startedAt:'',completedAt:'',highWatermark:'',lastSuccessfulSync:'',nextEligibleAt:'',failureClass:'',failureCount:0,pagesProcessed:0,rowsSeen:0}}))
+phase='backfill';const beforeBudget=networkCalls;result=await synchronizePaymentOrderIndex({maxPages:10,fetcher:indexFetch});assert.equal(networkCalls-beforeBudget,1,'history has a hard one-page/run budget');assert.equal(result.page,2)
+await synchronizePaymentOrderIndex({maxPages:10,fetcher:indexFetch});phase='delta';const beforeReady=networkCalls;await synchronizePaymentOrderIndex({maxPages:1,fetcher:indexFetch});assert.equal(networkCalls-beforeReady,1);assert.ok(deltaSince.at(-1),'completed history only issues modified-time delta calls')
 
 // Durable circuit prevents all calls, and leases are released even on the
 // early backoff return. Future leases block; expired leases are recoverable.

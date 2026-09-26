@@ -44,7 +44,7 @@ async function seedKnown(){
  await updateLocalJson<Snapshot|Legacy>(FILE,empty(),raw=>{const s=migrate(raw);for(const o of seeds)if(newer(s.orders[o.id],o))s.orders[o.id]=o;return s})
 }
 export async function synchronizePaymentOrderIndex(options:{maxPages?:number;maxMs?:number;fetcher?:typeof fetch}={}){
- await seedKnown();const leaseId=crypto.randomUUID(),now=Date.now(),maxPages=Math.max(1,Math.min(options.maxPages||5,10)),maxMs=Math.min(options.maxMs||240_000,250_000)
+ await seedKnown();const leaseId=crypto.randomUUID(),now=Date.now(),maxMs=Math.min(options.maxMs||50_000,60_000)
  let acquired=false
  await updateLocalJson<Snapshot|Legacy>(FILE,empty(),raw=>{const s=migrate(raw);if(s.state.lease&&Date.parse(s.state.lease.expiresAt)>now)return s;s.state.lease={id:leaseId,expiresAt:new Date(now+LEASE_MS).toISOString()};if(!s.state.startedAt)s.state.startedAt=new Date(now).toISOString();acquired=true;return s})
  if(!acquired){const s=await snapshot(true);return report(s,0,'lease-active')}
@@ -53,6 +53,9 @@ export async function synchronizePaymentOrderIndex(options:{maxPages?:number;max
   let s=await snapshot(true);const circuit=await zohoCircuitStatus()
   if(circuit.nextEligibleAt&&Date.parse(circuit.nextEligibleAt)>Date.now()){await markBackoff(leaseId,circuit);return report(await snapshot(true),0,'backoff')}
   const isBackfill=!s.state.completedAt
+  // History is deliberately one page/run. Once complete, deltas may consume
+  // two pages but always checkpoint after each page and keep one fixed window.
+  const maxPages=isBackfill?1:Math.max(1,Math.min(options.maxPages||2,2))
   // A previous failed run leaves mode=backoff. Once the durable circuit is
   // eligible again, advertise the work that is actually being resumed.
   await updateLocalJson<Snapshot|Legacy>(FILE,empty(),raw=>{const x=migrate(raw);if(x.state.lease?.id===leaseId){x.state.mode=isBackfill?'backfill':'delta';x.state.nextEligibleAt=''}return x})

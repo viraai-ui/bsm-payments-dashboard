@@ -65,7 +65,8 @@ async function zohoGet(fetcher: FetchLike, path: string): Promise<ZohoResponse> 
       if (response.ok && (!data.code || data.code === 0)) { await recordZohoSuccess(); return data }
       const retryable = response.status === 429 || response.status >= 500
       const message=data.message || `Zoho request failed (${response.status})`
-      if(response.status===429||/quota|rate.?limit|too many request|api usage/i.test(message)){await recordZohoFailure(response.status,message,Number(response.headers.get('retry-after'))||undefined);if(/exceeded (?:the )?maximum|quota exceeded/i.test(message))throw new ZohoQuotaError(message);throw new Error(message)}
+      // Quota responses are hard stops. Never amplify a 429 with retries.
+      if(response.status===429||/quota|rate.?limit|too many request|api usage/i.test(message)){await recordZohoFailure(response.status,message,Number(response.headers.get('retry-after'))||undefined);throw new ZohoQuotaError(message)}
       if (!retryable) { await recordZohoFailure(response.status,message); throw new Error(message) }
       last = new Error(message)
       const retryAfter = Number(response.headers.get('retry-after'))
