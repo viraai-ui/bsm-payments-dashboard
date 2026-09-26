@@ -72,6 +72,23 @@ export async function synchronizePaymentOrderIndex(options:{maxPages?:number;max
  }catch(e){error=e instanceof Error?e.message:'Zoho synchronization failed';const c=await zohoCircuitStatus();await markBackoff(leaseId,c,error)}finally{await updateLocalJson<Snapshot|Legacy>(FILE,empty(),raw=>{const s=migrate(raw);if(s.state.lease?.id===leaseId)delete s.state.lease;return s})}
  return report(await snapshot(true),calls,error)
 }
+
+/** Add Payment manual refresh: one list request for page 1, ten rows, all statuses. */
+export async function refreshLatestTenPaymentOrders(fetcher:typeof fetch=fetch){
+ const leaseId=crypto.randomUUID(),now=Date.now();let acquired=false
+ await updateLocalJson<Snapshot|Legacy>(FILE,empty(),raw=>{const s=migrate(raw);if(s.state.lease&&Date.parse(s.state.lease.expiresAt)>now)return s;s.state.lease={id:leaseId,expiresAt:new Date(now+30_000).toISOString()};acquired=true;return s})
+ if(!acquired)return{...(await searchPaymentOrders('',10)),error:'lease-active' as const,callsThisRun:0}
+ try{
+  const circuit=await zohoCircuitStatus();if(circuit.nextEligibleAt&&Date.parse(circuit.nextEligibleAt)>now)return{...(await searchPaymentOrders('',10)),error:'backoff' as const,nextEligibleAt:circuit.nextEligibleAt,callsThisRun:0}
+  const result=await fetchZohoPaymentOrderPage(1,{newestFirst:true,pageSize:10,statusAll:true,fetcher})
+  if(!result.recencyVerified)throw new Error('Zoho did not prove newest-created sales-order ordering')
+  const at=new Date().toISOString()
+  await updateLocalJson<Snapshot|Legacy>(FILE,empty(),raw=>{const s=migrate(raw);if(s.state.lease?.id!==leaseId)return s;for(const item of result.orders.slice(0,10)){const order=stored(item);if(order)mergeCanonicalOrder(s.orders,order)}s.updatedAt=at;s.state.lastSuccessfulSync=at;s.state.recencyVerifiedAt=at;s.state.failureClass='';s.state.nextEligibleAt='';return s})
+  const orders=result.orders.slice(0,10).map(item=>stored(item)).filter((item):item is StoredOrder=>Boolean(item)).map(item=>safe(item))
+  return{orders,total:orders.length,updatedAt:at,source:'zoho_manual' as const,syncState:'live' as const,stale:false,lastSyncedAt:at,nextEligibleAt:'',failureClass:'',complete:true,searchMs:0,callsThisRun:1,error:undefined}
+ }finally{await updateLocalJson<Snapshot|Legacy>(FILE,empty(),raw=>{const s=migrate(raw);if(s.state.lease?.id===leaseId)delete s.state.lease;return s})}
+}
+
 async function markBackoff(id:string,c:{failureClass:string;failureCount:number;nextEligibleAt:string},message=''){await updateLocalJson<Snapshot|Legacy>(FILE,empty(),raw=>{const s=migrate(raw);if(s.state.lease?.id!==id)return s;s.state.mode='backoff';s.state.failureClass=c.failureClass||'request';s.state.failureCount=c.failureCount||1;s.state.nextEligibleAt=c.nextEligibleAt;s.updatedAt=new Date().toISOString();void message;return s})}
 function report(s:Snapshot,calls:number,error=''){return{indexedCount:Object.keys(s.orders).length,mode:s.state.mode,page:s.state.nextPage,perPage:s.state.perPage,pagesProcessed:s.state.pagesProcessed,rowsSeen:s.state.rowsSeen,complete:Boolean(s.state.completedAt),lastSyncedAt:s.state.lastSuccessfulSync,watermark:s.state.highWatermark,callsThisRun:calls,nextEligibleAt:s.state.nextEligibleAt,error:error||undefined}}
 /** Prefer a live detail read. During provider backoff, accept only the exact

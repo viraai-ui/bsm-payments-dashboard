@@ -1,6 +1,7 @@
 import { apiError, apiOk } from '@/lib/api'
 import { requireUser } from '@/lib/auth'
-import { listPaymentNotifications, markPaymentNotificationsRead } from '@/lib/payment-notifications'
+import { createAllUsersTestNotifications, listPaymentNotifications, markPaymentNotificationsRead } from '@/lib/payment-notifications'
+import { pushDeliveryAudit } from '@/lib/payment-push'
 import { listPaymentsForUserFresh } from '@/lib/payments'
 
 export const runtime = 'nodejs'
@@ -31,4 +32,11 @@ export async function PATCH(request: Request) {
     return apiOk({...(await listPaymentNotifications(auth.user.id,allowed)),scope:auth.user.id})
   }
   catch (error) { return apiError(error instanceof Error ? error.message : 'Could not update notifications', 500) }
+}
+
+export async function POST(request:Request){
+  const auth=await requireUser(['Admin']);if(!auth.ok)return auth.response
+  const body=await request.json().catch(()=>({})),runId=typeof body.runId==='string'?body.runId:''
+  try{const notifications=await createAllUsersTestNotifications(runId),audit=await pushDeliveryAudit();return apiOk({runId,usersEnqueued:notifications.length,audit})}
+  catch(error){return apiError(error instanceof Error?error.message:'Could not send notification test',400)}
 }

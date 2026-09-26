@@ -1,10 +1,11 @@
 import { getUserStore, type AppRole } from './auth'
+import { createHash } from 'node:crypto'
 import { readLocalJsonFresh, updateLocalJson } from './local-store'
 import type { Payment, PaymentStatus } from './payments'
-import { createPushOutboxItem, sendPaymentPushNotifications, type PushOutboxItem } from './payment-push'
+import { activePaymentPushSubscriptions, createPushOutboxItem, sendPaymentPushNotifications, type PushOutboxItem } from './payment-push'
 import { paymentCustomerLabel } from './payment-domain'
 
-export type NotificationType = 'boss-payment-created' | 'unauthorised-created' | 'status-received' | 'status-pending' | 'status-void'
+export type NotificationType = 'boss-payment-created' | 'unauthorised-created' | 'status-received' | 'status-pending' | 'status-void' | 'system-test'
 export type PaymentNotification = {
   id: string
   eventId: string
@@ -38,21 +39,23 @@ function paymentSummary(payment: Payment) {
 
 async function notify(payment: Payment, type: NotificationType, recipients: Array<{ id: string; role: AppRole }>, title: string, body: string, eventId: string, url = `/payments?payment=${encodeURIComponent(payment.id)}`) {
   const now = new Date().toISOString()
+  const subscriptions = await activePaymentPushSubscriptions()
   let made: PaymentNotification[] = []
   await updateLocalJson(FILE, EMPTY, store => {
     const existing = new Set(store.notifications.map(item => item.dedupeKey))
     made = recipients.map(recipient => {
       const dedupeKey = `${eventId}:${recipient.id}`
       return {
-        id: `notification-${crypto.randomUUID()}`, eventId, dedupeKey, type,
+        id: `notification-${createHash('sha256').update(dedupeKey).digest('hex').slice(0,32)}`, eventId, dedupeKey, type,
         recipientUserId: recipient.id, recipientRole: recipient.role, paymentId: payment.id,
         salesOrderNumber: payment.salesOrderNumber, utrReference: payment.utrReference, customerName: payment.customerName,
         paymentAmount: payment.paymentAmount, title, body, message: body,
         url, createdAt: now, readAt: null,
       }
     }).filter(item => !existing.has(item.dedupeKey))
-    const jobs = made.map(item => createPushOutboxItem(item))
-    return { notifications: [...made, ...store.notifications].slice(0, 2000), pushOutbox: [...jobs, ...(store.pushOutbox || [])].slice(0, 4000) }
+    const jobs = made.flatMap(item => subscriptions.filter(subscription => subscription.userId === item.recipientUserId && subscription.role === item.recipientRole).map(subscription => createPushOutboxItem(item, subscription)))
+    const jobIds = new Set((store.pushOutbox || []).map(item => item.id))
+    return { notifications: [...made, ...store.notifications].slice(0, 2000), pushOutbox: [...jobs.filter(item => !jobIds.has(item.id)), ...(store.pushOutbox || [])].slice(0, 8000) }
   })
   if (made.length) await sendPaymentPushNotifications(made).catch(error => console.error('Payment push dispatch failed', error))
   return made
@@ -92,12 +95,21 @@ export async function createStatusNotification(payment: Payment, status: 'Pendin
 /** Claiming establishes ownership but intentionally emits no notification. */
 export async function createClaimNotification(_payment: Payment) { return [] as PaymentNotification[] }
 
+/** Admin-only callers use this idempotent test run through the real outbox. */
+export async function createAllUsersTestNotifications(runId:string) {
+  if (!/^[a-zA-Z0-9_-]{8,80}$/.test(runId)) throw new Error('Invalid test run id')
+  const recipients=(await getUserStore()).users.filter(user=>user.active).map(user=>({id:user.id,role:user.role}))
+  const now=new Date().toISOString()
+  const synthetic={id:`system-test-${runId}`,customerName:'Notification test',paymentAmount:0,status:'Pending',createdBy:'system',createdAt:now,updatedAt:now} as Payment
+  return notify(synthetic,'system-test',recipients,'TEST — BSM payment notifications','This is a clearly labeled delivery test. No action is required.',`system-test:${runId}`,'/payments')
+}
+
 export async function listPaymentNotifications(userId: string, allowedPaymentIds?: Set<string>) {
   // Notifications are live synchronization state. A process-local cached copy is
   // unsafe on serverless: alternating instances otherwise return different
   // generations for up to DATA_CACHE_TTL_SECONDS (the visible flicker).
   const items = (await readLocalJsonFresh(FILE, EMPTY)).notifications
-    .filter(item => Boolean(item.eventId && item.title && item.body) && item.recipientUserId === userId && (!allowedPaymentIds || allowedPaymentIds.has(item.paymentId)))
+    .filter(item => Boolean(item.eventId && item.title && item.body) && item.recipientUserId === userId && (item.type === 'system-test' || !allowedPaymentIds || allowedPaymentIds.has(item.paymentId)))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 50)
   return { notifications: items, unreadCount: items.filter(item => !item.readAt).length }
 }

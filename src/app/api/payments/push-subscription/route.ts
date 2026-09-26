@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   const deviceId = typeof body.deviceId === 'string' && /^[a-zA-Z0-9_-]{8,100}$/.test(body.deviceId) ? body.deviceId : ''
   if (!deviceId) return apiError('Invalid device id', 400)
   if (!paymentPushConfiguration().configured) return apiError('Push notifications are not configured', 503)
-  try { await savePaymentPushSubscription(auth.user.id, auth.user.role, deviceId, body.subscription); const registered = await hasPaymentPushSubscription(auth.user.id, body.subscription.endpoint, deviceId); void processDuePushOutbox().catch(error => console.error('Push outbox opportunistic delivery failed', error)); return apiOk({ subscribed: registered }) }
+  try { await savePaymentPushSubscription(auth.user.id, auth.user.role, deviceId, body.subscription); const registered = await hasPaymentPushSubscription(auth.user.id, body.subscription.endpoint, deviceId); await processDuePushOutbox(undefined,undefined,5).catch(error => console.error('Push outbox opportunistic delivery failed', error)); return apiOk({ subscribed: registered }) }
   catch (error) { return apiError(error instanceof Error ? error.message : 'Could not save subscription', 500) }
 }
 export async function DELETE(request: Request) {

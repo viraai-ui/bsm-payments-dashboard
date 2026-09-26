@@ -108,13 +108,15 @@ function mapSummary(value: unknown): Omit<ZohoPaymentOrder, 'total'|'orderTotal'
   const total = numericTotal(row.total)
   return { id, salesOrderNumber, customerName: String(row.customer_name || row.company_name || '').trim(), ...(total === undefined ? {} : { total, orderTotal: total }), orderDate: String(row.date || row.created_time || '').slice(0, 10), rawStatus: statusOf(row), currency: String(row.currency_code || row.currency_symbol || 'INR'), modifiedTime: String(row.last_modified_time || row.modified_time || row.updated_time || row.created_time || '') }
 }
-export async function fetchZohoPaymentOrderPage(page:number,options:{modifiedSince?:string;fetcher?:FetchLike;newestFirst?:boolean}={}){
+export async function fetchZohoPaymentOrderPage(page:number,options:{modifiedSince?:string;fetcher?:FetchLike;newestFirst?:boolean;pageSize?:number;statusAll?:boolean}={}){
   // New-order discovery must use creation order. last_modified_time page 1 is
   // dominated by old orders edited/fulfilled today and can push brand-new,
   // otherwise untouched orders outside the 200-row window.
   const sortColumn=options.modifiedSince?'last_modified_time':'created_time'
   const sortOrder=options.newestFirst?'D':'A'
-  const params=new URLSearchParams({per_page:String(PAGE_SIZE),page:String(page),sort_column:sortColumn,sort_order:sortOrder})
+  const pageSize=Math.max(1,Math.min(options.pageSize||PAGE_SIZE,PAGE_SIZE))
+  const params=new URLSearchParams({per_page:String(pageSize),page:String(page),sort_column:sortColumn,sort_order:sortOrder})
+  if(options.statusAll)params.set('status','All')
   if(options.modifiedSince)params.set('last_modified_time',options.modifiedSince)
   const data=await zohoGet(options.fetcher||fetch,`/inventory/v1/salesorders?${params}`),rows=data.salesorders||[]
   if(!Array.isArray(rows))throw new Error(`Invalid Zoho sales-order page ${page}`)

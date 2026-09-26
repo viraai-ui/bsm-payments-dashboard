@@ -1546,7 +1546,7 @@ function OrderCombobox({
             aria-label="Refresh sales orders"
             className={refreshing ? "is-loading" : ""}
             disabled={refreshing}
-            onClick={async () => { setRefreshing(true); try { await load(query, true); } finally { setRefreshing(false); } }}
+            onClick={async () => { setQuery(""); onClear(); setOpen(true); setRefreshing(true); try { await load("", true); } finally { setRefreshing(false); } }}
           >
             ↻
           </button>}
