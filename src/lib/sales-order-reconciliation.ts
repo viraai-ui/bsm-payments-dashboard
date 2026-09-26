@@ -7,6 +7,14 @@ type Store={orders:Record<string,SalesOrderSnapshot>}
 const FILE='sales-order-snapshots.json',EMPTY:Store={orders:{}}
 const norm=(value?:string)=>String(value||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'')
 export function linkedOrderIds(payments:Payment[]){return [...new Set(payments.map(p=>p.salesOrderId).filter((id):id is string=>Boolean(id)))]}
+/** Zoho Inventory sales-order IDs are numeric. Locally-created rows deliberately
+ * use descriptive IDs (manual-, manual-screenshot-, local-, etc.) and must never
+ * be sent to the provider detail endpoint. */
+export function isCanonicalZohoOrderId(id:string){return /^\d+$/.test(String(id).trim())}
+export function reconciliationSelection(ids:string[],indexedIds:Iterable<string>,snapshots:Record<string,SalesOrderSnapshot>,limit=10){
+ const indexed=new Set(indexedIds),unique=[...new Set(ids)],eligible=unique.filter(id=>isCanonicalZohoOrderId(id)&&indexed.has(id))
+ return{batch:reconciliationBatch(eligible,snapshots,limit),skipped:unique.filter(id=>!isCanonicalZohoOrderId(id)||!indexed.has(id)),skipReason:'non-canonical-or-unindexed-order-id' as const}
+}
 /** Select a bounded, oldest-first reconciliation batch. A full sweep every ten
  * minutes can exhaust Zoho's organization-wide daily allowance and block the
  * authoritative detail lookup required when a payment is created. */
@@ -37,12 +45,12 @@ async function commitSalesOrders(items:Array<{order:ZohoPaymentOrder;at:string;b
 }
 export async function commitSalesOrder(order:ZohoPaymentOrder,at=new Date().toISOString(),baseline?:Pick<Payment,'orderTotal'|'customerName'>){return(await commitSalesOrders([{order,at,baseline}])).has(order.id)}
 export async function reconcileSalesOrders(ids:string[],options:{limit?:number;fetcher?:typeof fetch;baselines?:Record<string,Pick<Payment,'orderTotal'|'customerName'>>}={}){
- const unique=[...new Set(ids)].slice(0,options.limit??ids.length),fetched:Array<{order:ZohoPaymentOrder;at:string;baseline?:Pick<Payment,'orderTotal'|'customerName'>}>=[],failures=new Map<string,string>()
+ const all=[...new Set(ids)],skipped=all.filter(id=>!isCanonicalZohoOrderId(id)),unique=all.filter(isCanonicalZohoOrderId).slice(0,options.limit??ids.length),fetched:Array<{order:ZohoPaymentOrder;at:string;baseline?:Pick<Payment,'orderTotal'|'customerName'>}>=[],failures=new Map<string,string>()
  for(let i=0;i<unique.length;i+=6)await Promise.all(unique.slice(i,i+6).map(async id=>{try{fetched.push({order:await fetchZohoPaymentOrderDetail(id,options.fetcher||fetch,true),at:new Date().toISOString(),baseline:options.baselines?.[id]})}catch(error){console.error(`Zoho sales-order reconciliation failed for ${id}`,error);failures.set(id,error instanceof Error?error.message:'Zoho unavailable')}}))
  // One optimistic durable write per run prevents a linked-order sweep from timing out
  // after serially rewriting the complete R2 object once per order.
  const changed=fetched.length?await commitSalesOrders(fetched):new Set<string>()
- return unique.map(id=>failures.has(id)?{id,status:'failed' as const,error:failures.get(id)}:{id,status:changed.has(id)?'changed' as const:'unchanged' as const})
+ return[...skipped.map(id=>({id,status:'skipped' as const,reason:'synthetic-order-id' as const})),...unique.map(id=>failures.has(id)?{id,status:'failed' as const,error:failures.get(id)}:{id,status:changed.has(id)?'changed' as const:'unchanged' as const})]
 }
 /** Best-effort bounded refresh for reads. Durable stale snapshots remain usable on outage. */
 export async function refreshStaleLinkedOrders(payments:Payment[],max=4){

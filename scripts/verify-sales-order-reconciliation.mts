@@ -4,7 +4,7 @@ import {tmpdir} from 'node:os'
 import path from 'node:path'
 process.env.APP_LOCAL_ONLY='true'
 const cwd=process.cwd();process.chdir(await mkdtemp(path.join(tmpdir(),'so-reconcile-')))
-const {commitSalesOrder,readSalesOrderSnapshots,applySalesOrderSnapshots}=await import('../src/lib/sales-order-reconciliation.ts')
+const {commitSalesOrder,readSalesOrderSnapshots,applySalesOrderSnapshots,reconcileSalesOrders,reconciliationSelection}=await import('../src/lib/sales-order-reconciliation.ts')
 const {pendingOrdersForUser}=await import('../src/lib/payments.ts')
 const order=(total:number,modifiedTime:string,customerName='Acme Renamed')=>({id:'zoho-1',salesOrderNumber:'SO-100',customerName,total,orderTotal:total,orderDate:'2026-01-01',rawStatus:'confirmed',currency:'INR',modifiedTime})
 assert.equal(await commitSalesOrder(order(1000,'2026-01-02T00:00:00+0530')),true)
@@ -27,5 +27,12 @@ assert.equal(pendingOrdersForUser(projected,user('u-none','Salesperson')).length
 assert.equal(await commitSalesOrder(order(800,'2026-01-05T00:00:00+0530')),true,'below-paid total applies safely')
 projected=applySalesOrderSnapshots(base,await readSalesOrderSnapshots());const below=pendingOrdersForUser(projected,user('management','Admin'));assert.equal(below.length,0,'overpaid order never creates negative pending')
 const durable=JSON.parse(await readFile('data/sales-order-snapshots.json','utf8'));assert.equal(durable.orders['zoho-1'].audit.length,4);assert.equal(durable.orders['zoho-1'].version,4)
+const selected=reconciliationSelection(['manual-so-07760','manual-screenshot-so-08040','local-SO-07812','1154219000000000001','1154219000000000002'],['manual-so-07760','1154219000000000001','1154219000000000002'],{},1)
+assert.deepEqual(selected.batch,['1154219000000000001'],'only indexed canonical Zoho IDs enter the bounded batch')
+assert.deepEqual(selected.skipped,['manual-so-07760','manual-screenshot-so-08040','local-SO-07812'])
+let providerCalls=0
+const result=await reconcileSalesOrders(['manual-so-07760','local-SO-07812'],{fetcher:(async()=>{providerCalls++;throw new Error('synthetic ID reached provider')}) as typeof fetch})
+assert.equal(providerCalls,0,'synthetic IDs consume zero Zoho calls')
+assert.ok(result.every(row=>row.status==='skipped'),'synthetic-only reconciliation is healthy, not failed')
 process.chdir(cwd)
-console.log('PASS sales-order reconciliation: decrease/increase, immutable multiple receipts, aliases, rename, stale ordering, idempotency, overpayment clamp, role union/subsets, durable audit')
+console.log('PASS sales-order reconciliation: canonical bounded selection, zero provider calls for synthetic IDs, immutable receipts, aliases, stale ordering, idempotency, durable audit')
