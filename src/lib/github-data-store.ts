@@ -20,6 +20,25 @@ function safePath(value:string){
 function headers(token:string){return {Authorization:`Bearer ${token}`,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'}}
 async function result(response:Response,operation:string){const body=await response.json().catch(()=>({})) as {message?:string};if(!response.ok)throw new Error(body.message||`GitHub data store ${operation} failed (${response.status})`);return body as Record<string,unknown>}
 
+async function getGitHubDataObjectViaSmartGit(objectPath:string):Promise<GitHubObject|null>{
+  const {token,owner,repo,branch}=githubDataConfig(),refName=branch||'main',qualifiedName=`refs/heads/${refName}`
+  // Authenticated upload-pack discovery is independent of REST/GraphQL API quotas.
+  // Resolve an immutable branch tip before reading raw content; never trust a
+  // moving-branch raw response for an authoritative read.
+  const basic=Buffer.from(`x-access-token:${token}`).toString('base64')
+  const refs=await fetch(`https://github.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}.git/info/refs?service=git-upload-pack`,{headers:{Authorization:`Basic ${basic}`,Accept:'application/x-git-upload-pack-advertisement'},cache:'no-store',signal:AbortSignal.timeout(TIMEOUT_MS)})
+  if(!refs.ok)throw new Error(`GitHub data store ref discovery failed (${refs.status})`)
+  const advertisement=Buffer.from(await refs.arrayBuffer()).toString('utf8')
+  const payloads:string[]=[];for(let offset=0;offset+4<=advertisement.length;){const length=Number.parseInt(advertisement.slice(offset,offset+4),16);if(!Number.isFinite(length))break;if(length===0){offset+=4;continue}if(length<4||offset+length>advertisement.length)break;payloads.push(advertisement.slice(offset+4,offset+length));offset+=length}
+  const line=payloads.find(value=>value.includes(` ${qualifiedName}`)),commitOid=line?.match(/^([0-9a-f]{40,64}) refs\/heads\//)?.[1]
+  if(!commitOid)throw new Error('GitHub data store branch was not found in authenticated ref discovery')
+  const raw=await fetch(`https://raw.githubusercontent.com/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/${commitOid}/${safePath(objectPath)}`,{headers:{Authorization:`Bearer ${token}`,Accept:'application/octet-stream'},cache:'no-store',signal:AbortSignal.timeout(TIMEOUT_MS)})
+  if(raw.status===404)return null
+  if(!raw.ok)throw new Error(`GitHub data store commit-pinned raw read failed (${raw.status})`)
+  const bytes=Buffer.from(await raw.arrayBuffer()),sha=createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex')
+  return{bytes,sha,contentType:raw.headers.get('content-type')||undefined}
+}
+
 async function getGitHubDataObjectViaGraphql(objectPath:string):Promise<GitHubObject|null>{
   const {token,owner,repo,branch}=githubDataConfig(),refName=branch||'main',expression=`${refName}:${objectPath}`,qualifiedName=`refs/heads/${refName}`
   // Resolve the blob and ref in one GraphQL snapshot. Large raw reads must use
@@ -73,7 +92,7 @@ export async function getGitHubDataObject(objectPath:string):Promise<GitHubObjec
   const {token,owner,repo,branch}=githubDataConfig(),query=branch?`?ref=${encodeURIComponent(branch)}`:''
   const response=await fetch(`${API}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${safePath(objectPath)}${query}`,{headers:headers(token),cache:'no-store',signal:AbortSignal.timeout(TIMEOUT_MS)})
   if(response.status===404)return null
-  if(response.status===403){const body=await response.clone().json().catch(()=>({})) as {message?:string};if(/rate limit/i.test(body.message||''))return getGitHubDataObjectViaGraphql(objectPath)}
+  if(response.status===403||response.status===429){const body=await response.clone().json().catch(()=>({})) as {message?:string};if(/rate limit|secondary rate/i.test(body.message||'')){try{return await getGitHubDataObjectViaGraphql(objectPath)}catch(graphqlError){console.warn('GitHub GraphQL read unavailable; using authenticated commit-pinned Git transport',graphqlError);return getGitHubDataObjectViaSmartGit(objectPath)}}}
   const body=await result(response,'read') as {type?:string;content?:string;encoding?:string;sha?:string}
   if(body.type!=='file'||!body.sha)throw new Error('GitHub data store returned an invalid object')
   if(body.encoding==='base64'&&body.content)return{bytes:Buffer.from(body.content.replace(/\n/g,''),'base64'),sha:body.sha}
