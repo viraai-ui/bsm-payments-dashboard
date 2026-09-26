@@ -41,6 +41,22 @@ const ranked=rankPaymentOrderSuggestions([
   {id:'exact',salesOrderNumber:'SO-07987',customerName:'duplicate alias',status:'Open',rawStatus:'confirmed'},
 ],' 07987 ',10)
 assert.deepEqual(ranked.map(order=>order.id),['exact','partial','customer'],'exact normalized SO ranks first and ids dedupe')
+
+// Suggestions are sorted before limiting, independently of index insertion
+// order. Exact matches retain priority; equal relevance is newest-first.
+const suggestion=(number,date,modified='2026-09-26T00:00:00Z',id=number)=>({id,salesOrderNumber:number,customerName:'Shared Customer',status:'Open',rawStatus:'confirmed',orderDate:date,modifiedTime:modified})
+const deliberatelyShuffled=[
+ suggestion('SO-08040','2026-09-24'),
+ suggestion('SO-08042','2026-09-26','2026-09-20T00:00:00Z'),
+ suggestion('SO-08041','2026-09-25'),
+ suggestion('SO-08044','2026-09-26','2026-09-19T00:00:00Z'),
+ suggestion('SO-08043','2026-09-26','2026-09-27T00:00:00Z'),
+]
+assert.deepEqual(rankPaymentOrderSuggestions(deliberatelyShuffled,'',4).map(o=>o.salesOrderNumber),['SO-08044','SO-08043','SO-08042','SO-08041'],'empty dropdown sorts before applying its limit')
+assert.deepEqual(rankPaymentOrderSuggestions(deliberatelyShuffled,'0804',10).map(o=>o.salesOrderNumber),['SO-08044','SO-08043','SO-08042','SO-08041','SO-08040'],'partial SO query is newest-first within its relevance tier')
+assert.equal(rankPaymentOrderSuggestions(deliberatelyShuffled,'SO-08040',10)[0].salesOrderNumber,'SO-08040','exact SO match has priority')
+const legacy=[suggestion('SO-08046',''),suggestion('SO-08045','not-a-date'),suggestion('SO-08044','2026-09-26'),suggestion('SO-08043','2026-09-26','2026-09-29T00:00:00Z','z'),suggestion('SO-08043','2026-09-26','2026-09-29T00:00:00Z','a')]
+assert.deepEqual(rankPaymentOrderSuggestions(legacy,'',10).map(o=>o.id),['SO-08044','z','a','SO-08046','SO-08045'],'dated rows precede legacy missing-date rows; sequence, modified time and id provide stable tie-breakers')
 resetZohoPaymentOrdersForTests();let detailCalls=0
 const missingTotalFetch=async input=>{const url=String(input);if(url.includes('/oauth/'))return Response.json({access_token:'token',expires_in:3600});if(url.includes('/salesorders/id-1')){detailCalls++;return Response.json({salesorder:row(1,'confirmed','9,876.50')})}return Response.json({salesorders:[{...row(1),total:undefined}],page_context:{page:1,has_more_page:false}})}
 const hydrated=await searchZohoPaymentOrders('SO-00001',10,missingTotalFetch);assert.equal(hydrated[0].total,9876.5);assert.equal(hydrated[0].orderTotal,9876.5);assert.equal(detailCalls,1,'missing list total detail-hydrated once')
