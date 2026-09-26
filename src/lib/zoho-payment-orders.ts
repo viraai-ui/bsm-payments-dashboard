@@ -51,13 +51,13 @@ async function accessToken(fetcher: FetchLike, force = false) {
 
 export type ZohoResponse = { code?: number; message?: string; salesorders?: unknown[]; salesorder?: unknown; page_context?: { has_more_page?: boolean; page?: number } }
 class ZohoQuotaError extends Error {}
-async function zohoGet(fetcher: FetchLike, path: string): Promise<ZohoResponse> {
+async function zohoGet(fetcher: FetchLike, path: string, maxAttempts=RETRIES): Promise<ZohoResponse> {
   await assertZohoEligible()
   let token = await accessToken(fetcher)
   const separator = path.includes('?') ? '&' : '?'
   const url = `${domains().api}${path}${separator}organization_id=${encodeURIComponent(process.env.ZOHO_ORGANIZATION_ID!)}`
   let last: unknown
-  for (let attempt = 0; attempt < RETRIES; attempt++) {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
       const response = await fetchTimed(fetcher, url, { headers: { Authorization: `Zoho-oauthtoken ${token}`, 'X-com-zoho-inventory-organizationid': process.env.ZOHO_ORGANIZATION_ID! }, cache: 'no-store' })
       const data = await response.json() as ZohoResponse
@@ -68,6 +68,7 @@ async function zohoGet(fetcher: FetchLike, path: string): Promise<ZohoResponse> 
       // Quota responses are hard stops. Never amplify a 429 with retries.
       if(response.status===429||/quota|rate.?limit|too many request|api usage/i.test(message)){await recordZohoFailure(response.status,message,Number(response.headers.get('retry-after'))||undefined);throw new ZohoQuotaError(message)}
       if (!retryable) { await recordZohoFailure(response.status,message); throw new Error(message) }
+      if(attempt===maxAttempts-1)await recordZohoFailure(response.status,message,Number(response.headers.get('retry-after'))||undefined)
       last = new Error(message)
       const retryAfter = Number(response.headers.get('retry-after'))
       await wait(Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 250 * 2 ** attempt)
@@ -75,7 +76,7 @@ async function zohoGet(fetcher: FetchLike, path: string): Promise<ZohoResponse> 
       last = error
       if(error instanceof ZohoQuotaError)throw error
       if (error instanceof Error && /^Zoho request failed \(4\d\d\)/.test(error.message)) throw error
-      if (attempt < RETRIES - 1) await wait(250 * 2 ** attempt)
+      if (attempt < maxAttempts - 1) await wait(250 * 2 ** attempt)
     }
   }
   throw last instanceof Error ? last : new Error('Zoho request failed')
@@ -114,10 +115,10 @@ export async function fetchZohoPaymentOrderPage(page:number,options:{modifiedSin
   if(data.page_context?.page&&Number(data.page_context.page)!==page)throw new Error(`Unexpected Zoho pagination response on page ${page}`)
   return {orders:rows.map(mapSummary).filter((x):x is NonNullable<typeof x>=>Boolean(x)),hasMore:Boolean(data.page_context?.has_more_page)}
 }
-export async function fetchZohoPaymentOrderDetail(id: string, fetcher: FetchLike = fetch, force = false): Promise<ZohoPaymentOrder> {
+export async function fetchZohoPaymentOrderDetail(id: string, fetcher: FetchLike = fetch, force = false, oneAttempt = false): Promise<ZohoPaymentOrder> {
   const cached = detailCache.get(id)
   if (!force && cached && cached.expiresAt > Date.now()) return cached.order
-  const data = await zohoGet(fetcher, `/inventory/v1/salesorders/${encodeURIComponent(id)}`)
+  const data = await zohoGet(fetcher, `/inventory/v1/salesorders/${encodeURIComponent(id)}`,oneAttempt?1:RETRIES)
   const order = mapZohoPaymentOrder(data.salesorder)
   if (!order || order.id !== id) throw new Error(`Zoho sales order ${id} has no authoritative total`)
   detailCache.set(id, { order, expiresAt: Date.now() + 5 * 60_000 })

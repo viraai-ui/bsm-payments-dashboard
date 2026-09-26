@@ -46,6 +46,7 @@
     "audit:payment-links": "node --env-file=.env.local --experimental-strip-types scripts/payment-link-backfill.mjs",
     "verify:zoho-orders:live": "node --env-file=.env.local --experimental-strip-types scripts/verify-zoho-payment-orders-live.mjs",
     "verify:sales-order-reconciliation": "tsx scripts/verify-sales-order-reconciliation.mts",
+    "verify:sales-order-manual-sync": "tsx scripts/verify-sales-order-manual-sync.mts",
     "verify:payment-terminology": "node scripts/verify-payment-terminology.cjs",
     "verify:so-08005-webp": "APP_LOCAL_ONLY=true tsx scripts/verify-so-08005-webp.mts"
   },

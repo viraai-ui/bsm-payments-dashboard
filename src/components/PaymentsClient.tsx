@@ -133,6 +133,7 @@ export function PaymentsClient({
     [viewer, setViewer] = useState<ViewerProof[] | null>(null),
     [error, setError] = useState("");
   const [claimError, setClaimError] = useState("");
+  const [orderSync, setOrderSync] = useState<{paymentId:string;state:"loading"|"success"|"error";message:string}|null>(null);
   const [pendingView, setPendingView] = useState<PendingView>("grid");
   const [open, setOpen] = useState(false),
     [paymentType, setPaymentType] = useState<"unauthorised" | "regular">(
@@ -221,6 +222,18 @@ export function PaymentsClient({
     };
   }, [refresh]);
   useEffect(() => { void refresh(); }, [refresh]);
+  const syncSalesOrder = useCallback(async (payment: Payment) => {
+    if (orderSync?.state === "loading") return;
+    setOrderSync({paymentId:payment.id,state:"loading",message:""});
+    try {
+      const response=await fetch("/api/payments/sync-sales-order",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({paymentId:payment.id})});
+      const json=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(json.error||"Sales order sync failed");
+      const data=json.data; mutationVersion.current+=1;
+      setPayments(sortPayments(data.payments)); setAuthoritativePending(data.pendingOrders);
+      setOrderSync({paymentId:payment.id,state:"success",message:data.message});
+    } catch (cause) { setOrderSync({paymentId:payment.id,state:"error",message:cause instanceof Error?cause.message:"Sales order sync failed"}); }
+  },[orderSync?.state]);
   useEffect(() => { if (selected) setSelected(payments.find(payment => payment.id === selected.id) || null); }, [payments, selected?.id]);
   useEffect(() => {
     const add = () => startAdd();
@@ -1167,6 +1180,8 @@ export function PaymentsClient({
             busy={updating === selected.id}
             onStatus={status}
             onProof={() => openProof(selected)}
+            sync={orderSync?.paymentId===selected.id?orderSync:null}
+            onSync={() => void syncSalesOrder(selected)}
           />
         </Sheet>
       )}
@@ -1679,6 +1694,7 @@ function Actions({
     </div>
   );
 }
+function SyncIcon(){return <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M20 6v5h-5M4 18v-5h5M6.1 9a7 7 0 0 1 11.5-2.6L20 9M4 15l2.4 2.6A7 7 0 0 0 17.9 15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
 function PaymentDetails({
   p,
   summary: s,
@@ -1686,6 +1702,8 @@ function PaymentDetails({
   role,
   busy,
   onStatus,
+  sync,
+  onSync,
 }: {
   p: Payment;
   summary: any;
@@ -1693,6 +1711,8 @@ function PaymentDetails({
   role: AppRole;
   busy: boolean;
   onStatus: (p: Payment, s: "Pending" | "Payment Received" | "Void") => void;
+  sync: {state:"loading"|"success"|"error";message:string}|null;
+  onSync: () => void;
 }) {
   const total = s?.orderTotal ?? p.orderTotal;
   return (
@@ -1730,7 +1750,8 @@ function PaymentDetails({
           </div>
           <div>
             <dt>Sales Order</dt>
-            <dd>{p.salesOrderNumber || "Unassigned"}</dd>
+            <dd className="sales-order-sync-line"><span>{p.salesOrderNumber || "Unassigned"}</span>{p.salesOrderNumber&&(role==="Admin"||role==="Accounts")&&<button type="button" className={`sales-order-sync ${sync?.state==="loading"?"is-loading":""}`} title="Sync sales order" aria-label="Sync sales order" disabled={sync?.state==="loading"} onClick={onSync}><SyncIcon /></button>}</dd>
+            {sync&&<small className={`sales-order-sync-feedback ${sync.state}`} role={sync.state==="error"?"alert":"status"}>{sync.state==="loading"?"Syncing…":sync.message}</small>}
           </div>
           <div>
             <dt>Company</dt>
