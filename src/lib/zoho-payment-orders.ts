@@ -116,7 +116,7 @@ export async function fetchZohoPaymentOrderPage(page:number,options:{modifiedSin
   const sortOrder=options.newestFirst?'D':'A'
   const pageSize=Math.max(1,Math.min(options.pageSize||PAGE_SIZE,PAGE_SIZE))
   const params=new URLSearchParams({per_page:String(pageSize),page:String(page),sort_column:sortColumn,sort_order:sortOrder})
-  if(options.statusAll)params.set('status','All')
+  if(options.statusAll)params.set('status','Status.All')
   if(options.modifiedSince)params.set('last_modified_time',options.modifiedSince)
   const data=await zohoGet(options.fetcher||fetch,`/inventory/v1/salesorders?${params}`),rows=data.salesorders||[]
   if(!Array.isArray(rows))throw new Error(`Invalid Zoho sales-order page ${page}`)
