@@ -3,7 +3,7 @@ import { normalizePaymentOrderSearch, paymentOrderStatus, rankPaymentOrderSugges
 import { fetchZohoPaymentOrderDetail, fetchZohoPaymentOrderPage, type ZohoPaymentOrder } from './zoho-payment-orders'
 import { zohoCircuitStatus } from './zoho-circuit'
 
-const FILE='payment-order-index.json',PER_PAGE=200,LEASE_MS=4*60_000,DELTA_OVERLAP_MS=5*60_000
+const FILE='payment-order-index.json',PER_PAGE=200,LEASE_MS=4*60_000,FRESH_MS=15*60_000
 export type PaymentOrderSuggestion={id:string;salesOrderNumber:string;customerName:string;rawStatus:string;status:'Open'|'Closed'|'Status unknown';orderDate:string;total:number;orderTotal:number;currency:string;modifiedTime:string}
 type StoredOrder={id:string;salesOrderNumber:string;customerName:string;status:string;orderDate:string;orderTotal:number;currency:string;modifiedTime:string}
 type State={schema:2;mode:'backfill'|'delta'|'ready'|'backoff';nextPage:number;perPage:200;startedAt:string;completedAt:string;highWatermark:string;lastSuccessfulSync:string;nextEligibleAt:string;failureClass:string;failureCount:number;pagesProcessed:number;rowsSeen:number;lease?:{id:string;expiresAt:string};deltaSince?:string;deltaMax?:string}
@@ -33,17 +33,19 @@ function mergeCanonicalOrder(orders:Record<string,StoredOrder>,next:StoredOrder)
 async function snapshot(fresh=false){return migrate(await(fresh?readLocalJsonFresh:readLocalJson)(FILE,empty()))}
 export async function searchPaymentOrders(query='',limit=10){
  const started=performance.now(),s=await snapshot(),all=Object.values(s.orders).map(safe),bounded=Math.max(1,Math.min(limit,50)),orders=rankPaymentOrderSuggestions(all,query,bounded)
- const age=s.state.lastSuccessfulSync?Date.now()-Date.parse(s.state.lastSuccessfulSync):Infinity
- return{orders,total:orders.length,updatedAt:s.updatedAt,source:'local_index' as const,stale:age>30*60_000,complete:Boolean(s.state.completedAt),lastSyncedAt:s.state.lastSuccessfulSync||s.updatedAt,searchMs:performance.now()-started}
+ const status=await paymentOrderIndexStatus(s)
+ return{orders,total:orders.length,updatedAt:s.updatedAt,source:'indexed_mirror' as const,...status,complete:Boolean(s.state.completedAt),searchMs:performance.now()-started}
 }
-export async function refreshPaymentOrderIndex(_force=false){return searchPaymentOrders('',10)}
+async function paymentOrderIndexStatus(existing?:Snapshot){const s=existing||await snapshot(true),circuit=await zohoCircuitStatus(),lastSyncedAt=s.state.lastSuccessfulSync||s.updatedAt,age=lastSyncedAt?Date.now()-Date.parse(lastSyncedAt):Infinity,backoffAt=circuit.nextEligibleAt||s.state.nextEligibleAt
+ const syncing=Boolean(s.state.lease&&Date.parse(s.state.lease.expiresAt)>Date.now()),backoff=Boolean(backoffAt&&Date.parse(backoffAt)>Date.now())
+ return{syncState:syncing?'syncing':backoff?'backoff':age<=FRESH_MS?'live':'stale',stale:age>FRESH_MS,lastSyncedAt,nextEligibleAt:backoffAt||'',failureClass:circuit.failureClass||s.state.failureClass||''}}
 async function seedKnown(){
  let seeds:StoredOrder[]=[]
  try{const x=await readLocalJsonFresh<{orders:Record<string,{salesOrderId:string;salesOrderNumber:string;customerName:string;orderTotal:number;orderDate:string;rawStatus:string;currency:string;modifiedTime:string}>}>('sales-order-snapshots.json',{orders:{}});seeds=Object.values(x.orders||{}).map(o=>stored({id:o.salesOrderId,...o})!).filter(Boolean)}catch{}
  if(!seeds.length)return
  await updateLocalJson<Snapshot|Legacy>(FILE,empty(),raw=>{const s=migrate(raw);for(const o of seeds)if(newer(s.orders[o.id],o))s.orders[o.id]=o;return s})
 }
-export async function synchronizePaymentOrderIndex(options:{maxPages?:number;maxMs?:number;fetcher?:typeof fetch}={}){
+export async function synchronizePaymentOrderIndex(options:{maxPages?:number;maxMs?:number;fetcher?:typeof fetch;recentOnly?:boolean}={}){
  await seedKnown();const leaseId=crypto.randomUUID(),now=Date.now(),maxMs=Math.min(options.maxMs||50_000,60_000)
  let acquired=false
  await updateLocalJson<Snapshot|Legacy>(FILE,empty(),raw=>{const s=migrate(raw);if(s.state.lease&&Date.parse(s.state.lease.expiresAt)>now)return s;s.state.lease={id:leaseId,expiresAt:new Date(now+LEASE_MS).toISOString()};if(!s.state.startedAt)s.state.startedAt=new Date(now).toISOString();acquired=true;return s})
@@ -65,7 +67,7 @@ export async function synchronizePaymentOrderIndex(options:{maxPages?:number;max
    return x})}
   await merge(recent)
   // Lane 2: at most one durable historical page. There is no detail fanout.
-  if(isBackfill&&Date.now()-now<maxMs){s=await snapshot(true);const page=s.state.nextPage;calls++;const history=await fetchZohoPaymentOrderPage(page,{fetcher:options.fetcher});await merge(history,page)}
+  if(isBackfill&&!options.recentOnly&&Date.now()-now<maxMs){s=await snapshot(true);const page=s.state.nextPage;calls++;const history=await fetchZohoPaymentOrderPage(page,{fetcher:options.fetcher});await merge(history,page)}
  }catch(e){error=e instanceof Error?e.message:'Zoho synchronization failed';const c=await zohoCircuitStatus();await markBackoff(leaseId,c,error)}finally{await updateLocalJson<Snapshot|Legacy>(FILE,empty(),raw=>{const s=migrate(raw);if(s.state.lease?.id===leaseId)delete s.state.lease;return s})}
  return report(await snapshot(true),calls,error)
 }

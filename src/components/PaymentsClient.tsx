@@ -1002,6 +1002,7 @@ export function PaymentsClient({
             ) : (
               <>
                 <OrderCombobox
+                  canRefresh={userRole === "Salesperson"}
                   selected={form.salesOrderId}
                   selectedLabel={
                     form.salesOrderId
@@ -1371,6 +1372,7 @@ function Filter({
   );
 }
 function OrderCombobox({
+  canRefresh = false,
   selected,
   selectedLabel,
   required,
@@ -1378,6 +1380,7 @@ function OrderCombobox({
   onSelect,
   onClear,
 }: {
+  canRefresh?: boolean;
   selected: string;
   selectedLabel?: string;
   required?: boolean;
@@ -1391,7 +1394,8 @@ function OrderCombobox({
     [loading, setLoading] = useState(false),
     [active, setActive] = useState(0),
     [failed, setFailed] = useState(""),
-    [feed, setFeed] = useState<{ source: string; updatedAt: string } | null>(null);
+    [feed, setFeed] = useState<{ source: string; updatedAt: string; syncState: string; lastSyncedAt: string; nextEligibleAt?: string } | null>(null),
+    [refreshing,setRefreshing]=useState(false);
   const request = useRef(0),
     root = useRef<HTMLDivElement>(null),
     input = useRef<HTMLInputElement>(null);
@@ -1425,14 +1429,15 @@ function OrderCombobox({
     setFailed("");
     try {
       const r = await fetch(
-          `/api/payments/open-sales-orders?q=${encodeURIComponent(q)}&limit=25${refresh ? "&refresh=1" : ""}`,
-          { cache: "no-store" },
+          `/api/payments/open-sales-orders?q=${encodeURIComponent(q)}&limit=25`,
+          { cache: "no-store", method: refresh ? "POST" : "GET" },
         ),
         j = await r.json();
       if (id !== request.current) return;
       if (!r.ok) throw new Error(j.error || "Could not load orders");
       setOrders(j.data.orders);
-      setFeed({ source: j.data.source, updatedAt: j.data.updatedAt });
+      setFeed(j.data);
+      if (refresh && r.status === 202) setTimeout(() => void load(q), 1000);
       setActive(0);
     } catch (e) {
       setFailed(e instanceof Error ? e.message : "Could not load orders");
@@ -1536,13 +1541,15 @@ function OrderCombobox({
           >
             ×
           </button>
-          <button
+          {canRefresh && <button
             type="button"
             aria-label="Refresh sales orders"
-            onClick={() => void load(query, true)}
+            className={refreshing ? "is-loading" : ""}
+            disabled={refreshing}
+            onClick={async () => { setRefreshing(true); try { await load(query, true); } finally { setRefreshing(false); } }}
           >
             ↻
-          </button>
+          </button>}
         </div>
       </label>
       {open &&
@@ -1565,9 +1572,9 @@ function OrderCombobox({
               <p className="combo-error">{failed}</p>
             ) : orders.length ? (
               <>
-              <div className={`combo-feed ${feed?.source === "zoho_live" ? "live" : "fallback"}`} role="status">
-                {feed?.source === "zoho_live" ? "Live Zoho Sales Orders" : "Local fallback — not live"}
-                {feed?.updatedAt && <time dateTime={feed.updatedAt}> · {date(feed.updatedAt)}</time>}
+              <div className={`combo-feed ${feed?.syncState === "live" ? "live" : "fallback"}`} role="status">
+                {feed?.syncState === "syncing" ? "Updating indexed Sales Orders…" : feed?.syncState === "live" ? "Live · Updated just now" : feed?.syncState === "backoff" ? "Provider backoff" : `Indexed Sales Orders · Stale${feed?.lastSyncedAt ? " since last update" : ""}`}
+                {feed?.syncState !== "live" && feed?.lastSyncedAt && <time dateTime={feed.lastSyncedAt}> · {date(feed.lastSyncedAt)}</time>}
               </div>
               {orders.map((o, i) => (
                 <button

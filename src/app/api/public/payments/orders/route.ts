@@ -1,5 +1,5 @@
 import { apiError, apiOk } from '@/lib/api'
-import { refreshPaymentOrderIndex, searchPaymentOrders } from '@/lib/payment-order-search'
+import { searchPaymentOrders } from '@/lib/payment-order-search'
 import { checkRateLimit, issueSubmissionToken, publicApiHeaders } from '@/lib/public-payment-security'
 
 export const dynamic = 'force-dynamic'
@@ -14,8 +14,6 @@ export async function GET(request: Request) {
   try {
     // Deliberately uses only the dedicated read-only payment lookup; no state is persisted.
     const url = new URL(request.url)
-    const refresh = url.searchParams.get('refresh') === '1'
-    if (refresh) await refreshPaymentOrderIndex(true)
     const q = String(url.searchParams.get('q') || '').slice(0, 100)
     const limit = Math.min(Number(url.searchParams.get('limit')) || (q ? 25 : 10), 50)
     const result = await searchPaymentOrders(q, limit)

@@ -64,6 +64,7 @@ const indexFetch=async input=>{networkCalls++;const url=String(input);if(url.inc
 let result=await synchronizePaymentOrderIndex({maxPages:1,fetcher:indexFetch});assert.equal(result.complete,false);assert.equal(result.page,2);assert.equal(result.mode,'backfill')
 result=await synchronizePaymentOrderIndex({maxPages:1,fetcher:indexFetch});assert.equal(result.complete,true);assert.equal(result.indexedCount,3,'legacy and resumed backfill rows retained')
 phase='delta';result=await synchronizePaymentOrderIndex({maxPages:1,fetcher:indexFetch});assert.equal(result.mode,'ready');assert.equal(result.callsThisRun,1,'completed history uses only the bounded recent lane');assert.equal(result.indexedCount,4);const canonical=(await searchPaymentOrders('SO-INDEX-2',50)).orders.filter(o=>o.salesOrderNumber==='SO-INDEX-2');assert.equal(canonical.length,1,'Zoho row replaces canonical-number manual row');assert.equal(canonical[0].id,'index-2');assert.equal(canonical[0].orderTotal,25)
+const beforeManual=networkCalls;result=await synchronizePaymentOrderIndex({recentOnly:true,fetcher:indexFetch});assert.equal(networkCalls-beforeManual,1,'manual refresh performs exactly one recent list call');assert.equal(result.callsThisRun,1);assert.equal((await searchPaymentOrders('',10)).syncState,'live','recent success is presented as live indexed mirror')
 
 // Backfill ignores a caller's larger page budget and completed history never
 // restarts page 1 without a modified-time delta filter.
