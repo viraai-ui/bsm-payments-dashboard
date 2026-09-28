@@ -17,6 +17,7 @@
     "verify:auth-quota": "tsx scripts/verify-login-storage-fallback.mts",
     "verify:change-password": "node scripts/verify-change-password.cjs",
     "verify:salesperson-ownership": "node scripts/verify-salesperson-ownership.cjs",
+    "verify:salesperson-search": "tsx scripts/verify-salesperson-order-search.mts",
     "verify:proofs": "node scripts/verify-payment-proofs.cjs",
     "verify:proof-drop": "tsx scripts/verify-proof-drop.mts",
     "verify:github-store": "node --experimental-strip-types scripts/verify-github-data-store.mjs",
