@@ -12,6 +12,7 @@
     "verify:payment-table": "node scripts/verify-payment-table.cjs",
     "verify:settlement": "node --experimental-strip-types scripts/verify-payment-settlement.mjs",
     "verify:cross-role-pending": "tsx scripts/verify-cross-role-pending.mts",
+    "verify:pending-summary": "tsx scripts/verify-pending-summary.mts",
     "verify:auth": "node scripts/verify-auth-roles.cjs",
     "verify:auth-quota": "tsx scripts/verify-login-storage-fallback.mts",
     "verify:change-password": "node scripts/verify-change-password.cjs",

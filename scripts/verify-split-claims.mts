@@ -23,7 +23,7 @@ assert.equal(second?.paymentAmount,600);rows=await listPayments();source=rows.fi
 assert.deepEqual([source.paymentAmount,source.allocatedAmount,source.remainingAmount,source.status],[1000,1000,0,'Unauthorised'])
 assert.equal(rows.filter(p=>p.parentPaymentId===parent.id).length,2)
 assert.equal(source.audit?.filter(e=>e.type==='allocated').length,2)
-const management=managementPaymentMetrics(rows)
+const management=managementPaymentMetrics(rows,[])
 assert.equal(management.find(m=>m.key==='received')?.amount,1000,'children represent the received amount exactly once')
 assert.equal(management.find(m=>m.key==='unauthorised')?.amount,0,'exhausted parent has no unauthorised exposure')
 const viewer=viewerPaymentMetrics(rows,new Date())

@@ -406,7 +406,9 @@ export function PaymentsClient({
   const metrics = useMemo(() => viewerPaymentMetrics(payments), [payments]);
   const regularSummary = useMemo(() => viewerRegularSummary(payments), [payments]);
   const pendingSummary = useMemo(() => viewerPendingTotal(pending), [pending]);
-  const managementMetrics = useMemo(() => managementPaymentMetrics(payments), [payments]);
+  // Headline, tab badge, and rows share the exact same server-scoped collection.
+  // Search/filter state intentionally affects only visiblePending, not the headline.
+  const managementMetrics = useMemo(() => managementPaymentMetrics(payments, pending), [payments, pending]);
   const activeFilters = Object.values(filters).filter(Boolean).length;
   function selectOrder(order: Order, target: "add" | "claim") {
     const outstanding = order.settlement.pendingPayment;
