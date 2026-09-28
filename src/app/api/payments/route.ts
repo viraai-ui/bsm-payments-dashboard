@@ -4,6 +4,8 @@ import { canEditStandaloneUnauthorised, claimPayment, createLinkedPayment, creat
 import { orderSummary } from '@/lib/payment-settlement'
 import { cleanCustomer, cleanRemarks, isPaymentMode, parsePaymentAmount, parseUnauthorisedPaymentInput } from '@/lib/payment-domain'
 import { searchPaymentOrders, validatePaymentOrder } from '@/lib/payment-order-search'
+import { readPaymentOrderMirrorFresh } from '@/lib/payment-order-search'
+import { salespersonOwnsOrder } from '@/lib/salesperson-overview'
 import { deletePaymentProofs, deleteProofAttachments, storeProofFiles, validateProofFiles } from '@/lib/local-payment-proofs'
 import { createClaimNotification, createPaymentNotifications, createStatusNotification, removePaymentNotifications } from '@/lib/payment-notifications'
 export const runtime='nodejs';export const dynamic='force-dynamic';const text=(v:unknown)=>String(v||'').trim()
@@ -25,6 +27,10 @@ export async function POST(request:Request){
  }else{
   const customer=cleanCustomer(b.customerName),remarks=cleanRemarks(b.remarks);if(!customer||amount===null||remarks===null||!isPaymentMode(b.paymentMode))return apiError('Valid linked payment fields are required',400)
   const order=await selectedOrder(b.salesOrderId,b.salesOrderNumber);if(!order)return apiError('Select a valid authoritative sales order',400)
+  if(auth.user.role==='Salesperson'){
+   const mirrored=(await readPaymentOrderMirrorFresh()).orders.find(candidate=>candidate.id===order.id&&candidate.salesOrderNumber===order.salesOrderNumber)
+   if(!mirrored||!salespersonOwnsOrder(mirrored,auth.user))return apiError('This sales order does not belong to your account',403)
+  }
 
   let owner=auth.user;if(auth.user.role==='Admin'){const ownerId=text(b.ownerUserId),users=(await getUserStore()).users;const selected=users.find(u=>u.id===ownerId&&u.active&&u.role==='Salesperson');if(!selected)return apiError('Select an active Salesperson',400);owner=selected}
   // Never consume client-provided owner/name fields for Salesperson requests.

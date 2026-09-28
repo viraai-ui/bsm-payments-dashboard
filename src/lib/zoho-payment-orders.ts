@@ -12,6 +12,9 @@ export type ZohoPaymentOrder = {
   currency: string
   /** Zoho's ordering token. Reconciliation rejects responses older than this value. */
   modifiedTime: string
+  salespersonId?: string
+  salespersonName?: string
+  salespersonEmail?: string
 }
 
 type FetchLike = typeof fetch
@@ -95,18 +98,25 @@ function numericTotal(value: unknown): number | undefined {
   const number = Number(normalized)
   return Number.isFinite(number) ? number : undefined
 }
+function salesperson(row:Record<string,unknown>){
+  const nested=(row.salesperson||row.sales_person||{}) as Record<string,unknown>
+  const id=String(row.salesperson_id||row.sales_person_id||nested.id||nested.salesperson_id||'').trim()
+  const name=String(row.salesperson_name||row.sales_person_name||nested.name||nested.salesperson_name||'').trim()
+  const email=String(row.salesperson_email||row.sales_person_email||nested.email||'').trim().toLowerCase()
+  return {...(id?{salespersonId:id}:{}),...(name?{salespersonName:name}:{}),...(email?{salespersonEmail:email}:{})}
+}
 export function mapZohoPaymentOrder(value: unknown): ZohoPaymentOrder | null {
   const row = (value || {}) as Record<string, unknown>
   const id = String(row.salesorder_id || '').trim(), salesOrderNumber = String(row.salesorder_number || row.reference_number || '').trim()
   const total = numericTotal(row.total)
   if (!id || !salesOrderNumber || total === undefined) return null
-  return { id, salesOrderNumber, customerName: String(row.customer_name || row.company_name || '').trim(), total, orderTotal: total, orderDate: String(row.date || row.created_time || '').slice(0, 10), rawStatus: statusOf(row), currency: String(row.currency_code || row.currency_symbol || 'INR'), modifiedTime: String(row.last_modified_time || row.modified_time || row.updated_time || row.created_time || '') }
+  return { id, salesOrderNumber, customerName: String(row.customer_name || row.company_name || '').trim(), total, orderTotal: total, orderDate: String(row.date || row.created_time || '').slice(0, 10), rawStatus: statusOf(row), currency: String(row.currency_code || row.currency_symbol || 'INR'), modifiedTime: String(row.last_modified_time || row.modified_time || row.updated_time || row.created_time || ''), ...salesperson(row) }
 }
 function mapSummary(value: unknown): Omit<ZohoPaymentOrder, 'total'|'orderTotal'> & { total?: number; orderTotal?: number } | null {
   const row = (value || {}) as Record<string, unknown>, id = String(row.salesorder_id || '').trim(), salesOrderNumber = String(row.salesorder_number || row.reference_number || '').trim()
   if (!id || !salesOrderNumber) return null
   const total = numericTotal(row.total)
-  return { id, salesOrderNumber, customerName: String(row.customer_name || row.company_name || '').trim(), ...(total === undefined ? {} : { total, orderTotal: total }), orderDate: String(row.date || row.created_time || '').slice(0, 10), rawStatus: statusOf(row), currency: String(row.currency_code || row.currency_symbol || 'INR'), modifiedTime: String(row.last_modified_time || row.modified_time || row.updated_time || row.created_time || '') }
+  return { id, salesOrderNumber, customerName: String(row.customer_name || row.company_name || '').trim(), ...(total === undefined ? {} : { total, orderTotal: total }), orderDate: String(row.date || row.created_time || '').slice(0, 10), rawStatus: statusOf(row), currency: String(row.currency_code || row.currency_symbol || 'INR'), modifiedTime: String(row.last_modified_time || row.modified_time || row.updated_time || row.created_time || ''), ...salesperson(row) }
 }
 export async function fetchZohoPaymentOrderPage(page:number,options:{modifiedSince?:string;fetcher?:FetchLike;newestFirst?:boolean;pageSize?:number;statusAll?:boolean}={}){
   // New-order discovery must use creation order. last_modified_time page 1 is

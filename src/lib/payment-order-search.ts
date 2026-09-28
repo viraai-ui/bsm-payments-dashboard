@@ -5,7 +5,8 @@ import { zohoCircuitStatus } from './zoho-circuit'
 
 const FILE='payment-order-index.json',PER_PAGE=200,LEASE_MS=4*60_000,FRESH_MS=15*60_000
 export type PaymentOrderSuggestion={id:string;salesOrderNumber:string;customerName:string;rawStatus:string;status:'Open'|'Closed'|'Status unknown';orderDate:string;total:number;orderTotal:number;currency:string;modifiedTime:string}
-type StoredOrder={id:string;salesOrderNumber:string;customerName:string;status:string;orderDate:string;orderTotal:number;currency:string;modifiedTime:string}
+export type StoredPaymentOrder={id:string;salesOrderNumber:string;customerName:string;status:string;orderDate:string;orderTotal:number;currency:string;modifiedTime:string;salespersonId?:string;salespersonName?:string;salespersonEmail?:string}
+type StoredOrder=StoredPaymentOrder
 type State={schema:2;mode:'backfill'|'delta'|'ready'|'backoff';nextPage:number;perPage:200;startedAt:string;completedAt:string;highWatermark:string;lastSuccessfulSync:string;recencyVerifiedAt?:string;nextEligibleAt:string;failureClass:string;failureCount:number;pagesProcessed:number;rowsSeen:number;lease?:{id:string;expiresAt:string};deltaSince?:string;deltaMax?:string}
 type Snapshot={version:2;updatedAt:string;orders:Record<string,StoredOrder>;state:State}
 type Legacy={version:1;updatedAt:string;orders:Array<Omit<StoredOrder,'currency'|'modifiedTime'>>}
@@ -19,7 +20,7 @@ function migrate(value:Snapshot|Legacy|unknown):Snapshot{
  out.updatedAt=v.updatedAt||'';return out
 }
 function safe(o:StoredOrder|ZohoPaymentOrder):PaymentOrderSuggestion{const rawStatus='rawStatus'in o?o.rawStatus:o.status,orderTotal=Number(o.orderTotal);return{id:o.id,salesOrderNumber:o.salesOrderNumber,customerName:o.customerName,rawStatus,status:paymentOrderStatus(rawStatus),orderDate:o.orderDate,total:orderTotal,orderTotal,currency:o.currency||'INR',modifiedTime:o.modifiedTime||''}}
-function stored(o:{id:string;salesOrderNumber:string;customerName:string;rawStatus:string;orderDate:string;orderTotal?:number;total?:number;currency:string;modifiedTime:string}):StoredOrder|null{const total=Number(o.orderTotal??o.total);return Number.isFinite(total)?{id:o.id,salesOrderNumber:o.salesOrderNumber,customerName:o.customerName,status:o.rawStatus,orderDate:o.orderDate,orderTotal:total,currency:o.currency||'INR',modifiedTime:o.modifiedTime||''}:null}
+function stored(o:{id:string;salesOrderNumber:string;customerName:string;rawStatus:string;orderDate:string;orderTotal?:number;total?:number;currency:string;modifiedTime:string;salespersonId?:string;salespersonName?:string;salespersonEmail?:string}):StoredOrder|null{const total=Number(o.orderTotal??o.total);return Number.isFinite(total)?{id:o.id,salesOrderNumber:o.salesOrderNumber,customerName:o.customerName,status:o.rawStatus,orderDate:o.orderDate,orderTotal:total,currency:o.currency||'INR',modifiedTime:o.modifiedTime||'',...(o.salespersonId?{salespersonId:o.salespersonId}:{}),...(o.salespersonName?{salespersonName:o.salespersonName}:{}),...(o.salespersonEmail?{salespersonEmail:o.salespersonEmail}:{})}:null}
 function newer(old:StoredOrder|undefined,next:StoredOrder){if(!old)return true;const a=Date.parse(old.modifiedTime)||0,b=Date.parse(next.modifiedTime)||0;return b>a||(b===a&&JSON.stringify(old)!==JSON.stringify(next))}
 const canonicalOrderNumber=(value:string)=>value.replace(/[^a-z0-9]/gi,'').toUpperCase()
 /** A temporary/manual row is keyed differently from the eventual Zoho row.
@@ -31,6 +32,7 @@ function mergeCanonicalOrder(orders:Record<string,StoredOrder>,next:StoredOrder)
  if(newer(orders[next.id],next))orders[next.id]=next
 }
 async function snapshot(fresh=false){return migrate(await(fresh?readLocalJsonFresh:readLocalJson)(FILE,empty()))}
+export async function readPaymentOrderMirrorFresh(){const s=await snapshot(true);return{orders:Object.values(s.orders),updatedAt:s.updatedAt,lastSyncedAt:s.state.lastSuccessfulSync||s.updatedAt,recencyVerifiedAt:s.state.recencyVerifiedAt||''}}
 export async function searchPaymentOrders(query='',limit=10){
  const started=performance.now(),s=await snapshot(),all=Object.values(s.orders).map(safe),bounded=Math.max(1,Math.min(limit,50)),orders=rankPaymentOrderSuggestions(all,query,bounded)
  const status=await paymentOrderIndexStatus(s)

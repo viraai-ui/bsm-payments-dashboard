@@ -270,6 +270,22 @@ export function PaymentsClient({
       window.dispatchEvent(new CustomEvent("payment:open", { detail: id }));
     }
   }, []);
+  useEffect(() => {
+    const url = new URL(window.location.href), id = url.searchParams.get("addOrderId"), number = url.searchParams.get("addOrderNumber");
+    if (!id || !number || userRole !== "Salesperson") return;
+    const controller = new AbortController();
+    void (async () => {
+      try {
+        const response = await fetch(`/api/payments/open-sales-orders?q=${encodeURIComponent(number)}&limit=50`, { cache: "no-store", signal: controller.signal });
+        const json = await response.json();
+        if (!response.ok) throw new Error(json.error || "Could not load this sales order");
+        const order = (json.data.orders as Order[]).find(candidate => candidate.id === id && candidate.salesOrderNumber === number);
+        if (!order) throw new Error("This sales order is unavailable or no longer belongs to your payment workflow.");
+        setPaymentType("regular"); setForm(emptyForm()); setProofs([]); setError(""); submissionKey.current = crypto.randomUUID(); selectOrder(order, "add"); setOpen(true);
+      } catch (cause) { if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "Could not load this sales order"); }
+    })();
+    return () => controller.abort();
+  }, [userRole]);
   const selectTab = useCallback((next: Tab, history: "push" | "replace" | "none" = "push", statusFilter?: string) => {
     setTab(next);
     setFilters((current) => ({ ...current, status: statusFilter ?? (next === "all" ? current.status : "") }));

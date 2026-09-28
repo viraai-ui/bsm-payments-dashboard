@@ -33,9 +33,11 @@ export function sortPayments<T extends SettlementPayment>(payments:T[]){return [
 export function paymentMatchesSearch(payment:SettlementPayment,query:string,all:SettlementPayment[]){const q=query.trim().toLowerCase();if(!q)return true;const summary=payment.salesOrderNumber?orderSummary(all,payment.salesOrderNumber):undefined;return [payment.customerName,payment.salesOrderNumber,payment.paymentAmount,payment.orderTotal,summary?.orderTotal,summary?.received,summary?.outstanding,payment.paymentMode,payment.remarks,payment.paymentDate,payment.createdAt,paymentStatusLabel(payment.status)].some(v=>String(v??'').toLowerCase().includes(q))}
 
 export function orderSummary(payments:SettlementPayment[], so:string, orderTotal?:number, salesOrderId?:string){
-  // Match either immutable Zoho id or normalized SO number. A receipt is visited
-  // once by filter even if both identifiers match, preventing double counting.
-  const linked=payments.filter(p=>(Boolean(salesOrderId)&&p.salesOrderId===salesOrderId)||sameOrder(p.salesOrderNumber,so))
+  // Immutable ERP ID is authoritative. Number fallback exists only for legacy
+  // receipts that have no ID; a conflicting ID must never cross-link by number.
+  const linked=payments.filter(p=>salesOrderId
+    ? (p.salesOrderId ? p.salesOrderId===salesOrderId : sameOrder(p.salesOrderNumber,so))
+    : sameOrder(p.salesOrderNumber,so))
   // Storage order is not authoritative: legacy rows may carry old snapshots.
   const storedTotal=[...linked].filter(p=>p.orderTotal!==undefined).sort((a,b)=>(b.createdAt||b.paymentDate||'').localeCompare(a.createdAt||a.paymentDate||'')||(b.id||'').localeCompare(a.id||''))[0]?.orderTotal
   // Explicit orderTotal is authoritative Zoho data; persisted totals are fallback only.

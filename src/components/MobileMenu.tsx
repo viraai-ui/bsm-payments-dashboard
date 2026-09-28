@@ -4,9 +4,10 @@ import { useEffect, useRef, useState } from 'react'
 import type { SafeUser } from '@/lib/auth'
 import { NotificationCenter } from './NotificationCenter'
 
-export type NavItem = { label: string; href: string; icon?: 'payments' | 'settings' }
+export type NavItem = { label: string; href: string; icon?: 'overview' | 'payments' | 'settings' }
 
 export function NavIcon({ icon }: { icon?: NavItem['icon'] }) {
+  if(icon==='overview')return <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" aria-hidden="true"><path d="M4 19V9m6 10V5m6 14v-7m4 7H2"/></svg>
   if (icon === 'payments') return <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 9h18M7 15h4"/></svg>
   if (icon === 'settings') return <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19 14.5a2 2 0 0 0 .4 2.2l.1.1-2.7 2.7-.1-.1a2 2 0 0 0-2.2-.4 2 2 0 0 0-1.2 1.8V21H9.5v-.2A2 2 0 0 0 8.3 19a2 2 0 0 0-2.2.4l-.1.1-2.7-2.7.1-.1a2 2 0 0 0 .4-2.2A2 2 0 0 0 2 13.3H2V9.5h.2A2 2 0 0 0 4 8.3a2 2 0 0 0-.4-2.2L3.5 6l2.7-2.7.1.1A2 2 0 0 0 8.5 4 2 2 0 0 0 9.7 2.2V2h3.8v.2A2 2 0 0 0 14.7 4a2 2 0 0 0 2.2-.4l.1-.1L19.7 6l-.1.1a2 2 0 0 0-.4 2.2 2 2 0 0 0 1.8 1.2h.2v3.8H21a2 2 0 0 0-2 1.2Z"/></svg>
   return null
@@ -63,10 +64,11 @@ export function MobileMenu({ active, onLogout, user }: { nav: NavItem[]; utility
     unauthorised: 'Unauthorised Payments',
     pending: 'Pending Payments',
   } as const
-  const screenLabel = active === 'Settings' ? 'Settings' : paymentScreenLabels[paymentTab]
+  const screenLabel = active === 'Settings' ? 'Settings' : active==='Overview'?'Overview':paymentScreenLabels[paymentTab]
+  const salespersonDestinations = ([['overview','Overview'],['all','Regular Payments'],['unauthorised','Unauthorised'],['pending','Pending Payments']] as const)
   return <>
     <header className="mobile-appbar" data-mobile-app-header>
-      <a className="mobile-brand" href="/payments" aria-label="BSM Payments home">
+      <a className="mobile-brand" href={user.role==='Salesperson'?'/overview':'/payments'} aria-label="BSM Payments home">
         <img className="mobile-logo bsm-brand-logo" src="/brand/bsm-logo.png" alt="BSM" />
         <strong>{screenLabel}</strong>
       </a>
@@ -84,10 +86,10 @@ export function MobileMenu({ active, onLogout, user }: { nav: NavItem[]; utility
         </div>
       </section>
     </div>}
-    <nav className="mobile-bottom-nav" aria-label="Payment navigation">
+    {user.role==='Salesperson'?<nav className="mobile-bottom-nav salesperson-bottom-nav" aria-label="Salesperson navigation">{salespersonDestinations.map(([key,label])=>key==='overview'?<a key={key} className={active==='Overview'?'active':''} aria-current={active==='Overview'?'page':undefined} href="/overview"><span className="nav-icon-box"><PaymentTabIcon tab="overview"/></span><span>{label}</span></a>:active==='Payments'?<button key={key} type="button" aria-label={label} className={paymentTab===key?'active':''} aria-current={paymentTab===key?'page':undefined} onClick={()=>window.dispatchEvent(new CustomEvent('payment:select-tab',{detail:key}))}><span className="nav-icon-box"><PaymentTabIcon tab={key}/></span><span>{label}</span></button>:<a key={key} href={`/payments?view=${key==='all'?'regular':key}`} aria-label={label}><span className="nav-icon-box"><PaymentTabIcon tab={key}/></span><span>{label}</span></a>)}</nav>:<nav className="mobile-bottom-nav" aria-label="Payment navigation">
       {destinations.map(([key,label]) => active === 'Payments'
         ? <button type="button" key={key} aria-label={label} className={paymentTab===key?'active':''} aria-current={paymentTab===key?'page':undefined} onClick={() => window.dispatchEvent(new CustomEvent('payment:select-tab',{detail:key}))}><span className="nav-icon-box"><PaymentTabIcon tab={key}/></span><span>{key === 'all' ? 'Regular' : label}</span></button>
         : <a key={key} href={`/payments${key === 'overview' ? '' : `?view=${key === 'all' ? 'regular' : key}`}`} aria-label={label}><span className="nav-icon-box"><PaymentTabIcon tab={key}/></span><span>{key === 'all' ? 'Regular' : label}</span></a>)}
-    </nav>
+    </nav>}
   </>
 }

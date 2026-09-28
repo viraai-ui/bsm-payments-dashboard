@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { jwtVerify } from 'jose'
 import { authKey, SESSION_COOKIE_NAME } from './lib/auth-config'
 
-const protectedRoutes = ['/', '/payments', '/settings']
+const protectedRoutes = ['/', '/overview', '/payments', '/settings']
 const explicitlyPublicRoutes = ['/submit-payment']
 
 export async function proxy(request: NextRequest) {

@@ -12,7 +12,7 @@ const databaseOnlyPath = '/database'
 const accountsOnlyPath = '/payments'
 const mediaAllowedPaths = ['/media-proof']
 const adminOnlyPaths: string[] = ['/salesman-view']
-function homeForRole(_role: string) { return '/payments' }
+function homeForRole(role: string) { return role==='Salesperson'?'/overview':'/payments' }
 
 export function useAuth() {
   const value = useContext(AuthContext)
@@ -37,6 +37,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!user) return
     if (pathname === '/settings' && !['Admin', 'Accounts', 'Salesperson'].includes(user.role)) router.replace('/payments')
+    if(pathname==='/overview'&&user.role!=='Salesperson')router.replace('/payments')
   }, [pathname, router, user])
 
   async function refreshSession() {
@@ -93,5 +94,6 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   }
 
   if (pathname === '/settings' && !['Admin', 'Accounts', 'Salesperson'].includes(user.role)) return null
+  if(pathname==='/overview'&&user.role!=='Salesperson')return null
   return <AuthContext.Provider value={{ user, logout }}>{children}</AuthContext.Provider>
 }
