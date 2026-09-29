@@ -2,7 +2,7 @@ import { getUserStore, type AppRole } from './auth'
 import { createHash } from 'node:crypto'
 import { readLocalJsonFresh, updateLocalJson } from './local-store'
 import type { Payment, PaymentStatus } from './payments'
-import { activePaymentPushSubscriptions, createPushOutboxItem, sendPaymentPushNotifications, type PushOutboxItem } from './payment-push'
+import { activePaymentPushSubscriptions, createPushOutboxItem, type PushOutboxItem } from './payment-push'
 import { paymentCustomerLabel } from './payment-domain'
 
 export type NotificationType = 'linked-payment-created' | 'boss-payment-created' | 'unauthorised-created' | 'payment-claimed' | 'status-received' | 'status-pending' | 'status-void' | 'system-test'
@@ -57,7 +57,10 @@ async function notify(payment: Payment, type: NotificationType, recipients: Arra
     const jobIds = new Set((store.pushOutbox || []).map(item => item.id))
     return { notifications: [...made, ...store.notifications].slice(0, 2000), pushOutbox: [...jobs.filter(item => !jobIds.has(item.id)), ...(store.pushOutbox || [])].slice(0, 8000) }
   })
-  if (made.length) await sendPaymentPushNotifications(made).catch(error => console.error('Payment push dispatch failed', error))
+  // Notification rows and one stable job per device are durable before this
+  // function returns. Network delivery belongs to the authenticated retry cron:
+  // awaiting a push provider here makes a successful ledger write look slow (or
+  // failed) and encourages unsafe duplicate submissions.
   return made
 }
 
