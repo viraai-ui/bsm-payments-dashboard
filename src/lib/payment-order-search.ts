@@ -32,6 +32,8 @@ function mergeCanonicalOrder(orders:Record<string,StoredOrder>,next:StoredOrder)
  if(newer(orders[next.id],next))orders[next.id]=next
 }
 async function snapshot(fresh=false){return migrate(await(fresh?readLocalJsonFresh:readLocalJson)(FILE,empty()))}
+/** Resilient dashboard read. Explicit synchronization paths use the fresh form. */
+export async function readPaymentOrderMirror(){const s=await snapshot();return{orders:Object.values(s.orders),updatedAt:s.updatedAt,lastSyncedAt:s.state.lastSuccessfulSync||s.updatedAt,recencyVerifiedAt:s.state.recencyVerifiedAt||''}}
 export async function readPaymentOrderMirrorFresh(){const s=await snapshot(true);return{orders:Object.values(s.orders),updatedAt:s.updatedAt,lastSyncedAt:s.state.lastSuccessfulSync||s.updatedAt,recencyVerifiedAt:s.state.recencyVerifiedAt||''}}
 export async function searchPaymentOrders(query='',limit=10){
  const started=performance.now(),s=await snapshot(),all=Object.values(s.orders).map(safe),bounded=Math.max(1,Math.min(limit,50)),orders=rankPaymentOrderSuggestions(all,query,bounded)

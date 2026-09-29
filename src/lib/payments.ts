@@ -52,7 +52,9 @@ export async function listPaymentsForUser(user:SafeUser){const all=await listPay
 function visiblePaymentsForUser(all:Payment[],user:SafeUser){return user.role==='Salesperson'?all.filter(p=>p.status==='Unauthorised'||isPaymentOwnedBy(p,user)):all}
 export async function paymentReadModelForUserFresh(user:SafeUser){
  const users=(await getUserStore()).users
- const stored=withAllocationBalances((await readLocalJsonFresh(FILE,EMPTY)).payments)
+ // Dashboard polling uses the resilient cache/bundled baseline. Mutations retain
+ // authoritative compare-and-swap reads and continue to fail closed.
+ const stored=withAllocationBalances((await readLocalJson(FILE,EMPTY)).payments)
  // Receipt amounts/history stay immutable; only the read projection receives current Zoho metadata.
  const {readSalesOrderSnapshots,applySalesOrderSnapshots}=await import('./sales-order-reconciliation')
  // Dashboard polling must remain read-only. Background reconciliation refreshes

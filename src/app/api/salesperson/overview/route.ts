@@ -1,7 +1,7 @@
 import { apiError, apiOk } from '@/lib/api'
 import { getSessionUser } from '@/lib/auth'
 import { listPayments } from '@/lib/payments'
-import { readPaymentOrderMirrorFresh, synchronizePaymentOrderIndex } from '@/lib/payment-order-search'
+import { readPaymentOrderMirror, readPaymentOrderMirrorFresh, synchronizePaymentOrderIndex } from '@/lib/payment-order-search'
 import { selectSalespersonOverview } from '@/lib/salesperson-overview'
 import { checkRateLimit } from '@/lib/public-payment-security'
 
@@ -12,7 +12,7 @@ export async function GET(){
  if(!user)return apiError('Authentication required',401)
  if(user.role!=='Salesperson')return apiError('Salesperson access required',403)
  try{
-  const [mirror,payments]=await Promise.all([readPaymentOrderMirrorFresh(),listPayments()])
+  const [mirror,payments]=await Promise.all([readPaymentOrderMirror(),listPayments()])
   const response=apiOk(selectSalespersonOverview(mirror.orders,payments,user,mirror))
   response.headers.set('Cache-Control','private, no-store, max-age=0, must-revalidate')
   response.headers.set('Vary','Cookie')
