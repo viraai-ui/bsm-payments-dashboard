@@ -94,7 +94,10 @@ export async function refreshLatestTenPaymentOrders(fetcher:typeof fetch=fetch){
 }
 
 async function markBackoff(id:string,c:{failureClass:string;failureCount:number;nextEligibleAt:string},message=''){await updateLocalJson<Snapshot|Legacy>(FILE,empty(),raw=>{const s=migrate(raw);if(s.state.lease?.id!==id)return s;s.state.mode='backoff';s.state.failureClass=c.failureClass||'request';s.state.failureCount=c.failureCount||1;s.state.nextEligibleAt=c.nextEligibleAt;s.updatedAt=new Date().toISOString();void message;return s})}
-function report(s:Snapshot,calls:number,error=''){return{indexedCount:Object.keys(s.orders).length,mode:s.state.mode,page:s.state.nextPage,perPage:s.state.perPage,pagesProcessed:s.state.pagesProcessed,rowsSeen:s.state.rowsSeen,complete:Boolean(s.state.completedAt),lastSyncedAt:s.state.lastSuccessfulSync,watermark:s.state.highWatermark,callsThisRun:calls,nextEligibleAt:s.state.nextEligibleAt,error:error||undefined}}
+function report(s:Snapshot,calls:number,error=''){
+ const newest=Object.values(s.orders).sort((a,b)=>b.orderDate.localeCompare(a.orderDate)||b.salesOrderNumber.localeCompare(a.salesOrderNumber))[0]
+ return{indexedCount:Object.keys(s.orders).length,mode:s.state.mode,page:s.state.nextPage,perPage:s.state.perPage,pagesProcessed:s.state.pagesProcessed,rowsSeen:s.state.rowsSeen,complete:Boolean(s.state.completedAt),mirrorUpdatedAt:s.updatedAt,lastSyncedAt:s.state.lastSuccessfulSync,recencyVerifiedAt:s.state.recencyVerifiedAt||'',watermark:s.state.highWatermark,callsThisRun:calls,nextEligibleAt:s.state.nextEligibleAt,failureClass:s.state.failureClass,newest:newest?{id:newest.id,salesOrderNumber:newest.salesOrderNumber,orderDate:newest.orderDate,owner:newest.salespersonName||newest.salespersonEmail||''}:null,error:error||undefined}
+}
 /** Prefer a live detail read. During provider backoff, accept only the exact
  * ID/number/customer tuple persisted by the server-side index. Client totals
  * and customer names are never accepted as authority. */
