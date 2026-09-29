@@ -68,7 +68,7 @@ await writeFile(indexFile,JSON.stringify({version:1,updatedAt:legacyAt,orders:[{
 let networkCalls=0
 const local=await searchPaymentOrders('legacy',10);assert.equal(local.orders[0].id,'legacy');assert.equal(networkCalls,0,'local index search makes zero Zoho calls')
 
-// Checkpoint a backfill, resume it, then run/resume an overlapping delta.
+// Scheduler synchronization permanently runs only the newest-created page.
 resetZohoPaymentOrdersForTests();await recordZohoSuccess()
 const times=['2026-09-21T10:00:00.000Z','2026-09-22T10:00:00.000Z','2026-09-23T10:00:00.000Z']
 let phase='backfill',deltaSince=[]
@@ -78,9 +78,9 @@ const indexFetch=async input=>{networkCalls++;const url=String(input);if(url.inc
  const pageContext=has_more_page=>({page,has_more_page,sort_column:parsed.searchParams.get('sort_column'),sort_order:parsed.searchParams.get('sort_order')})
  if(phase==='backfill')return Response.json({salesorders:page===1?[item(1,times[0],10)]:[item(2,times[1],20)],page_context:pageContext(page===1)})
  return Response.json({salesorders:page===1?[item(2,times[2],25),item(3,times[2],30)]:[],page_context:pageContext(false)})}
-let result=await synchronizePaymentOrderIndex({maxPages:1,fetcher:indexFetch});assert.equal(result.complete,false);assert.equal(result.page,2);assert.equal(result.mode,'backfill')
-result=await synchronizePaymentOrderIndex({maxPages:1,fetcher:indexFetch});assert.equal(result.complete,true);assert.equal(result.indexedCount,3,'legacy and resumed backfill rows retained')
-phase='delta';result=await synchronizePaymentOrderIndex({maxPages:1,fetcher:indexFetch});assert.equal(result.mode,'ready');assert.equal(result.callsThisRun,1,'completed history uses only the bounded recent lane');assert.equal(result.indexedCount,4);const canonical=(await searchPaymentOrders('SO-INDEX-2',50)).orders.filter(o=>o.salesOrderNumber==='SO-INDEX-2');assert.equal(canonical.length,1,'Zoho row replaces canonical-number manual row');assert.equal(canonical[0].id,'index-2');assert.equal(canonical[0].orderTotal,25)
+let result=await synchronizePaymentOrderIndex({maxPages:99,fetcher:indexFetch});assert.equal(result.complete,false);assert.equal(result.page,1);assert.equal(result.mode,'backfill');assert.equal(result.callsThisRun,1)
+result=await synchronizePaymentOrderIndex({maxPages:99,fetcher:indexFetch});assert.equal(result.complete,false);assert.equal(result.page,1);assert.equal(result.callsThisRun,1,'even an unbounded caller cannot activate historical pagination')
+phase='delta';result=await synchronizePaymentOrderIndex({maxPages:1,fetcher:indexFetch});assert.equal(result.mode,'backfill');assert.equal(result.callsThisRun,1,'incomplete history still uses only the bounded recent lane');assert.equal(result.indexedCount,4);const canonical=(await searchPaymentOrders('SO-INDEX-2',50)).orders.filter(o=>o.salesOrderNumber==='SO-INDEX-2');assert.equal(canonical.length,1,'Zoho row replaces canonical-number manual row');assert.equal(canonical[0].id,'index-2');assert.equal(canonical[0].orderTotal,25)
 const beforeManual=networkCalls;result=await synchronizePaymentOrderIndex({recentOnly:true,fetcher:indexFetch});assert.equal(networkCalls-beforeManual,1,'manual refresh performs exactly one recent list call');assert.equal(result.callsThisRun,1);assert.equal((await searchPaymentOrders('',10)).syncState,'live','recent success is presented as live indexed mirror')
 
 // A provider-shaped newest-created page ingests the authoritative four rows,
@@ -98,11 +98,10 @@ assert.equal((await searchPaymentOrders('SO-08042',10)).orders[0].status,'Closed
 const ignoredSortFetch=async input=>{const url=String(input);if(url.includes('/oauth/'))return Response.json({access_token:'ignored',expires_in:3600});return Response.json({salesorders:[latest[3],latest[0]],page_context:{page:1,has_more_page:true,sort_column:'last_modified_time',sort_order:'D'}})}
 resetZohoPaymentOrdersForTests();result=await synchronizePaymentOrderIndex({recentOnly:true,fetcher:ignoredSortFetch});assert.match(result.error,/did not prove newest-created/);assert.equal((await searchPaymentOrders('',10)).syncState,'stale','ignored sort is never reported Live')
 
-// Backfill ignores a caller's larger page budget and completed history never
-// restarts page 1 without a modified-time delta filter.
+// No caller-provided page budget can activate historical pagination.
 await writeFile(indexFile,JSON.stringify({version:2,updatedAt:'',orders:{},state:{schema:2,mode:'backfill',nextPage:1,perPage:200,startedAt:'',completedAt:'',highWatermark:'',lastSuccessfulSync:'',nextEligibleAt:'',failureClass:'',failureCount:0,pagesProcessed:0,rowsSeen:0}}))
-phase='backfill';const beforeBudget=networkCalls;result=await synchronizePaymentOrderIndex({maxPages:10,fetcher:indexFetch});assert.equal(networkCalls-beforeBudget,2,'run has one recent plus one historical list-call budget');assert.equal(result.page,2)
-await synchronizePaymentOrderIndex({maxPages:10,fetcher:indexFetch});phase='delta';const beforeReady=networkCalls;await synchronizePaymentOrderIndex({maxPages:1,fetcher:indexFetch});assert.equal(networkCalls-beforeReady,1,'completed history retains the recent lane')
+phase='backfill';const beforeBudget=networkCalls;result=await synchronizePaymentOrderIndex({maxPages:10,fetcher:indexFetch});assert.equal(networkCalls-beforeBudget,1,'run has exactly one recent list-call budget');assert.equal(result.page,1)
+phase='delta';const beforeReady=networkCalls;await synchronizePaymentOrderIndex({maxPages:1,fetcher:indexFetch});assert.equal(networkCalls-beforeReady,1,'every scheduler run retains exactly one recent lane')
 
 // Durable circuit prevents all calls, and leases are released even on the
 // early backoff return. Future leases block; expired leases are recoverable.

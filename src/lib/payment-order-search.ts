@@ -71,8 +71,10 @@ export async function synchronizePaymentOrderIndex(options:{maxPages?:number;max
    if(historyPage!==undefined){if(result.hasMore){x.state.nextPage=historyPage+1;x.state.mode='backfill'}else{x.state.completedAt=at;x.state.nextPage=1;x.state.mode='ready'}}
    return x})}
   await merge(recent)
-  // Lane 2: at most one durable historical page. There is no detail fanout.
-  if(isBackfill&&!options.recentOnly&&Date.now()-now<maxMs){s=await snapshot(true);const page=s.state.nextPage;calls++;const history=await fetchZohoPaymentOrderPage(page,{fetcher:options.fetcher});await merge(history,page)}
+  // Historical ingestion is intentionally absent from request/scheduler code.
+  // Backfills must be explicit offline/admin checkpoint jobs with their own
+  // reviewed hard budget; no browser, cron, or agent can activate a lane here.
+  void isBackfill;void maxMs;void options.maxPages
  }catch(e){error=e instanceof Error?e.message:'Zoho synchronization failed';const c=await zohoCircuitStatus();await markBackoff(leaseId,c,error)}finally{await updateLocalJson<Snapshot|Legacy>(FILE,empty(),raw=>{const s=migrate(raw);if(s.state.lease?.id===leaseId)delete s.state.lease;return s})}
  return report(await snapshot(true),calls,error)
 }

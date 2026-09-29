@@ -1,4 +1,5 @@
 import { assertZohoEligible, recordZohoFailure, recordZohoSuccess } from './zoho-circuit'
+import { reserveZohoBusinessCall } from './zoho-budget'
 
 export type ZohoPaymentOrder = {
   id: string
@@ -62,6 +63,13 @@ async function zohoGet(fetcher: FetchLike, path: string, maxAttempts=RETRIES): P
   let last: unknown
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
+      // Reserve before every attempted Inventory API call (including retries).
+      // OAuth refreshes are amortized and are not Inventory business calls.
+      const budget=await reserveZohoBusinessCall()
+      if(!budget.allowed){
+        await recordZohoFailure(429,'Payments Zoho daily call budget exhausted',Math.max(1,Math.ceil((Date.parse(budget.nextResetAt)-Date.now())/1000)))
+        throw new ZohoQuotaError('Payments Zoho daily call budget exhausted')
+      }
       const response = await fetchTimed(fetcher, url, { headers: { Authorization: `Zoho-oauthtoken ${token}`, 'X-com-zoho-inventory-organizationid': process.env.ZOHO_ORGANIZATION_ID! }, cache: 'no-store' })
       const data = await response.json() as ZohoResponse
       if (response.status === 401 && attempt === 0) { token = await accessToken(fetcher, true); continue }
@@ -132,7 +140,9 @@ export async function fetchZohoPaymentOrderPage(page:number,options:{modifiedSin
   const params=new URLSearchParams({per_page:String(pageSize),page:String(page),sort_column:sortColumn,sort_order:sortOrder})
   if(options.statusAll)params.set('filter_by','Status.All')
   if(options.modifiedSince)params.set('last_modified_time',options.modifiedSince)
-  const data=await zohoGet(options.fetcher||fetch,`/inventory/v1/salesorders?${params}`),rows=data.salesorders||[]
+  // Ingestion is deliberately single-attempt: one scheduler invocation can
+  // issue at most one provider business call and never amplifies a failure.
+  const data=await zohoGet(options.fetcher||fetch,`/inventory/v1/salesorders?${params}`,1),rows=data.salesorders||[]
   if(!Array.isArray(rows))throw new Error(`Invalid Zoho sales-order page ${page}`)
   if(data.page_context?.page&&Number(data.page_context.page)!==page)throw new Error(`Unexpected Zoho pagination response on page ${page}`)
   let recencyVerified=false

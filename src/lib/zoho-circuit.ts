@@ -18,7 +18,9 @@ export async function recordZohoFailure(status:number,message:string,retryAfterS
   const count=Math.min(12,(s.failureCount||0)+1)
   const base=failureClass==='quota'?60*60_000:failureClass==='auth'?30*60_000:60_000
   const bounded=Math.min(failureClass==='quota'?24*60*60_000:60*60_000,base*2**Math.min(count-1,8))
-  const delay=Math.max(bounded,(retryAfterSeconds||0)*1000)
+  // Zoho's X-Rate-Limit-Reset is a duration in seconds, not an epoch.
+  const supplied=Number.isFinite(retryAfterSeconds)&&Number(retryAfterSeconds)>0?Number(retryAfterSeconds)*1000:0
+  const delay=Math.max(bounded,supplied)
   return {...s,version:1 as const,failureClass,failureCount:count,lastFailureAt:now.toISOString(),nextEligibleAt:new Date(now.getTime()+delay).toISOString()}
  })
 }
