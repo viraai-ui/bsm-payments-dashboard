@@ -1,4 +1,4 @@
-import { getUserStore, type AppRole } from './auth'
+import { getUserStore, isSalesRole, type AppRole } from './auth'
 import { createHash } from 'node:crypto'
 import { readLocalJsonFresh, updateLocalJson } from './local-store'
 import type { Payment, PaymentStatus } from './payments'
@@ -72,11 +72,11 @@ export async function createPaymentNotifications(payment: Payment, creator: stri
   const actor = users.find(user => user.id === creator && user.active)
   if (payment.status === 'Unauthorised') {
     if (!actor || (actor.role !== 'Admin' && actor.role !== 'Accounts')) return []
-    const recipients = users.filter(user => user.active && user.role === 'Salesperson')
+    const recipients = users.filter(user => user.active && isSalesRole(user.role))
     const reference = payment.utrReference ? ` • UTR / Reference: ${payment.utrReference}` : ''
     return notify(payment, 'unauthorised-created', recipients, 'Unauthorised payment added', `${paymentSummary(payment)}${reference} • Available to claim`, `unauthorised-created:${payment.id}`, '/payments?view=unauthorised')
   }
-  if (!actor || actor.role !== 'Salesperson' || !payment.salesOrderNumber || (payment.status !== 'Pending' && payment.status !== 'Payment Received')) return []
+  if (!actor || !isSalesRole(actor.role) || !payment.salesOrderNumber || (payment.status !== 'Pending' && payment.status !== 'Payment Received')) return []
   const recipients = users.filter(user => user.active && user.id !== creator && (user.role === 'Admin' || user.role === 'Accounts' || user.role === 'Viewer'))
   const title = payment.status === 'Payment Received' ? 'New payment received' : 'New payment added'
   const body = `${formatPaymentAmount(payment.paymentAmount)} from ${paymentCustomerLabel(payment.customerName)} • Sales Order ${payment.salesOrderNumber}`
@@ -87,7 +87,7 @@ export async function createPaymentNotifications(payment: Payment, creator: stri
 export async function createStatusNotification(payment: Payment, status: 'Pending' | 'Payment Received' | 'Void', previousStatus?: PaymentStatus) {
   if (status === 'Pending' || status === previousStatus) return []
   const ownerId = payment.ownerUserId || payment.claimedBy || payment.createdBy
-  const owner = (await getUserStore()).users.find(user => user.id === ownerId && user.active && user.role === 'Salesperson')
+  const owner = (await getUserStore()).users.find(user => user.id === ownerId && user.active && isSalesRole(user.role))
   if (!owner) return []
   const amountCompany = `${formatPaymentAmount(payment.paymentAmount)} from ${paymentCustomerLabel(payment.customerName)}${payment.salesOrderNumber ? ` • ${payment.salesOrderNumber}` : ''}`
   const copy = status === 'Payment Received'
@@ -104,7 +104,7 @@ export async function createStatusNotification(payment: Payment, status: 'Pendin
 export async function createClaimNotification(payment: Payment, authenticatedActorId?: string) {
   if (!authenticatedActorId || !payment.parentPaymentId || !payment.claimedBy || payment.claimedBy !== authenticatedActorId || payment.status !== 'Payment Received' || !payment.salesOrderId || !payment.salesOrderNumber) return []
   const users = (await getUserStore()).users
-  const claimant = users.find(user => user.id === authenticatedActorId && user.active && user.role === 'Salesperson')
+  const claimant = users.find(user => user.id === authenticatedActorId && user.active && isSalesRole(user.role))
   if (!claimant) return []
   const recipients = users.filter(user => user.active && (user.role === 'Admin' || user.role === 'Accounts'))
   const claimantName = claimant.name || claimant.username

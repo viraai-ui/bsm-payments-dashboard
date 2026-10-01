@@ -4,17 +4,18 @@ import { cookies } from 'next/headers'
 import { readAuthoritativeJson, updateLocalJson, writeLocalJson } from './local-store'
 import { authKey, SESSION_COOKIE_NAME, SESSION_MAX_AGE_SECONDS } from './auth-config'
 
-export type AppRole = 'Salesperson' | 'Accounts' | 'Admin' | 'Viewer'
+export type AppRole = 'Salesperson' | 'Spare Part Sales' | 'Accounts' | 'Admin' | 'Viewer'
 export type Permission = 'payments.view' | 'payments.createLinked' | 'payments.createUnauthorised' | 'payments.approve' | 'payments.claim' | 'payments.edit' | 'payments.delete' | 'users.manage' | 'roles.manage'
 export type AppUser = { id: string; name: string; email: string; username: string; role: AppRole; active: boolean; passwordHash: string; sessionVersion?: number; createdAt: string; updatedAt: string }
 export type SafeUser = Omit<AppUser, 'passwordHash'>
 export type RolePermissions = Record<AppRole, Permission[]>
 type UserStore = { users: AppUser[]; permissions: RolePermissions }
 const FILE = 'auth-users-store.json'
-export const APP_ROLES: AppRole[] = ['Salesperson', 'Accounts', 'Admin', 'Viewer']
+export const APP_ROLES: AppRole[] = ['Salesperson', 'Spare Part Sales', 'Accounts', 'Admin', 'Viewer']
 export const ALL_PERMISSIONS: Permission[] = ['payments.view','payments.createLinked','payments.createUnauthorised','payments.approve','payments.claim','payments.edit','payments.delete','users.manage','roles.manage']
 export const DEFAULT_PERMISSIONS: RolePermissions = {
   Salesperson: ['payments.view', 'payments.createLinked', 'payments.claim', 'payments.edit', 'payments.delete'],
+  'Spare Part Sales': ['payments.view', 'payments.createLinked', 'payments.claim', 'payments.edit', 'payments.delete'],
   Accounts: ['payments.view', 'payments.createUnauthorised', 'payments.approve', 'payments.delete'],
   Admin: [...ALL_PERMISSIONS],
   Viewer: ['payments.view'],
@@ -41,6 +42,13 @@ export async function getUserStore() {
     await writeLocalJson(FILE, store)
   }
   if(!store)store=emptyStore()
+  // Keep the dedicated spare-parts account present in both existing production
+  // stores and fresh local stores. Admin user management reads this same store.
+  if (!store.users.some(user => user.id === 'u-sonia' || user.username.toLowerCase() === 'sonia')) {
+    const now = new Date().toISOString()
+    store = { ...store, users: [...store.users, { id:'u-sonia', name:'Sonia', email:'sonia@bsmindia.com', username:'sonia', role:'Spare Part Sales', active:true, passwordHash:await bcrypt.hash('ChangeMe123!',10), createdAt:now, updatedAt:now }] }
+    await writeLocalJson(FILE, store)
+  }
   // Roles are deliberately fixed in this local application. Older stores used
   // the now-retired `payments.create` permission; never let those persisted
   // arrays shadow the current safe defaults.
@@ -62,3 +70,4 @@ export async function requirePermission(permission:Permission) { const auth=awai
 
 export function isAdmin(role?:AppRole){return role==='Admin'}
 export function isFullAccess(role?:AppRole){return role==='Admin'}
+export function isSalesRole(role?:AppRole): role is 'Salesperson'|'Spare Part Sales' { return role==='Salesperson'||role==='Spare Part Sales' }

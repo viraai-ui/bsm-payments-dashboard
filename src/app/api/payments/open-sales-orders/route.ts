@@ -25,7 +25,7 @@ export async function GET(request: Request) {
 
 /** Explicit, salesperson-only, bounded recent lane. Search GETs never contact Zoho. */
 export async function POST(request:Request){
-  const auth=await requireUser(['Salesperson']);if(!auth.ok)return auth.response
+  const auth=await requireUser(['Salesperson','Spare Part Sales']);if(!auth.ok)return auth.response
   const rate=await checkRateLimit(request,`sales-order-index-refresh:${auth.user.id}`,6)
   if(!rate.allowed)return apiError('Refresh limit reached. Try again in a minute.',429)
   const result=await refreshLatestTenPaymentOrders()

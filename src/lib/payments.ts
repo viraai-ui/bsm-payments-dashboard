@@ -1,7 +1,7 @@
 import { readLocalJson, readLocalJsonFresh, updateLocalJson } from './local-store'
 import { orderSummary, pendingOrderSummaries, sortPayments, toPaise } from './payment-settlement'
 import type { PaymentMode, PaymentStatus } from './payment-domain'
-import { getUserStore, type SafeUser } from './auth'
+import { getUserStore, isSalesRole, type SafeUser } from './auth'
 import { enqueueAndDeliver, type PaymentEventType } from './payouts-outbox'
 export { PAYMENT_MODES } from './payment-domain'
 export type { PaymentMode, PaymentStatus } from './payment-domain'
@@ -43,13 +43,13 @@ const normalizedOrder=(value?:string)=>String(value||'').trim().toUpperCase().re
  * its receipts is legacy/public or belongs to another salesperson. */
 export function pendingOrdersForUser(payments:Payment[],user:SafeUser){
  const pending=pendingOrderSummaries(payments)
- if(user.role!=='Salesperson')return pending
+ if(!isSalesRole(user.role))return pending
  const ownedOrders=new Set(payments.filter(payment=>payment.salesOrderNumber&&isPaymentOwnedBy(payment,user)).map(payment=>normalizedOrder(payment.salesOrderNumber)))
  return pending.filter(order=>ownedOrders.has(normalizedOrder(order.salesOrderNumber)))
 }
 /** Salespeople receive their own records plus the shared unauthorised claim queue. */
-export async function listPaymentsForUser(user:SafeUser){const all=await listPayments();return user.role==='Salesperson'?all.filter(p=>p.status==='Unauthorised'||isPaymentOwnedBy(p,user)):all}
-function visiblePaymentsForUser(all:Payment[],user:SafeUser){return user.role==='Salesperson'?all.filter(p=>p.status==='Unauthorised'||isPaymentOwnedBy(p,user)):all}
+export async function listPaymentsForUser(user:SafeUser){const all=await listPayments();return isSalesRole(user.role)?all.filter(p=>p.status==='Unauthorised'||isPaymentOwnedBy(p,user)):all}
+function visiblePaymentsForUser(all:Payment[],user:SafeUser){return isSalesRole(user.role)?all.filter(p=>p.status==='Unauthorised'||isPaymentOwnedBy(p,user)):all}
 export async function paymentReadModelForUserFresh(user:SafeUser){
  const users=(await getUserStore()).users
  // Dashboard polling uses the resilient cache/bundled baseline. Mutations retain
@@ -72,7 +72,7 @@ export async function deletePendingPublicPayment(id:string){let deleted:Payment|
 /** Financial records are never hard-deleted: this API records an auditable void. */
 export async function voidPayment(id:string,actor:string,reason:string){let updated:Payment|null=null,wasReceived=false;await updateLocalJson(FILE,EMPTY,s=>({payments:s.payments.map(p=>{if(p.id!==id)return p;wasReceived=p.status==='Payment Received';const now=new Date().toISOString(),next:Payment={...p,status:'Void',voidedAt:now,voidReason:reason,updatedAt:now,audit:[...(p.audit||[]),event('voided',actor,now,{from:p.status,to:'Void',reason})]};return updated=wasReceived?withPayoutIntent(next,'voided'):next})}));if(wasReceived)await syncPayouts(updated,'voided');return updated}
 export async function deletePayment(id:string){let deleted:Payment|null=null;await updateLocalJson(FILE,EMPTY,s=>({payments:s.payments.filter(p=>{if(p.id===id){deleted=p;return false}return true})}));return deleted}
-export function canMutatePayment(payment:Payment,user:Pick<SafeUser,'id'|'name'|'email'|'username'|'role'>){return payment.originalPaymentAmount===undefined&&((user.role==='Admin'&&!payment.ownerUserId)||(user.role==='Salesperson'&&payment.status==='Pending'&&isPaymentOwnedBy(payment,user)))}
+export function canMutatePayment(payment:Payment,user:Pick<SafeUser,'id'|'name'|'email'|'username'|'role'>){return payment.originalPaymentAmount===undefined&&((user.role==='Admin'&&!payment.ownerUserId)||(isSalesRole(user.role)&&payment.status==='Pending'&&isPaymentOwnedBy(payment,user)))}
 /** A standalone receipt is unlinked and has never been allocated. Legacy imports may
  * carry an ownerUserId, so ownership is deliberately not used as a linkage signal. */
 export function isStandaloneUnauthorised(payment:Payment){return payment.status==='Unauthorised'&&!payment.parentPaymentId&&!payment.salesOrderId&&!payment.salesOrderNumber&&!payment.hasAllocationChildren}
@@ -81,10 +81,10 @@ export function canDeletePayment(payment:Payment,user:Pick<SafeUser,'id'|'name'|
  if(payment.parentPaymentId)return false
  if(payment.status==='Unauthorised')return isStandaloneUnauthorised(payment)&&(user.role==='Admin'||user.role==='Accounts')
  if(payment.originalPaymentAmount!==undefined)return false
- return (user.role==='Admin'&&!payment.ownerUserId)||(user.role==='Salesperson'&&payment.status==='Pending'&&isPaymentOwnedBy(payment,user))
+ return (user.role==='Admin'&&!payment.ownerUserId)||(isSalesRole(user.role)&&payment.status==='Pending'&&isPaymentOwnedBy(payment,user))
 }
 /** Only Admin, or the allocation's salesperson identified by stable IDs, may reverse it. */
-export function canReverseClaimedAllocation(payment:Payment,user:Pick<SafeUser,'id'|'role'>){return Boolean(payment.parentPaymentId)&&(user.role==='Admin'||(user.role==='Salesperson'&&payment.ownerUserId===user.id&&payment.claimedBy===user.id))}
+export function canReverseClaimedAllocation(payment:Payment,user:Pick<SafeUser,'id'|'role'>){return Boolean(payment.parentPaymentId)&&(user.role==='Admin'||(isSalesRole(user.role)&&payment.ownerUserId===user.id&&payment.claimedBy===user.id))}
 export async function updatePayment(id:string,user:SafeUser,input:{paymentAmount:number;paymentMode:PaymentMode;remarks?:string;attachments?:PaymentAttachment[]},authoritativeTotal:number){let updated:Payment|null=null;await updateLocalJson(FILE,EMPTY,s=>{const target=s.payments.find(p=>p.id===id);if(!target)throw new Error('Payment not found');if(!canMutatePayment(target,user))throw new Error('You cannot edit this payment');if(!target.salesOrderNumber)throw new Error('Only linked payments can be edited');const others=s.payments.filter(p=>p.id!==id);const summary=orderSummary(others,target.salesOrderNumber,authoritativeTotal,target.salesOrderId);if(typeof summary.pendingPayment==='number'&&toPaise(input.paymentAmount)>toPaise(summary.pendingPayment))throw new Error('Payment Received Amount cannot exceed the authoritative outstanding balance');const changedFields=(['paymentAmount','paymentMode','remarks','attachments'] as const).filter(k=>input[k]!==undefined&&JSON.stringify(target[k])!==JSON.stringify(input[k]));const now=new Date().toISOString();return{payments:s.payments.map(p=>{if(p.id!==id)return p;const next:Payment={...p,...input,updatedAt:now,audit:[...(p.audit||[]),event('edited',user.id,now,{changedFields})]};return updated=next.status==='Payment Received'?withPayoutIntent(next,'updated'):next})}});const result=updated as Payment|null;if(result&&result.status==='Payment Received')await syncPayouts(result,'updated');return result}
 export async function updateStandaloneUnauthorisedPayment(id:string,user:SafeUser,input:{customerName:string;utrReference:string;paymentAmount:number;paymentMode?:PaymentMode;remarks?:string;attachments?:PaymentAttachment[]}){let updated:Payment|null=null;await updateLocalJson(FILE,EMPTY,s=>{const target=s.payments.find(p=>p.id===id);if(!target)throw new Error('Payment not found');if(!canEditStandaloneUnauthorised(target,user)||s.payments.some(p=>p.parentPaymentId===id))throw new Error('You cannot edit this payment');const changedFields=(['customerName','utrReference','paymentAmount','paymentMode','remarks','attachments'] as const).filter(k=>input[k]!==undefined&&JSON.stringify(target[k])!==JSON.stringify(input[k]));const now=new Date().toISOString();return{payments:s.payments.map(p=>p.id===id?(updated={...p,...input,updatedAt:now,audit:[...(p.audit||[]),event('edited',user.id,now,{changedFields})]}):p)}});return updated}
 export async function deletePaymentWithTombstone(id:string,user:SafeUser,reason:string){let deleted:Payment|null=null;await updateLocalJson(FILE,EMPTY,async s=>{const target=s.payments.find(p=>p.id===id);if(!target)throw new Error('Payment not found');const hasAllocations=s.payments.some(p=>p.parentPaymentId===id);if(hasAllocations)throw new Error('You cannot delete a payment with allocation history');if(!canDeletePayment(target,user))throw new Error('You cannot delete this payment');const at=new Date().toISOString();const tombstone:PaymentTombstone={id:`tombstone-${target.id}`,type:'deleted',actor:user.id,at,reason,payment:structuredClone(target)};await updateLocalJson<{tombstones:PaymentTombstone[]}>('payment-tombstones.json',{tombstones:[]},t=>t.tombstones.some(item=>item.id===tombstone.id)?t:{tombstones:[tombstone,...t.tombstones]});deleted=target;return{payments:s.payments.filter(p=>p.id!==id)}});return deleted}

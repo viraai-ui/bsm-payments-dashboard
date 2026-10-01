@@ -1,4 +1,4 @@
-import type { SafeUser } from './auth'
+import { isSalesRole, type SafeUser } from './auth'
 import type { Payment } from './payments'
 import type { StoredPaymentOrder } from './payment-order-search'
 import { orderSummary } from './payment-settlement'
@@ -28,7 +28,7 @@ const paymentMatchesOrder=(payment:Payment,order:StoredPaymentOrder,numberCounts
  return Boolean(number)&&number===norm(order.salesOrderNumber)&&numberCounts.get(number)===1
 }
 export function selectSalespersonOverview(orders:StoredPaymentOrder[],payments:Payment[],user:SafeUser,mirror:{lastSyncedAt:string;recencyVerifiedAt:string},now=new Date()):SalespersonOverview{
- if(user.role!=='Salesperson')throw new Error('Salesperson access required')
+ if(!isSalesRole(user.role))throw new Error('Salesperson access required')
  const numberCounts=new Map<string,number>();for(const order of orders){const number=norm(order.salesOrderNumber);numberCounts.set(number,(numberCounts.get(number)||0)+1)}
  const owned=orders.filter(order=>salespersonOwnsOrder(order,user)||(!hasErpOwner(order)&&payments.some(payment=>paymentMatchesOrder(payment,order,numberCounts)&&paymentOwned(payment,user))))
  const rank:Record<OverviewStatus,number>={NO_PAYMENT:0,PENDING:1,RECEIVED:2}

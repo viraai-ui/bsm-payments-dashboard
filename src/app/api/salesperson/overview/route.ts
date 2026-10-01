@@ -1,5 +1,5 @@
 import { apiError, apiOk } from '@/lib/api'
-import { getSessionUser } from '@/lib/auth'
+import { getSessionUser, isSalesRole } from '@/lib/auth'
 import { listPayments } from '@/lib/payments'
 import { readPaymentOrderMirror, readPaymentOrderMirrorFresh, synchronizePaymentOrderIndex } from '@/lib/payment-order-search'
 import { selectSalespersonOverview } from '@/lib/salesperson-overview'
@@ -10,7 +10,7 @@ export const dynamic='force-dynamic'
 export async function GET(){
  const user=await getSessionUser()
  if(!user)return apiError('Authentication required',401)
- if(user.role!=='Salesperson')return apiError('Salesperson access required',403)
+ if(!isSalesRole(user.role))return apiError('Salesperson access required',403)
  try{
   const [mirror,payments]=await Promise.all([readPaymentOrderMirror(),listPayments()])
   const response=apiOk(selectSalespersonOverview(mirror.orders,payments,user,mirror))
@@ -24,7 +24,7 @@ export async function GET(){
 export async function POST(request:Request){
  const user=await getSessionUser()
  if(!user)return apiError('Authentication required',401)
- if(user.role!=='Salesperson')return apiError('Salesperson access required',403)
+ if(!isSalesRole(user.role))return apiError('Salesperson access required',403)
  const rate=await checkRateLimit(request,`salesperson-overview-sync:${user.id}`,6)
  if(!rate.allowed)return apiError('Sync limit reached. Try again shortly.',429)
  try{

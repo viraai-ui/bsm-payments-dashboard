@@ -133,6 +133,7 @@ export function PaymentsClient({
     [viewer, setViewer] = useState<ViewerProof[] | null>(null),
     [error, setError] = useState("");
   const [claimError, setClaimError] = useState("");
+  const [manualEntry, setManualEntry] = useState(false);
   const [orderSync, setOrderSync] = useState<{paymentId:string;state:"loading"|"success"|"error";message:string}|null>(null);
   const [pendingView, setPendingView] = useState<PendingView>("grid");
   const [open, setOpen] = useState(false),
@@ -446,6 +447,7 @@ export function PaymentsClient({
       ? payments.find((p) => p.salesOrderNumber === so)
       : undefined;
     setPaymentType(userRole === "Admin" && !so ? "unauthorised" : "regular");
+    setManualEntry(false);
     setForm(
       existing
         ? {
@@ -475,6 +477,7 @@ export function PaymentsClient({
     setSaving(true);
     const body = new FormData();
     body.set("paymentType", userRole === "Accounts" ? "unauthorised" : paymentType);
+    if (userRole === "Spare Part Sales") body.set("manualEntry", String(manualEntry));
     Object.entries(form).forEach(([k, v]) => {
       if (k !== "ownerUserId" || userRole === "Admin") body.append(k, v);
     });
@@ -1019,8 +1022,16 @@ export function PaymentsClient({
               </>
             ) : (
               <>
+                {userRole === "Spare Part Sales" && <div className="payment-type-toggle" role="radiogroup" aria-label="Sales order availability">
+                  <button type="button" role="radio" aria-checked={!manualEntry} className={!manualEntry ? "active" : ""} onClick={() => { setManualEntry(false); setForm(emptyForm()); setError(""); }}>Select Sales Order</button>
+                  <button type="button" role="radio" aria-checked={manualEntry} className={manualEntry ? "active" : ""} onClick={() => { setManualEntry(true); setForm(emptyForm()); setError(""); }}>No Sales Order</button>
+                </div>}
+                {manualEntry ? <>
+                  <label>Reference / Name <span aria-hidden="true">*</span><input required maxLength={120} value={form.salesOrderNumber} onChange={e => setForm(f => ({...f,salesOrderNumber:e.target.value}))} placeholder="Spare-part reference or name" /></label>
+                  <label>Customer Name <span aria-hidden="true">*</span><input required maxLength={120} value={form.customerName} onChange={e => setForm(f => ({...f,customerName:e.target.value}))} /></label>
+                </> : <>
                 <OrderCombobox
-                  canRefresh={userRole === "Salesperson"}
+                  canRefresh={userRole === "Salesperson" || userRole === "Spare Part Sales"}
                   selected={form.salesOrderId}
                   selectedLabel={
                     form.salesOrderId
@@ -1034,6 +1045,7 @@ export function PaymentsClient({
                 {form.salesOrderId && (
                   <OrderSnapshot form={form} payments={payments} />
                 )}
+                </>}
                 {userRole === "Admin" && (
                   <label>
                     Salesperson

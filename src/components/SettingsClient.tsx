@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { AppRole, Permission, RolePermissions, SafeUser } from '@/lib/auth'
 import { NotificationSettingsCard } from './NotificationSettingsCard'
 
-const ROLES: AppRole[] = ['Salesperson', 'Accounts', 'Admin', 'Viewer']
+const ROLES: AppRole[] = ['Salesperson', 'Spare Part Sales', 'Accounts', 'Admin', 'Viewer']
 const LABELS: Record<Permission, string> = {
   'payments.view': 'View all, pending and unauthorised payments',
   'payments.createLinked': 'Add linked sales-order payments',
@@ -18,6 +18,7 @@ const LABELS: Record<Permission, string> = {
 }
 const ROLE_COPY: Record<AppRole, string> = {
   Salesperson: 'Creates and tracks linked customer payments.',
+  'Spare Part Sales': 'Sales dashboard access plus manual payments when no sales order exists.',
   Accounts: 'Reviews payments and manages payment status.',
   Admin: 'Full payment, user and administration access.',
   Viewer: 'Read-only access to the complete payments dashboard.',

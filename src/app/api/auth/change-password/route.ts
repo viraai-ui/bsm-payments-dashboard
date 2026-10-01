@@ -5,7 +5,7 @@ import { hashPassword, mutateUserStore, requireUser, setSessionCookie } from '@/
 const ERROR = 'Unable to change password'
 
 export async function POST(request: Request) {
-  const auth = await requireUser(['Salesperson'])
+  const auth = await requireUser(['Salesperson', 'Spare Part Sales'])
   if (!auth.ok) return auth.response
   const body = await request.json().catch(() => null)
   const currentPassword = typeof body?.currentPassword === 'string' ? body.currentPassword : ''
