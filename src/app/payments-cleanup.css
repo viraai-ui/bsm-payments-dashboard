@@ -64,6 +64,7 @@
 .payment-details-modal .void-action { margin-top: 16px; min-height: 42px; padding: 0 14px; border: 1px solid #e3b8bd; border-radius: 9px; background: #fff; color: #a71924; font: inherit; font-weight: 700; cursor: pointer; }
 .payment-mobile-controls { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .payment-overflow { position: relative; display: inline-flex; justify-content: flex-end; }
+.payment-details-actions { display: flex; justify-content: flex-end; min-height: 40px; margin: -8px 0 4px; }
 .payment-overflow-trigger { width: 40px; height: 40px; border: 0; border-radius: 8px; background: transparent; color: #303746; font-size: 18px; font-weight: 800; letter-spacing: 1px; cursor: pointer; }
 .payment-overflow-trigger:hover,.payment-overflow-trigger:focus-visible { background: #f0f1f3; outline: 2px solid transparent; }
 .payment-overflow-menu { position: absolute; z-index: 30; top: calc(100% + 3px); right: 0; min-width: 130px; padding: 5px; border: 1px solid #dfe2e7; border-radius: 9px; background: #fff; box-shadow: 0 8px 24px #19203326; }

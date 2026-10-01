@@ -1209,11 +1209,14 @@ export function PaymentsClient({
                 : undefined
             }
             role={userRole}
+            userId={userId}
             busy={updating === selected.id}
             onStatus={status}
             onProof={() => openProof(selected)}
             sync={orderSync?.paymentId===selected.id?orderSync:null}
             onSync={() => void syncSalesOrder(selected)}
+            onEdit={() => { setSelected(null); beginEdit(selected); }}
+            onDelete={() => { setSelected(null); setDeleting(selected); }}
           />
         </Sheet>
       )}
@@ -1738,23 +1741,32 @@ function PaymentDetails({
   summary: s,
   onProof,
   role,
+  userId,
   busy,
   onStatus,
   sync,
   onSync,
+  onEdit,
+  onDelete,
 }: {
   p: Payment;
   summary: any;
   onProof: () => void;
   role: AppRole;
+  userId: string;
   busy: boolean;
   onStatus: (p: Payment, s: "Pending" | "Payment Received" | "Void") => void;
   sync: {state:"loading"|"success"|"error";message:string}|null;
   onSync: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
   const total = s?.orderTotal ?? p.orderTotal;
   return (
     <div className="payment-details payment-details-modal">
+      <div className="payment-details-actions">
+        <Overflow p={p} role={role} userId={userId} onEdit={onEdit} onDelete={onDelete} />
+      </div>
       {(role === "Admin" || role === "Accounts") && p.status !== "Unauthorised" && (
         <label className="detail-status">
           Status
@@ -2117,7 +2129,7 @@ function Overflow({
           p.claimedBy === userId ||
           p.createdBy === userId))));
   const canDelete =
-    (Boolean(p.parentPaymentId) && (p.status === "Payment Received" || p.status === "Pending") && (role === "Admin" || (role === "Salesperson" && p.ownerUserId === userId && p.claimedBy === userId))) || (!p.parentPaymentId &&
+    (Boolean(p.parentPaymentId) && (p.status === "Payment Received" || p.status === "Pending") && (role === "Admin" || ((role === "Salesperson" || role === "Spare Part Sales") && p.ownerUserId === userId && p.claimedBy === userId))) || (!p.parentPaymentId &&
     ((p.status === "Unauthorised" &&
       !p.salesOrderId &&
       !p.salesOrderNumber &&
@@ -2125,7 +2137,7 @@ function Overflow({
       (role === "Admin" || role === "Accounts")) ||
       (p.originalPaymentAmount === undefined &&
         ((role === "Admin" && !p.ownerUserId) ||
-          (role === "Salesperson" &&
+          ((role === "Salesperson" || role === "Spare Part Sales") &&
             p.status === "Pending" &&
             (p.ownerUserId === userId ||
               p.claimedBy === userId ||
