@@ -61,9 +61,12 @@ export async function listPaymentsForUser(user:SafeUser){const all=await listPay
 function visiblePaymentsForUser(all:Payment[],user:SafeUser){return isSalesRole(user.role)?all.filter(p=>p.status==='Unauthorised'||isPaymentOwnedBy(p,user)):all}
 export async function paymentReadModelForUserFresh(user:SafeUser){
  const users=(await getUserStore()).users
- // Dashboard polling uses the resilient cache/bundled baseline. Mutations retain
- // authoritative compare-and-swap reads and continue to fail closed.
- const stored=withAllocationBalances(normalizeSoniaLegacyManualPayments((await readLocalJson(FILE,EMPTY)).payments))
+ // A successful mutation must be immediately visible on every serverless instance.
+ // The resilient cache may contain a pre-mutation ledger in another instance (or
+ // fall back to the bundled ledger), which can resurrect deleted payments during
+ // the next dashboard poll. This endpoint is explicitly the fresh projection, so
+ // fail closed rather than presenting stale financial state.
+ const stored=withAllocationBalances(normalizeSoniaLegacyManualPayments((await readLocalJsonFresh(FILE,EMPTY)).payments))
  // Receipt amounts/history stay immutable; only the read projection receives current Zoho metadata.
  const {readSalesOrderSnapshots,applySalesOrderSnapshots}=await import('./sales-order-reconciliation')
  // Dashboard polling must remain read-only. Background reconciliation refreshes
