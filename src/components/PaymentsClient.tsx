@@ -11,6 +11,7 @@ import {
 import { createPortal } from "react-dom";
 import type { AppRole } from "@/lib/auth";
 import type { Payment } from "@/lib/payments";
+import { defaultManualPaymentEntry } from "@/lib/payment-entry-mode";
 import { PAYMENT_MODES, paymentCustomerLabel } from "@/lib/payment-domain";
 import {
   orderSummary,
@@ -133,7 +134,7 @@ export function PaymentsClient({
     [viewer, setViewer] = useState<ViewerProof[] | null>(null),
     [error, setError] = useState("");
   const [claimError, setClaimError] = useState("");
-  const [manualEntry, setManualEntry] = useState(false);
+  const [manualEntry, setManualEntry] = useState(() => defaultManualPaymentEntry(userRole));
   const [orderSync, setOrderSync] = useState<{paymentId:string;state:"loading"|"success"|"error";message:string}|null>(null);
   const [pendingView, setPendingView] = useState<PendingView>("grid");
   const [open, setOpen] = useState(false),
@@ -447,7 +448,7 @@ export function PaymentsClient({
       ? payments.find((p) => p.salesOrderNumber === so)
       : undefined;
     setPaymentType(userRole === "Admin" && !so ? "unauthorised" : "regular");
-    setManualEntry(false);
+    setManualEntry(defaultManualPaymentEntry(userRole, so));
     setForm(
       existing
         ? {
@@ -1195,7 +1196,7 @@ export function PaymentsClient({
         <Sheet
           title="Payment details"
           eyebrow={
-            selected.salesOrderNumber || selected.utrReference || "Unassigned"
+            selected.salesOrderNumber || selected.manualReference || selected.utrReference || "Unassigned"
           }
           close={() => setSelected(null)}
           variant="details"
@@ -1787,7 +1788,7 @@ function PaymentDetails({
           </div>
           <div>
             <dt>Sales Order</dt>
-            <dd className="sales-order-sync-line"><span>{p.salesOrderNumber || "Unassigned"}</span>{p.salesOrderNumber&&role==="Salesperson"&&<button type="button" className={`sales-order-sync ${sync?.state==="loading"?"is-loading":""}`} title="Sync sales order" aria-label="Sync sales order" disabled={sync?.state==="loading"} onClick={onSync}><SyncIcon /></button>}</dd>
+            <dd className="sales-order-sync-line"><span>{p.salesOrderNumber || p.manualReference || "Unassigned"}</span>{p.salesOrderNumber&&role==="Salesperson"&&<button type="button" className={`sales-order-sync ${sync?.state==="loading"?"is-loading":""}`} title="Sync sales order" aria-label="Sync sales order" disabled={sync?.state==="loading"} onClick={onSync}><SyncIcon /></button>}</dd>
             {sync&&<small className={`sales-order-sync-feedback ${sync.state}`} role={sync.state==="error"?"alert":"status"}>{sync.state==="loading"?"Syncing…":sync.message}</small>}
           </div>
           <div>
@@ -1928,7 +1929,7 @@ function DesktopRow({
       <td>
         <strong className="payment-company">{paymentCustomerLabel(p.customerName)}</strong>
         <button className="payment-so-link" onClick={onOpen}>
-          {p.salesOrderNumber || p.utrReference || "Unassigned"}
+          {p.salesOrderNumber || p.manualReference || p.utrReference || "Unassigned"}
         </button>
       </td>
       <td className="money-cell">
@@ -2004,7 +2005,7 @@ function MobileCard({
       <header>
         <div>
           <strong className="viewer-card-company">{paymentCustomerLabel(p.customerName)}</strong>
-          <span className="mobile-reference">{p.salesOrderNumber || (p.utrReference ? `UTR ${p.utrReference}` : "Unlinked payment")}</span>
+          <span className="mobile-reference">{p.salesOrderNumber || p.manualReference || (p.utrReference ? `UTR ${p.utrReference}` : "Unlinked payment")}</span>
         </div>
         <Overflow
           p={p}

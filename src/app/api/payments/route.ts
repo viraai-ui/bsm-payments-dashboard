@@ -34,7 +34,7 @@ export async function POST(request:Request){
   if(manual){
    const reference=text(b.salesOrderNumber),manualCustomer=cleanCustomer(b.customerName)
    if(!reference||reference.length>120||!manualCustomer)return apiError('Reference/name and customer name are required',400)
-   try{const created=await timing.measure('ledger',()=>createUnlinkedPayment({customerName:manualCustomer,salesOrderNumber:reference,paymentAmount:amount!,paymentMode:text(b.paymentMode) as import('@/lib/payment-domain').PaymentMode,remarks:remarks||undefined,status:'Pending',createdBy:auth.user.id,ownerUserId:auth.user.id,addedBy:auth.user.username||auth.user.name,salespersonName:auth.user.name},key));payment=created.payment;if(created.duplicate)return done(apiOk({payment,duplicate:true}))}catch(e){return done(apiError(e instanceof Error?e.message:'Could not save payment',400))}
+   try{const created=await timing.measure('ledger',()=>createUnlinkedPayment({customerName:manualCustomer,manualReference:reference,paymentAmount:amount!,paymentMode:text(b.paymentMode) as import('@/lib/payment-domain').PaymentMode,remarks:remarks||undefined,status:'Pending',createdBy:auth.user.id,ownerUserId:auth.user.id,addedBy:auth.user.username||auth.user.name,salespersonName:auth.user.name},key));payment=created.payment;if(created.duplicate)return done(apiOk({payment,duplicate:true}))}catch(e){return done(apiError(e instanceof Error?e.message:'Could not save payment',400))}
   }else{
   const authoritativeOrder=order!
   if(isSalesRole(auth.user.role)){

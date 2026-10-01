@@ -30,7 +30,7 @@ export function comparePaymentsNewestFirst(a:SettlementPayment,b:SettlementPayme
     ||(b.id||'').localeCompare(a.id||'')
 }
 export function sortPayments<T extends SettlementPayment>(payments:T[]){return [...payments].sort((a,b)=>STATUS_ORDER[a.status]-STATUS_ORDER[b.status]||comparePaymentsNewestFirst(a,b))}
-export function paymentMatchesSearch(payment:SettlementPayment,query:string,all:SettlementPayment[]){const q=query.trim().toLowerCase();if(!q)return true;const summary=payment.salesOrderNumber?orderSummary(all,payment.salesOrderNumber):undefined;return [payment.customerName,payment.salesOrderNumber,payment.paymentAmount,payment.orderTotal,summary?.orderTotal,summary?.received,summary?.outstanding,payment.paymentMode,payment.remarks,payment.paymentDate,payment.createdAt,paymentStatusLabel(payment.status)].some(v=>String(v??'').toLowerCase().includes(q))}
+export function paymentMatchesSearch(payment:SettlementPayment & {manualReference?:string},query:string,all:SettlementPayment[]){const q=query.trim().toLowerCase();if(!q)return true;const summary=payment.salesOrderNumber?orderSummary(all,payment.salesOrderNumber):undefined;return [payment.customerName,payment.salesOrderNumber,payment.manualReference,payment.paymentAmount,payment.orderTotal,summary?.orderTotal,summary?.received,summary?.outstanding,payment.paymentMode,payment.remarks,payment.paymentDate,payment.createdAt,paymentStatusLabel(payment.status)].some(value=>String(value??'').toLowerCase().includes(q))}
 
 export function orderSummary(payments:SettlementPayment[], so:string, orderTotal?:number, salesOrderId?:string){
   // Immutable ERP ID is authoritative. Number fallback exists only for legacy
