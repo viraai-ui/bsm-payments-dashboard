@@ -60,3 +60,17 @@ export async function refreshStaleLinkedOrders(payments:Payment[],max=4){
  if(ids.length)await reconcileSalesOrders(ids,{limit:max,baselines})
  return readSalesOrderSnapshots().catch(()=>snapshots)
 }
+
+export type OutstandingSyncSummary={checked:number;updated:number;unchanged:number;failed:number;failures:Array<{salesOrderNumber:string;error:string}>}
+/** Reconcile the complete global outstanding set, independent of the clicker's role scope. */
+export async function syncAllOutstandingOrders(options:{fetcher?:typeof fetch}={}):Promise<OutstandingSyncSummary>{
+ const {listAllPaymentsFresh}=await import('./payments')
+ const ledger=await listAllPaymentsFresh(),before=applySalesOrderSnapshots(ledger,await readSalesOrderSnapshots().catch(()=>({})))
+ const outstanding=(await import('./payment-settlement')).pendingOrderSummaries(before)
+ const failures:Array<{salesOrderNumber:string;error:string}>=[],ids:string[]=[]
+ for(const row of outstanding){const key=norm(row.salesOrderNumber),matches=before.filter(p=>norm(p.salesOrderNumber)===key).map(p=>p.salesOrderId).filter((id):id is string=>Boolean(id)),id=[...new Set(matches)].find(isCanonicalZohoOrderId);if(id)ids.push(id);else failures.push({salesOrderNumber:row.salesOrderNumber,error:'No canonical Zoho sales-order id'})}
+ const results=await reconcileSalesOrders(ids,{fetcher:options.fetcher,limit:ids.length})
+ for(const result of results)if(result.status==='failed')failures.push({salesOrderNumber:before.find(p=>p.salesOrderId===result.id)?.salesOrderNumber||result.id,error:result.error||'Zoho sync failed'})
+ const updated=results.filter(result=>result.status==='changed').length,failed=failures.length
+ return{checked:outstanding.length,updated,unchanged:Math.max(0,outstanding.length-updated-failed),failed,failures}
+}

@@ -136,6 +136,7 @@ export function PaymentsClient({
   const [claimError, setClaimError] = useState("");
   const [manualEntry, setManualEntry] = useState(() => defaultManualPaymentEntry(userRole));
   const [orderSync, setOrderSync] = useState<{paymentId:string;state:"loading"|"success"|"error";message:string}|null>(null);
+  const [allOrderSync, setAllOrderSync] = useState<{state:"loading"|"success"|"error";message:string}|null>(null);
   const [pendingView, setPendingView] = useState<PendingView>("grid");
   const [open, setOpen] = useState(false),
     [paymentType, setPaymentType] = useState<"unauthorised" | "regular">(
@@ -236,6 +237,14 @@ export function PaymentsClient({
       setOrderSync({paymentId:payment.id,state:"success",message:data.message});
     } catch (cause) { setOrderSync({paymentId:payment.id,state:"error",message:cause instanceof Error?cause.message:"Sales order sync failed"}); }
   },[orderSync?.state]);
+  const syncAllOutstanding = useCallback(async()=>{
+    if(allOrderSync?.state==="loading")return;
+    setAllOrderSync({state:"loading",message:"Syncing all outstanding orders…"});
+    try{const response=await fetch("/api/payments/sync-outstanding-orders",{method:"POST"}),json=await response.json().catch(()=>({}));if(!response.ok)throw new Error(json.error||"Outstanding-order sync failed");
+      const data=json.data,summary=data.summary;mutationVersion.current+=1;setPayments(sortPayments(data.payments));setAuthoritativePending(data.pendingOrders);
+      setAllOrderSync({state:summary.failed?"error":"success",message:`Checked ${summary.checked} · Updated ${summary.updated} · Unchanged ${summary.unchanged} · Failed ${summary.failed}`});
+    }catch(cause){setAllOrderSync({state:"error",message:cause instanceof Error?cause.message:"Outstanding-order sync failed"})}
+  },[allOrderSync?.state]);
   useEffect(() => { if (selected) setSelected(payments.find(payment => payment.id === selected.id) || null); }, [payments, selected?.id]);
   useEffect(() => {
     const add = () => startAdd();
@@ -837,12 +846,16 @@ export function PaymentsClient({
         </strong>
         {activeFilters > 0 && <span>{activeFilters} filters applied</span>}
         {tab === "pending" && (
-          <div className="pending-view-toggle" role="group" aria-label="Pending payments view">
-            <button type="button" aria-label="Grid view" aria-pressed={pendingView === "grid"} onClick={() => choosePendingView("grid")}><GridIcon /></button>
-            <button type="button" aria-label="List view" aria-pressed={pendingView === "list"} onClick={() => choosePendingView("list")}><ListIcon /></button>
+          <div className="pending-toolbar">
+            <button type="button" className="sync-outstanding-button" onClick={syncAllOutstanding} disabled={allOrderSync?.state === "loading"} aria-describedby="outstanding-sync-status">{allOrderSync?.state === "loading" ? "Syncing…" : "Sync"}</button>
+            <div className="pending-view-toggle" role="group" aria-label="Pending payments view">
+              <button type="button" aria-label="Grid view" aria-pressed={pendingView === "grid"} onClick={() => choosePendingView("grid")}><GridIcon /></button>
+              <button type="button" aria-label="List view" aria-pressed={pendingView === "list"} onClick={() => choosePendingView("list")}><ListIcon /></button>
+            </div>
           </div>
         )}
       </div>
+      {tab === "pending" && allOrderSync && <p id="outstanding-sync-status" className={`outstanding-sync-status ${allOrderSync.state}`} role="status" aria-live="polite">{allOrderSync.message}</p>}
       <div className="card payments-card ledger-card">
         {tab === "pending" ? (
           <PendingList orders={visiblePending} role={userRole} onAdd={startAdd} view={pendingView} />

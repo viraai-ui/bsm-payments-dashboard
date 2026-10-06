@@ -18,7 +18,7 @@ let projected=applySalesOrderSnapshots(base,await readSalesOrderSnapshots())
 assert.deepEqual(projected.map(p=>p.paymentAmount),[500,400],'receipt amounts remain immutable')
 assert.ok(projected.every(p=>p.orderTotal===900&&p.customerName==='Acme Renamed'),'canonical alias and rename project consistently')
 const user=(id:string,role:string)=>({id,name:id,email:id+'@x',username:id,role,active:true,createdAt:'',updatedAt:''}) as any
-for(const role of ['Admin','Accounts','Viewer'])assert.equal(pendingOrdersForUser(projected,user('management',role)).length,0,'total equal paid is settled for '+role)
+for(const role of ['Admin','Accounts','Viewer','Salesperson','Spare Part Sales']){const owner=role==='Salesperson'||role==='Spare Part Sales'?'u-a':'management';assert.equal(pendingOrdersForUser(projected,user(owner,role)).length,0,'reduced total equal to canonical receipts is settled for '+role)}
 assert.equal(await commitSalesOrder(order(1300,'2026-01-04T00:00:00+0530')),true,'increase applies')
 projected=applySalesOrderSnapshots(base,await readSalesOrderSnapshots())
 for(const role of ['Admin','Accounts','Viewer']){const rows=pendingOrdersForUser(projected,user('management',role));assert.equal(rows[0].outstanding,400);assert.equal(rows[0].received,900)}
