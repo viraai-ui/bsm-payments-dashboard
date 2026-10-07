@@ -74,7 +74,9 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     router.refresh()
   }
 
-  if (!ready) return null
+  if (!ready) return <main className="auth-loading-screen" role="status" aria-live="polite">
+    <div className="auth-loading-brand"><img src="/brand/bsm-logo.png" alt="BSM"/><strong>PAYMENTS DASHBOARD</strong><span>Loading securely…</span></div>
+  </main>
   if (!user) {
     return <main className="login-screen">
       <section className="login-card card">
@@ -93,7 +95,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     </main>
   }
 
-  if (pathname === '/settings' && !['Admin', 'Accounts', 'Salesperson', 'Spare Part Sales'].includes(user.role)) return null
-  if(pathname==='/overview'&&!['Admin','Salesperson','Spare Part Sales'].includes(user.role))return null
+  if (pathname === '/settings' && !['Admin', 'Accounts', 'Salesperson', 'Spare Part Sales'].includes(user.role)) return <main className="auth-loading-screen" role="status">Opening payments…</main>
+  if(pathname==='/overview'&&!['Admin','Salesperson','Spare Part Sales'].includes(user.role))return <main className="auth-loading-screen" role="status">Opening payments…</main>
   return <AuthContext.Provider value={{ user, logout }}>{children}</AuthContext.Provider>
 }

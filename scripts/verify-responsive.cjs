@@ -280,14 +280,31 @@ async function adminOverviewBottomNavQA({evaljs,call}) {
     const hit = await evaljs(`(()=>{const e=document.querySelector('.mobile-bottom-nav [aria-label=${JSON.stringify(label)}]');if(!e)throw new Error('missing bottom-nav target: '+${JSON.stringify(label)});const r=e.getBoundingClientRect(),top=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return{x:r.left+r.width/2,y:r.top+r.height/2,width:r.width,height:r.height,tag:e.tagName,href:e.getAttribute('href'),top:top?.closest('.mobile-bottom-nav a,.mobile-bottom-nav button')?.getAttribute('aria-label')}})()`);
     assert.ok(hit.width >= 44 && hit.height >= 44, `${label} keeps a 44px touch target: ${JSON.stringify(hit)}`);
     assert.equal(hit.top, label, `${label} is not covered by an overlay`);
+    const navigationEntries = await evaljs(`performance.getEntriesByType('navigation').length`);
+    const started = Date.now();
     await call('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: hit.x, y: hit.y }] });
     await call('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await sleep(25);
+    const immediate = await evaljs(`({status:document.querySelector('[data-route-transition]')?.textContent.trim(),body:document.body.innerText.trim(),active:document.querySelector('.mobile-bottom-nav .active')?.getAttribute('aria-label'),navigations:performance.getEntriesByType('navigation').length})`);
+    assert.ok(Date.now() - started < 250, `${label} exposes transition state within 250ms`);
+    assert.ok(immediate.body.length > 20, `${label} never renders a blank document`);
+    assert.equal(immediate.status, `Loading ${selectedLabel}…`, `${label} renders its branded loading state immediately`);
+    assert.equal(immediate.navigations, navigationEntries, `${label} uses client navigation, not a document reload`);
     for (let i = 0; i < 80 && !await evaljs(`location.pathname+location.search===${JSON.stringify(expectedPath)}&&!!document.querySelector('.payments-page')`); i++) await sleep(100);
-    const state = await evaljs(`({url:location.pathname+location.search,selected:document.querySelector('.payment-tabs [role=tab][aria-selected=true]')?.textContent.trim(),active:document.querySelector('.mobile-bottom-nav .active')?.getAttribute('aria-label')})`);
+    const state = await evaljs(`({url:location.pathname+location.search,selected:document.querySelector('.payment-tabs [role=tab][aria-selected=true]')?.textContent.trim(),active:document.querySelector('.mobile-bottom-nav .active')?.getAttribute('aria-label'),blank:document.body.innerText.trim().length===0,navigations:performance.getEntriesByType('navigation').length})`);
     assert.equal(state.url, expectedPath, `${label} routes from /overview`);
     assert.ok(state.selected?.startsWith(selectedLabel), `${label} selects the correct Payments view: ${JSON.stringify(state)}`);
     assert.equal(state.active, label);
-    console.log(`PASS Admin overview touch ${label} -> ${state.url} -> ${state.selected}`);
+    assert.equal(state.blank, false);
+    assert.equal(state.navigations, navigationEntries, `${label} completed without a hard reload`);
+    const overview = await evaljs(`(()=>{const e=document.querySelector('.mobile-bottom-nav a[href="/overview"]');e?.click();return !!e})()`);
+    assert.equal(overview, true, 'Overview return target exists');
+    for (let i = 0; i < 80 && !await evaljs(`location.pathname==='/overview'&&!!document.querySelector('.admin-overview')`); i++) await sleep(100);
+    assert.equal(await evaljs(`document.querySelector('.mobile-bottom-nav .active')?.textContent.trim()`), 'Overview');
+    await fs.mkdir(path.join(root,'artifacts'),{recursive:true});
+    const shot=await call('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
+    await fs.writeFile(path.join(root,'artifacts',`admin-overview-return-${expectedPath.split('=')[1]}.png`),Buffer.from(shot.data,'base64'));
+    console.log(`PASS Admin overview touch ${label} -> ${state.url} -> ${state.selected} -> Overview`);
   }
 }
 

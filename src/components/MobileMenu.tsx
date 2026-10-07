@@ -2,10 +2,13 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import type { SafeUser } from '@/lib/auth'
 import { NotificationCenter } from './NotificationCenter'
 
 export type NavItem = { label: string; href: string; icon?: 'overview' | 'payments' | 'settings' }
+type PaymentDestination = 'all' | 'unauthorised' | 'pending'
+let recentMobileRoute: { tab: PaymentDestination; started: number } | null = null
 
 export function NavIcon({ icon }: { icon?: NavItem['icon'] }) {
   if(icon==='overview')return <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" aria-hidden="true"><path d="M4 19V9m6 10V5m6 14v-7m4 7H2"/></svg>
@@ -23,11 +26,24 @@ function PaymentTabIcon({ tab }: { tab: 'overview' | 'all' | 'unauthorised' | 'p
 }
 
 export function MobileMenu({ active, onLogout, user }: { nav: NavItem[]; utilityNav?: NavItem[]; active: string; onLogout: () => void | Promise<void>; readyCount?: number | null; user: SafeUser }) {
+  const router = useRouter()
   const [accountOpen, setAccountOpen] = useState(false)
   const accountTriggerRef = useRef<HTMLButtonElement>(null)
   const accountSheetRef = useRef<HTMLElement>(null)
   const accountCloseRef = useRef<HTMLButtonElement>(null)
   const [paymentTab, setPaymentTab] = useState<'overview' | 'all' | 'unauthorised' | 'pending'>(user.role === 'Viewer' ? 'overview' : 'all')
+  const [navigatingTo, setNavigatingTo] = useState<PaymentDestination | null>(() => active === 'Payments' && recentMobileRoute && Date.now() - recentMobileRoute.started < 300 ? recentMobileRoute.tab : null)
+  const openPayments = (tab: PaymentDestination) => {
+    recentMobileRoute = { tab, started: Date.now() }
+    setNavigatingTo(tab)
+    router.push(`/payments?view=${tab === 'all' ? 'regular' : tab}`)
+  }
+  useEffect(() => {
+    if (!navigatingTo) return
+    const remaining = Math.max(0, 300 - (Date.now() - (recentMobileRoute?.started ?? 0)))
+    const timer = window.setTimeout(() => { setNavigatingTo(null); recentMobileRoute = null }, remaining)
+    return () => window.clearTimeout(timer)
+  }, [navigatingTo])
   useEffect(() => {
     const changed = (event: Event) => setPaymentTab((event as CustomEvent<'overview' | 'all' | 'unauthorised' | 'pending'>).detail)
     window.addEventListener('payment:tab-changed', changed)
@@ -86,7 +102,8 @@ export function MobileMenu({ active, onLogout, user }: { nav: NavItem[]; utility
         </div>
       </section>
     </div>}
-    {['Admin','Salesperson','Spare Part Sales'].includes(user.role)?<nav className="mobile-bottom-nav salesperson-bottom-nav" aria-label={`${user.role} navigation`}>{([['overview','Overview'],['all','Regular Payments'],['unauthorised','Unauthorised'],['pending','Pending Payments']] as const).map(([key,label])=>key==='overview'?<Link key={key} className={active==='Overview'?'active':''} aria-current={active==='Overview'?'page':undefined} href="/overview"><span className="nav-icon-box"><PaymentTabIcon tab="overview"/></span><span>{label}</span></Link>:active==='Payments'?<button key={key} type="button" aria-label={label} className={paymentTab===key?'active':''} aria-current={paymentTab===key?'page':undefined} onClick={()=>window.dispatchEvent(new CustomEvent('payment:select-tab',{detail:key}))}><span className="nav-icon-box"><PaymentTabIcon tab={key}/></span><span>{label}</span></button>:<a key={key} href={`/payments?view=${key==='all'?'regular':key}`} aria-label={label}><span className="nav-icon-box"><PaymentTabIcon tab={key}/></span><span>{label}</span></a>)}</nav>:<nav className="mobile-bottom-nav" aria-label="Payment navigation">
+    {navigatingTo && <div className="mobile-route-loading" role="status" aria-live="polite" data-route-transition><img src="/brand/bsm-logo.png" alt=""/><span>Loading {paymentScreenLabels[navigatingTo]}…</span></div>}
+    {['Admin','Salesperson','Spare Part Sales'].includes(user.role)?<nav className="mobile-bottom-nav salesperson-bottom-nav" aria-label={`${user.role} navigation`}>{([['overview','Overview'],['all','Regular Payments'],['unauthorised','Unauthorised'],['pending','Pending Payments']] as const).map(([key,label])=>key==='overview'?<Link key={key} className={active==='Overview'?'active':''} aria-current={active==='Overview'?'page':undefined} href="/overview"><span className="nav-icon-box"><PaymentTabIcon tab="overview"/></span><span>{label}</span></Link>:active==='Payments'?<button key={key} type="button" aria-label={label} className={paymentTab===key?'active':''} aria-current={paymentTab===key?'page':undefined} onClick={()=>window.dispatchEvent(new CustomEvent('payment:select-tab',{detail:key}))}><span className="nav-icon-box"><PaymentTabIcon tab={key}/></span><span>{label}</span></button>:<button key={key} type="button" onClick={()=>openPayments(key)} className={navigatingTo===key?'active':''} aria-current={navigatingTo===key?'page':undefined} aria-label={label}><span className="nav-icon-box"><PaymentTabIcon tab={key}/></span><span>{label}</span></button>)}</nav>:<nav className="mobile-bottom-nav" aria-label="Payment navigation">
       {destinations.map(([key,label]) => active === 'Payments'
         ? <button type="button" key={key} aria-label={label} className={paymentTab===key?'active':''} aria-current={paymentTab===key?'page':undefined} onClick={() => window.dispatchEvent(new CustomEvent('payment:select-tab',{detail:key}))}><span className="nav-icon-box"><PaymentTabIcon tab={key}/></span><span>{key === 'all' ? 'Regular' : label}</span></button>
         : <Link key={key} href={`/payments${key === 'overview' ? '' : `?view=${key === 'all' ? 'regular' : key}`}`} aria-label={label}><span className="nav-icon-box"><PaymentTabIcon tab={key}/></span><span>{key === 'all' ? 'Regular' : label}</span></Link>)}
