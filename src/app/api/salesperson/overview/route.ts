@@ -4,6 +4,7 @@ import { listPayments } from '@/lib/payments'
 import { readPaymentOrderMirror, readPaymentOrderMirrorFresh, synchronizePaymentOrderIndex } from '@/lib/payment-order-search'
 import { selectSalespersonOverview } from '@/lib/salesperson-overview'
 import { checkRateLimit } from '@/lib/public-payment-security'
+import { listLegacySalesOrderExclusions } from '@/lib/legacy-sales-order-exclusions'
 
 export const runtime='nodejs'
 export const dynamic='force-dynamic'
@@ -12,8 +13,8 @@ export async function GET(){
  if(!user)return apiError('Authentication required',401)
  if(!isSalesRole(user.role))return apiError('Salesperson access required',403)
  try{
-  const [mirror,payments]=await Promise.all([readPaymentOrderMirror(),listPayments()])
-  const response=apiOk(selectSalespersonOverview(mirror.orders,payments,user,mirror))
+  const [mirror,payments,exclusions]=await Promise.all([readPaymentOrderMirror(),listPayments(),listLegacySalesOrderExclusions()])
+  const response=apiOk(selectSalespersonOverview(mirror.orders,payments,user,mirror,new Date(),exclusions))
   response.headers.set('Cache-Control','private, no-store, max-age=0, must-revalidate')
   response.headers.set('Vary','Cookie')
   return response
@@ -30,8 +31,8 @@ export async function POST(request:Request){
  try{
   const result=await synchronizePaymentOrderIndex({recentOnly:true,maxPages:1,maxMs:5000})
   if(result.error&&result.error!=='lease-active')return apiError(result.error==='backoff'?'Sync is temporarily paused. Your saved orders are still available.':result.error,503)
-  const [mirror,payments]=await Promise.all([readPaymentOrderMirrorFresh(),listPayments()])
-  const response=apiOk({overview:selectSalespersonOverview(mirror.orders,payments,user,mirror),coalesced:result.error==='lease-active'})
+  const [mirror,payments,exclusions]=await Promise.all([readPaymentOrderMirrorFresh(),listPayments(),listLegacySalesOrderExclusions(true)])
+  const response=apiOk({overview:selectSalespersonOverview(mirror.orders,payments,user,mirror,new Date(),exclusions),coalesced:result.error==='lease-active'})
   response.headers.set('Cache-Control','private, no-store, max-age=0, must-revalidate')
   response.headers.set('Vary','Cookie')
   return response

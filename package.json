@@ -53,7 +53,8 @@
     "verify:payment-terminology": "node scripts/verify-payment-terminology.cjs",
     "verify:so-08005-webp": "APP_LOCAL_ONLY=true tsx scripts/verify-so-08005-webp.mts",
     "verify:manual-payment": "tsx scripts/verify-manual-payment-persistence.mts",
-    "verify:manual-payment-delete": "tsx scripts/verify-manual-payment-delete.mts && tsx scripts/verify-payment-delete-read-after-write.mts"
+    "verify:manual-payment-delete": "tsx scripts/verify-manual-payment-delete.mts && tsx scripts/verify-payment-delete-read-after-write.mts",
+    "verify:legacy-already-received": "tsx scripts/verify-legacy-already-received.mts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

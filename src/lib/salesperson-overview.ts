@@ -2,10 +2,11 @@ import { isSalesRole, type SafeUser } from './auth'
 import type { Payment } from './payments'
 import type { StoredPaymentOrder } from './payment-order-search'
 import { orderSummary } from './payment-settlement'
+import { isLegacySalesOrderExcluded, legacyAlreadyReceivedEnabled, type LegacySalesOrderExclusion } from './legacy-sales-order-exclusions'
 
 export type OverviewStatus='NO_PAYMENT'|'PENDING'|'RECEIVED'
 export type OverviewOrder={salesOrderId:string;salesOrderNumber:string;orderDate:string;customerName:string;currency:string;orderTotal:number;received:number;outstanding:number;status:OverviewStatus}
-export type SalespersonOverview={orders:OverviewOrder[];metrics:{total:number;noPayment:number;pending:number;received:number;orderValue:number;receivedValue:number;outstandingValue:number};mirror:{lastSyncedAt:string;recencyVerifiedAt:string;freshnessSeconds:number|null};generatedAt:string}
+export type SalespersonOverview={orders:OverviewOrder[];metrics:{total:number;noPayment:number;pending:number;received:number;orderValue:number;receivedValue:number;outstandingValue:number};mirror:{lastSyncedAt:string;recencyVerifiedAt:string;freshnessSeconds:number|null};generatedAt:string;legacyCleanupEnabled:boolean}
 const norm=(value?:string)=>String(value||'').trim().toLowerCase().replace(/[^a-z0-9]/g,'')
 // Exact, reviewed Zoho salesperson labels for accounts whose dashboard display
 // name differs. Never use substring/fuzzy matching for ownership.
@@ -27,10 +28,14 @@ const paymentMatchesOrder=(payment:Payment,order:StoredPaymentOrder,numberCounts
  const number=norm(payment.salesOrderNumber)
  return Boolean(number)&&number===norm(order.salesOrderNumber)&&numberCounts.get(number)===1
 }
-export function selectSalespersonOverview(orders:StoredPaymentOrder[],payments:Payment[],user:SafeUser,mirror:{lastSyncedAt:string;recencyVerifiedAt:string},now=new Date()):SalespersonOverview{
+export function selectSalespersonOverview(orders:StoredPaymentOrder[],payments:Payment[],user:SafeUser,mirror:{lastSyncedAt:string;recencyVerifiedAt:string},now=new Date(),exclusions:LegacySalesOrderExclusion[]=[]):SalespersonOverview{
  if(!isSalesRole(user.role))throw new Error('Salesperson access required')
  const numberCounts=new Map<string,number>();for(const order of orders){const number=norm(order.salesOrderNumber);numberCounts.set(number,(numberCounts.get(number)||0)+1)}
- const owned=orders.filter(order=>salespersonOwnsOrder(order,user)||(!hasErpOwner(order)&&payments.some(payment=>paymentMatchesOrder(payment,order,numberCounts)&&paymentOwned(payment,user))))
+ const owned=orders.filter(order=>{
+  const directlyOwned=salespersonOwnsOrder(order,user)
+  const inferredOwned=!hasErpOwner(order)&&payments.some(payment=>paymentMatchesOrder(payment,order,numberCounts)&&paymentOwned(payment,user))
+  return (directlyOwned||inferredOwned)&&!isLegacySalesOrderExcluded(order,user.id,exclusions)
+ })
  const rank:Record<OverviewStatus,number>={NO_PAYMENT:0,PENDING:1,RECEIVED:2}
  const rows=owned.map(order=>{
   const linked=payments.filter(payment=>paymentMatchesOrder(payment,order,numberCounts))
@@ -41,5 +46,5 @@ export function selectSalespersonOverview(orders:StoredPaymentOrder[],payments:P
  }).sort((a,b)=>rank[a.status]-rank[b.status]||b.orderDate.localeCompare(a.orderDate)||b.salesOrderId.localeCompare(a.salesOrderId))
  const metrics={total:rows.length,noPayment:rows.filter(x=>x.status==='NO_PAYMENT').length,pending:rows.filter(x=>x.status==='PENDING').length,received:rows.filter(x=>x.status==='RECEIVED').length,orderValue:rows.reduce((n,x)=>n+x.orderTotal,0),receivedValue:rows.reduce((n,x)=>n+x.received,0),outstandingValue:rows.reduce((n,x)=>n+x.outstanding,0)}
  const parsed=Date.parse(mirror.lastSyncedAt)
- return{orders:rows,metrics,mirror:{...mirror,freshnessSeconds:Number.isFinite(parsed)?Math.max(0,Math.round((now.getTime()-parsed)/1000)):null},generatedAt:now.toISOString()}
+ return{orders:rows,metrics,mirror:{...mirror,freshnessSeconds:Number.isFinite(parsed)?Math.max(0,Math.round((now.getTime()-parsed)/1000)):null},generatedAt:now.toISOString(),legacyCleanupEnabled:legacyAlreadyReceivedEnabled()}
 }
