@@ -36,6 +36,7 @@
     "verify:admin-contract": "node scripts/verify-admin-contract.cjs",
     "verify:payout-sync-ui": "node scripts/verify-payout-sync-ui.cjs",
     "verify:responsive": "node scripts/verify-responsive.cjs",
+    "verify:mobile-overview-nav": "MOBILE_OVERVIEW_NAV_ONLY=1 node scripts/verify-responsive.cjs",
     "verify:tablet": "TABLET_ONLY=1 node scripts/verify-responsive.cjs",
     "verify:ui-interactions": "node scripts/verify-responsive.cjs",
     "verify:mobile-app": "node scripts/verify-mobile-app.cjs && node scripts/verify-responsive.cjs",
