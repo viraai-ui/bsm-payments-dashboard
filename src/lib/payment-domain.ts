@@ -4,6 +4,7 @@ export const PAYMENT_STATUSES = ['Unauthorised', 'Pending', 'Payment Received', 
 export type PaymentStatus = typeof PAYMENT_STATUSES[number]
 export const MAX_CUSTOMER_LENGTH = 120
 export const MAX_REMARKS_LENGTH = 500
+export const MAX_EXPENSE_NAME_LENGTH = 120
 export const MAX_PAYMENT_AMOUNT = 9_999_999_999.99
 
 /** Parse user-entered rupees exactly once into integer paise. */
@@ -22,6 +23,20 @@ export function cleanCustomer(value: unknown) {
 export function parsePaymentAmount(value: unknown) {
   const paise = parsePaymentAmountPaise(value)
   return paise === null ? null : paise / 100
+}
+export function parseLinkedPaymentSplit(input: Record<string, unknown>) {
+  const paymentAmount = parsePaymentAmount(input.paymentAmount)
+  if (paymentAmount === null) return { ok: false as const, error: 'Enter a valid payment amount greater than ₹0' }
+  const rawExpense = String(input.expenseAmount ?? '').trim()
+  const expenseAmount = rawExpense ? parsePaymentAmount(rawExpense) : 0
+  if (expenseAmount === null) return { ok: false as const, error: 'Enter a valid expense amount' }
+  const expenseName = String(input.expenseName ?? '').trim().replace(/\s+/g, ' ')
+  if (expenseName.length > MAX_EXPENSE_NAME_LENGTH) return { ok: false as const, error: 'Expense name must be 120 characters or fewer' }
+  if (expenseAmount > 0 && !expenseName) return { ok: false as const, error: 'Enter an expense name' }
+  const total = Math.round(paymentAmount * 100), expense = Math.round(expenseAmount * 100)
+  if (expense > total) return { ok: false as const, error: 'Expense cannot exceed total received' }
+  if (total - expense <= 0) return { ok: false as const, error: 'SO payment must be greater than ₹0' }
+  return { ok: true as const, value: { paymentAmount, expenseAmount, expenseName: expenseAmount > 0 ? expenseName : undefined, soPaymentAmount: (total - expense) / 100 } }
 }
 export function isPaymentMode(value: unknown): value is PaymentMode { return PAYMENT_MODES.includes(value as PaymentMode) }
 export function cleanRemarks(value: unknown) { const text=String(value??'').trim(); return text.length<=MAX_REMARKS_LENGTH?text:null }

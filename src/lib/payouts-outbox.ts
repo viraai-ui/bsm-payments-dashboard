@@ -1,7 +1,7 @@
 import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto'
 import { readLocalJsonFresh, updateLocalJson } from './local-store'
 import { validatePaymentOrder } from './payment-order-search'
-import { toPaise } from './payment-settlement'
+import { soPaymentAmount, toPaise } from './payment-settlement'
 import type { Payment } from './payments'
 
 export type PaymentEventType = 'received' | 'updated' | 'voided' | 'reversed'
@@ -27,7 +27,7 @@ export function paymentEvent(payment:Payment,type:PaymentEventType,order:Authori
   if(!payment.salesOrderId||order.id!==payment.salesOrderId||!order.salesOrderNumber||!order.customerName)throw new Error('Payment must reference an authoritative linked order')
   if((order.currency||'INR').toUpperCase()!=='INR')throw new Error('Only INR payments can be synchronized')
   const event:PaymentEvent={type:`payment.${type}`,payment:{id:payment.id,salesOrderNumber:order.salesOrderNumber,companyName:order.customerName,currency:'INR',receivedAt:iso(payment.confirmedAt||payment.paymentDate||payment.updatedAt)}}
-  if(type==='received'||type==='updated')event.payment.amount=decimal(payment.paymentAmount)
+  if(type==='received'||type==='updated')event.payment.amount=decimal(soPaymentAmount(payment))
   return event
 }
 export function signBody(body:string,timestamp:string,eventId:string,sharedSecret:string){return createHmac('sha256',sharedSecret).update(Buffer.concat([Buffer.from(`${timestamp}.${eventId}.`,'utf8'),Buffer.from(body,'utf8')])).digest('hex')}

@@ -1,5 +1,6 @@
 import type { Payment } from './payments'
 
+
 export type ViewerPeriod = 'day' | 'week' | 'month'
 export type ViewerMetric = { label: string; amount: number; count: number }
 export type PeriodMetric = { amountPaise: number; count: number; start: Date }
@@ -20,7 +21,7 @@ const paymentDay=(p:Payment)=>localDateKey(p.paymentDate||p.createdAt)
  * non-void children represent the allocated part, so a receipt is never counted twice. */
 export function effectivePaymentPaise(payment: Payment): number {
   const amount = payment.originalPaymentAmount !== undefined && !payment.parentPaymentId
-    ? (payment.remainingAmount ?? payment.paymentAmount) : payment.paymentAmount
+    ? (payment.remainingAmount ?? payment.paymentAmount) : (payment.salesOrderId ? payment.paymentAmount-(payment.expenseAmount||0) : payment.paymentAmount)
   const paise=Math.round(amount*100)
   return Number.isSafeInteger(paise)&&paise>0?paise:0
 }

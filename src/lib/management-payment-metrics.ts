@@ -1,5 +1,5 @@
 import type { SettlementPayment } from './payment-settlement'
-import { toPaise, fromPaise } from './payment-settlement'
+import { toPaise, fromPaise, soPaymentAmount } from './payment-settlement'
 
 export type ManagementPaymentMetric = {
   key: 'received' | 'pending-receipts' | 'unauthorised' | 'pending-payments'
@@ -19,7 +19,7 @@ export function managementPaymentMetrics(
   // Allocation parents are immutable source receipts, not extra payments.
   const accountingAmount = (payment: SettlementPayment) => payment.originalPaymentAmount !== undefined
     ? (payment.remainingAmount ?? payment.paymentAmount)
-    : payment.paymentAmount
+    : (payment.salesOrderId ? soPaymentAmount(payment) : payment.paymentAmount)
   const sum = (status: SettlementPayment['status']) => fromPaise(payments
     .filter(payment => payment.status === status)
     .reduce((total, payment) => total + toPaise(accountingAmount(payment)), 0))

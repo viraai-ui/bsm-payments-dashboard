@@ -54,6 +54,8 @@ type Form = {
   customerName: string;
   orderTotal: string;
   paymentAmount: string;
+  expenseAmount: string;
+  expenseName: string;
   paymentReceivedDate: string;
   paymentMode: string;
   remarks: string;
@@ -76,6 +78,8 @@ const emptyForm = (): Form => ({
   customerName: "",
   orderTotal: "",
   paymentAmount: "",
+  expenseAmount: "",
+  expenseName: "",
   paymentReceivedDate: "",
   paymentMode: "Bank Transfer",
   remarks: "",
@@ -596,6 +600,8 @@ export function PaymentsClient({
     const body = new FormData();
     body.set("id", editing.id);
     body.set("paymentAmount", form.paymentAmount);
+    body.set("expenseAmount", form.expenseAmount);
+    body.set("expenseName", form.expenseName);
     body.set("paymentMode", form.paymentMode);
     body.set("remarks", form.remarks);
     body.set("utrReference", form.utrReference);
@@ -650,6 +656,8 @@ export function PaymentsClient({
       customerName: p.customerName,
       orderTotal: String(p.orderTotal || ""),
       paymentAmount: String(p.paymentAmount),
+      expenseAmount: p.expenseAmount ? String(p.expenseAmount) : "",
+      expenseName: p.expenseName || "",
       paymentReceivedDate: p.paymentReceivedDate || "",
       paymentMode: p.paymentMode || "Bank Transfer",
       remarks: p.remarks || "",
@@ -1093,22 +1101,13 @@ export function PaymentsClient({
                   </label>
                 )}
                 <label>
-                  Payment Received Amount
+                  Total received
                   <input
                     required
                     type="text"
                     inputMode="decimal"
                     pattern="[0-9]+(?:[.][0-9]{1,2})?"
                     autoComplete="off"
-                    max={
-                      form.salesOrderNumber
-                        ? orderSummary(
-                            payments,
-                            form.salesOrderNumber,
-                            Number(form.orderTotal),
-                          ).provisionalOutstanding
-                        : undefined
-                    }
                     value={form.paymentAmount}
                     onChange={(e) => {
                       setError("");
@@ -1116,6 +1115,21 @@ export function PaymentsClient({
                     }}
                   />
                 </label>
+                {!manualEntry && form.salesOrderId && form.expenseAmount === "" && Number(form.paymentAmount) > Number(form.provisionalOutstanding) && (
+                  <div className="expense-overage-prompt" role="note">
+                    <span>{money(Number(form.paymentAmount)-Number(form.provisionalOutstanding))} is above the provisional outstanding.</span>
+                    <button type="button" onClick={() => setForm(f => ({...f,expenseAmount:String(Math.round((Number(f.paymentAmount)-Number(f.provisionalOutstanding))*100)/100)}))}>Add {money(Number(form.paymentAmount)-Number(form.provisionalOutstanding))} as expense</button>
+                  </div>
+                )}
+                {!manualEntry && form.salesOrderId && form.expenseAmount === "" && (
+                  <button type="button" className="link-button expense-toggle" aria-expanded="false" aria-controls="new-payment-expense-fields" onClick={() => setForm(f => ({...f,expenseAmount:"0"}))}>Add an expense</button>
+                )}
+                {!manualEntry && form.salesOrderId && form.expenseAmount !== "" && <div className="expense-line" id="new-payment-expense-fields">
+                  <label htmlFor="new-expense-name">Expense name</label><input id="new-expense-name" required={Number(form.expenseAmount)>0} maxLength={120} value={form.expenseName} onChange={e=>setForm(f=>({...f,expenseName:e.target.value}))} placeholder="e.g. Bank charges" />
+                  <label htmlFor="new-expense-amount">Expense amount</label><input id="new-expense-amount" type="text" inputMode="decimal" pattern="[0-9]+(?:[.][0-9]{1,2})?" value={form.expenseAmount} onChange={e=>setForm(f=>({...f,expenseAmount:normalizePaymentAmountInput(e.target.value)}))} />
+                  <small>SO payment: {money(Math.max(0,Number(form.paymentAmount||0)-Number(form.expenseAmount||0)))}</small>
+                  <button type="button" className="link-button expense-toggle" aria-expanded="true" aria-controls="new-payment-expense-fields" onClick={()=>setForm(f=>({...f,expenseAmount:"",expenseName:""}))}>Remove expense</button>
+                </div>}
                 <label>
                   Payment mode
                   <select
@@ -1297,6 +1311,14 @@ export function PaymentsClient({
                 }
               />
             </label>
+            {editing.salesOrderId && <div className="expense-line">
+              {form.expenseAmount === "" ? <button type="button" className="link-button" onClick={()=>setForm(f=>({...f,expenseAmount:"0"}))}>Add an expense</button> : <>
+                <label>Expense name <input required={Number(form.expenseAmount)>0} maxLength={120} value={form.expenseName} onChange={e=>setForm(f=>({...f,expenseName:e.target.value}))} /></label>
+                <label>Expense amount <input type="text" inputMode="decimal" value={form.expenseAmount} onChange={e=>setForm(f=>({...f,expenseAmount:normalizePaymentAmountInput(e.target.value)}))} /></label>
+                <small>SO payment: {money(Math.max(0,Number(form.paymentAmount)-Number(form.expenseAmount||0)))}</small>
+                <button type="button" className="link-button" onClick={()=>setForm(f=>({...f,expenseAmount:"",expenseName:""}))}>Remove expense</button>
+              </>}
+            </div>}
             <label>
               Payment mode
               <select
@@ -1852,8 +1874,9 @@ function PaymentDetails({
             <strong>{total === undefined ? "—" : money(total)}</strong>
           </div>
           <div>
-            <span>Payment</span>
+            <span>{p.expenseAmount ? "Total received" : "Payment"}</span>
             <strong>{money(p.paymentAmount)}</strong>
+            {p.expenseAmount ? <small>SO payment {money(p.paymentAmount-p.expenseAmount)} · {p.expenseName} {money(p.expenseAmount)}</small> : null}
           </div>
           <div>
             <span>Outstanding</span>
@@ -1978,6 +2001,7 @@ function DesktopRow({
       </td>
       <td className="money-cell received-cell">
         <strong>{money(p.paymentAmount)}</strong>
+        {p.expenseAmount ? <small className="partial-remaining">SO payment {money(p.paymentAmount-p.expenseAmount)} · {p.expenseName}: {money(p.expenseAmount)}</small> : null}
         {isPartiallyClaimed(p) && <small className="partial-remaining">{money(p.remainingAmount ?? 0)} remaining</small>}
       </td>
       <td className="money-cell">
@@ -2077,7 +2101,7 @@ function MobileCard({
           </dd>
         </div>
         <div className="payment-received-amount">
-          <dt>{isPartiallyClaimed(p) ? "Amount remaining" : "Payment"}</dt>
+          <dt>{isPartiallyClaimed(p) ? "Amount remaining" : "Total received"}</dt>
           <dd>{money(isPartiallyClaimed(p) ? (p.remainingAmount ?? 0) : p.paymentAmount)}</dd>
           {isPartiallyClaimed(p) && <small className="partial-remaining">Partially claimed</small>}
         </div>
@@ -2088,6 +2112,10 @@ function MobileCard({
           </dd>
         </div>
       </dl>
+      {p.expenseAmount ? <div className="mobile-expense-line">
+        <span><strong>{p.expenseName || "Expense"}</strong><small>Expense</small></span>
+        <strong>{money(p.expenseAmount)}</strong>
+      </div> : null}
       <div
         className="payment-mobile-controls"
         onClick={(e) => e.stopPropagation()}
@@ -2130,6 +2158,7 @@ function Overflow({
     trigger = useRef<HTMLButtonElement>(null),
     menu = useRef<HTMLDivElement>(null);
   const [geometry, setGeometry] = useState({ top: 0, left: 0 });
+  const menuId = `payment-actions-${p.id}`;
   const position = useCallback(() => {
     const r = trigger.current?.getBoundingClientRect();
     if (!r) return;
@@ -2210,6 +2239,7 @@ function Overflow({
         aria-label={`Actions for ${p.salesOrderNumber || paymentCustomerLabel(p.customerName)}`}
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-controls={menuId}
         onClick={() => setOpen((v) => !v)}
       >
         <span />
@@ -2219,6 +2249,7 @@ function Overflow({
       {open &&
         createPortal(
           <div
+            id={menuId}
             ref={menu}
             className="payment-overflow-menu payment-overflow-menu-portal"
             role="menu"
