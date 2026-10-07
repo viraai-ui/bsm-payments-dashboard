@@ -21,7 +21,12 @@ for(const role of ['Admin','Accounts']){
  assert.equal(first.payment.paymentReceivedDate,'2026-09-24')
 }
 for(const bad of ['', '0', '-1', 'wat', '1.001'])assert.equal(domain.parseUnauthorisedPaymentInput({paymentAmount:bad,paymentReceivedDate:'2026-09-24'}).ok,false,`${bad||'missing'} rejected`)
-for(const badDate of ['', '24-09-2026', '2026-02-31'])assert.equal(domain.parseUnauthorisedPaymentInput({paymentAmount:'99',paymentReceivedDate:badDate}).ok,false,`${badDate||'missing date'} rejected`)
+for(const blankDate of ['', '   ', undefined]){
+ const parsed=domain.parseUnauthorisedPaymentInput({paymentAmount:'99',paymentReceivedDate:blankDate})
+ assert.equal(parsed.ok,true,`${blankDate===undefined?'missing':JSON.stringify(blankDate)} date accepted`)
+ if(parsed.ok)assert.equal(parsed.value.paymentReceivedDate,undefined)
+}
+for(const badDate of ['24-09-2026', '2026-02-31', '2026-2-03'])assert.equal(domain.parseUnauthorisedPaymentInput({paymentAmount:'99',paymentReceivedDate:badDate}).ok,false,`${badDate} rejected`)
 const a=domain.parseUnauthorisedPaymentInput({paymentAmount:'99',paymentReceivedDate:'2026-09-24'}),b=domain.parseUnauthorisedPaymentInput({paymentAmount:'99',paymentReceivedDate:'2026-09-24'})
 assert.equal(a.ok&&b.ok,true)
 if(!a.ok||!b.ok)throw new Error('valid fixtures unexpectedly rejected')
@@ -34,5 +39,8 @@ const ui=await readFile(path.join(import.meta.dirname,'../src/components/Payment
 assert.match(ui,/UTR \/ Reference Number <small>Optional<\/small>/);assert.doesNotMatch(ui,/UTR \/ Reference Number[\s\S]{0,120}<input\s+required/)
 assert.match(ui,/Payment Amount <span aria-hidden="true">\*<\/span>[\s\S]{0,180}<input\s+required/)
 assert.match(ui,/Payment Amount[\s\S]{0,700}Payment Received Date[\s\S]{0,400}Customer Name/)
-assert.match(ui,/Payment Received Date[\s\S]{0,180}<input\s+required\s+type="date"/)
-console.log('unauthorised amount and received-date contract verified')
+assert.match(ui,/paymentReceivedDate: ""/)
+assert.match(ui,/Payment Received Date <small>Optional<\/small>[\s\S]{0,180}<input\s+type="date"/)
+assert.doesNotMatch(ui,/Payment Received Date[\s\S]{0,180}<input\s+required/)
+assert.match(ui,/paymentReceivedDate: p\.paymentReceivedDate \|\| ""/)
+console.log('unauthorised amount and optional received-date contract verified')

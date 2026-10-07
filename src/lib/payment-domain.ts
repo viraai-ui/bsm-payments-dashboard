@@ -36,22 +36,23 @@ export function parsePaymentReceivedDate(value: unknown) {
   return date.toISOString().slice(0, 10) === text ? text : null
 }
 
-/** One contract for every internal unauthorised-payment creator. Amount and the
- * actual received date are required; identity fields may remain absent. */
+/** One contract for every internal unauthorised-payment creator. Amount is
+ * required; identity fields and the actual received date may remain absent. */
 export function parseUnauthorisedPaymentInput(input: Record<string, unknown>) {
   const paymentAmount = parsePaymentAmount(input.paymentAmount)
-  const paymentReceivedDate = parsePaymentReceivedDate(input.paymentReceivedDate)
+  const rawPaymentReceivedDate = String(input.paymentReceivedDate ?? '').trim()
+  const paymentReceivedDate = rawPaymentReceivedDate ? parsePaymentReceivedDate(rawPaymentReceivedDate) : undefined
   const rawCustomer = String(input.customerName ?? '').trim()
   const customerName = rawCustomer ? cleanCustomer(rawCustomer) : ''
   const utrReference = String(input.utrReference ?? '').trim()
   const remarks = cleanRemarks(input.remarks)
   if (paymentAmount === null) return { ok: false as const, error: 'Enter a valid payment amount greater than ₹0' }
-  if (!paymentReceivedDate) return { ok: false as const, error: 'Select a valid payment received date' }
+  if (rawPaymentReceivedDate && !paymentReceivedDate) return { ok: false as const, error: 'Enter payment received date as YYYY-MM-DD' }
   if (customerName === null) return { ok: false as const, error: 'Customer name must be 120 characters or fewer' }
   if (utrReference.length > 120) return { ok: false as const, error: 'UTR / Reference Number must be 120 characters or fewer' }
   if (remarks === null) return { ok: false as const, error: 'Remarks must be 500 characters or fewer' }
   return { ok: true as const, value: {
-    paymentAmount, paymentReceivedDate, customerName, utrReference,
+    paymentAmount, paymentReceivedDate: paymentReceivedDate || undefined, customerName, utrReference,
     paymentMode: isPaymentMode(input.paymentMode) ? input.paymentMode : undefined,
     remarks: remarks || undefined,
   } }

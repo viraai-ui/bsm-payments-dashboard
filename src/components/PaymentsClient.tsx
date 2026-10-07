@@ -70,17 +70,13 @@ type Filters = {
   from: string;
   to: string;
 };
-const today = () => {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-};
 const emptyForm = (): Form => ({
   salesOrderId: "",
   salesOrderNumber: "",
   customerName: "",
   orderTotal: "",
   paymentAmount: "",
-  paymentReceivedDate: today(),
+  paymentReceivedDate: "",
   paymentMode: "Bank Transfer",
   remarks: "",
   utrReference: "",
@@ -654,7 +650,7 @@ export function PaymentsClient({
       customerName: p.customerName,
       orderTotal: String(p.orderTotal || ""),
       paymentAmount: String(p.paymentAmount),
-      paymentReceivedDate: p.paymentReceivedDate || p.paymentDate,
+      paymentReceivedDate: p.paymentReceivedDate || "",
       paymentMode: p.paymentMode || "Bank Transfer",
       remarks: p.remarks || "",
       utrReference: p.utrReference || "",
@@ -1027,9 +1023,8 @@ export function PaymentsClient({
                   />
                 </label>
                 <label>
-                  Payment Received Date <span aria-hidden="true">*</span>
+                  Payment Received Date <small>Optional</small>
                   <input
-                    required
                     type="date"
                     value={form.paymentReceivedDate}
                     onChange={(e) => setForm((f) => ({ ...f, paymentReceivedDate: e.target.value }))}
