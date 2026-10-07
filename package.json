@@ -24,6 +24,7 @@
     "verify:data-cache": "tsx scripts/verify-data-cache.mjs",
     "verify:security": "tsx scripts/verify-security.mts",
     "verify:viewer-metrics": "node scripts/verify-viewer-metrics.cjs",
+    "verify:admin-overview": "tsx scripts/verify-admin-overview.mts",
     "verify:payment-actions": "node scripts/verify-payment-actions.cjs",
     "verify:split-claims": "tsx scripts/verify-split-claims.mts",
     "verify:closed-remainder": "tsx scripts/verify-closed-remainder.mts",

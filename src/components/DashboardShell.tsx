@@ -21,7 +21,11 @@ function ShellBody({ children, active }: { children: React.ReactNode; active: st
   const mediaOnly = false
   const databaseOnly = false
   const accountsOnly = user.role === 'Accounts'
-  const visibleNav = ['Salesperson','Spare Part Sales'].includes(user.role)?nav:['Admin','Accounts'].includes(user.role)?nav.filter(item=>item.href!=='/overview'):nav.filter(item => item.href === '/payments')
+  const visibleNav = ['Admin','Salesperson','Spare Part Sales'].includes(user.role)
+    ? nav
+    : user.role === 'Accounts'
+      ? nav.filter(item => item.href !== '/overview')
+      : nav.filter(item => item.href === '/payments')
   const canUseUtilities = user.role === 'Admin'
   const visibleUtilityNav = canUseUtilities ? utilityNav : []
   const mobileHidden = new Set(['/packaging-tv'])
