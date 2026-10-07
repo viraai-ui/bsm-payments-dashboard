@@ -26,20 +26,32 @@ export function parsePaymentAmount(value: unknown) {
 export function isPaymentMode(value: unknown): value is PaymentMode { return PAYMENT_MODES.includes(value as PaymentMode) }
 export function cleanRemarks(value: unknown) { const text=String(value??'').trim(); return text.length<=MAX_REMARKS_LENGTH?text:null }
 
-/** One contract for every internal unauthorised-payment creator. Only amount is
- * required; identity and presentation fields remain genuinely absent when blank. */
+/** Calendar-only receipt date. Round-tripping rejects impossible dates such as
+ * 2026-02-31 without introducing timezone-dependent validation. */
+export function parsePaymentReceivedDate(value: unknown) {
+  const text = String(value ?? '').trim()
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text)
+  if (!match) return null
+  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])))
+  return date.toISOString().slice(0, 10) === text ? text : null
+}
+
+/** One contract for every internal unauthorised-payment creator. Amount and the
+ * actual received date are required; identity fields may remain absent. */
 export function parseUnauthorisedPaymentInput(input: Record<string, unknown>) {
   const paymentAmount = parsePaymentAmount(input.paymentAmount)
+  const paymentReceivedDate = parsePaymentReceivedDate(input.paymentReceivedDate)
   const rawCustomer = String(input.customerName ?? '').trim()
   const customerName = rawCustomer ? cleanCustomer(rawCustomer) : ''
   const utrReference = String(input.utrReference ?? '').trim()
   const remarks = cleanRemarks(input.remarks)
   if (paymentAmount === null) return { ok: false as const, error: 'Enter a valid payment amount greater than ₹0' }
+  if (!paymentReceivedDate) return { ok: false as const, error: 'Select a valid payment received date' }
   if (customerName === null) return { ok: false as const, error: 'Customer name must be 120 characters or fewer' }
   if (utrReference.length > 120) return { ok: false as const, error: 'UTR / Reference Number must be 120 characters or fewer' }
   if (remarks === null) return { ok: false as const, error: 'Remarks must be 500 characters or fewer' }
   return { ok: true as const, value: {
-    paymentAmount, customerName, utrReference,
+    paymentAmount, paymentReceivedDate, customerName, utrReference,
     paymentMode: isPaymentMode(input.paymentMode) ? input.paymentMode : undefined,
     remarks: remarks || undefined,
   } }

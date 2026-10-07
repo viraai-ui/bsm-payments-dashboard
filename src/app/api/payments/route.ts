@@ -25,7 +25,7 @@ export async function POST(request:Request){
  let payment
  if(unauthorised){
   const parsed=parseUnauthorisedPaymentInput(b);if(!parsed.ok)return apiError(parsed.error,400)
-  // Date is server-derived by the store. Owner/salesperson fields from clients are ignored.
+  // Received date is validated by the domain parser. Owner/salesperson fields from clients are ignored.
   try{const created=await timing.measure('ledger',()=>createUnlinkedPayment({...parsed.value,status:'Unauthorised',createdBy:auth.user.id,addedBy:isPaymentAddedBy(auth.user.name)?auth.user.name:undefined},key));payment=created.payment;if(created.duplicate)return done(apiOk({payment,duplicate:true}))}catch(e){return done(apiError(e instanceof Error?e.message:'Could not save payment',500))}
  }else{
   const customer=cleanCustomer(b.customerName),remarks=cleanRemarks(b.remarks);if(!customer||amount===null||remarks===null||!isPaymentMode(b.paymentMode))return apiError('Valid linked payment fields are required',400)

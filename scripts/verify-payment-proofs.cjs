@@ -3,7 +3,7 @@ const root=path.resolve(__dirname,'..'),data=path.join(root,'data'),port=process
 async function wait(){for(let i=0;i<60;i++){try{if((await fetch(base)).ok)return}catch{}await sleep(200)}throw Error('server did not start')}
 async function login(name,password){const r=await fetch(base+'/api/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({login:name,password})});assert.equal(r.status,200,`${name} login`);return r.headers.getSetCookie()[0].split(';')[0]}
 const png=(size=1153434)=>new File([Uint8Array.from([137,80,78,71,13,10,26,10]),new Uint8Array(Math.max(0,size-8))],'proof.png',{type:'image/png'})
-function paymentForm(){const f=new FormData();f.set('paymentType','unauthorised');f.set('utrReference','UTR-QA-123');f.set('customerName','Local Proof Probe');f.set('paymentAmount','12.50');f.set('paymentMode','UPI');f.set('remarks','proof regression');f.set('createdBy','forged-user');return f}
+function paymentForm(){const f=new FormData();f.set('paymentType','unauthorised');f.set('utrReference','UTR-QA-123');f.set('customerName','Local Proof Probe');f.set('paymentAmount','12.50');f.set('paymentReceivedDate','2026-09-24');f.set('paymentMode','UPI');f.set('remarks','proof regression');f.set('createdBy','forged-user');return f}
 const post=(cookie,form)=>fetch(base+'/api/payments',{method:'POST',headers:{cookie},body:form})
 ;(async()=>{let id
  try{

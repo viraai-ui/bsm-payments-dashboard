@@ -54,6 +54,7 @@ type Form = {
   customerName: string;
   orderTotal: string;
   paymentAmount: string;
+  paymentReceivedDate: string;
   paymentMode: string;
   remarks: string;
   utrReference: string;
@@ -69,12 +70,17 @@ type Filters = {
   from: string;
   to: string;
 };
+const today = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+};
 const emptyForm = (): Form => ({
   salesOrderId: "",
   salesOrderNumber: "",
   customerName: "",
   orderTotal: "",
   paymentAmount: "",
+  paymentReceivedDate: today(),
   paymentMode: "Bank Transfer",
   remarks: "",
   utrReference: "",
@@ -597,6 +603,7 @@ export function PaymentsClient({
     body.set("paymentMode", form.paymentMode);
     body.set("remarks", form.remarks);
     body.set("utrReference", form.utrReference);
+    body.set("paymentReceivedDate", form.paymentReceivedDate);
     body.set("customerName", form.customerName);
     body.set("replaceProofs", String(proofs.length > 0));
     proofs.forEach((f) => body.append("proofs", f));
@@ -647,6 +654,7 @@ export function PaymentsClient({
       customerName: p.customerName,
       orderTotal: String(p.orderTotal || ""),
       paymentAmount: String(p.paymentAmount),
+      paymentReceivedDate: p.paymentReceivedDate || p.paymentDate,
       paymentMode: p.paymentMode || "Bank Transfer",
       remarks: p.remarks || "",
       utrReference: p.utrReference || "",
@@ -1016,6 +1024,15 @@ export function PaymentsClient({
                       setError("");
                       setForm((f) => ({ ...f, paymentAmount: normalizePaymentAmountInput(e.target.value) }))
                     }}
+                  />
+                </label>
+                <label>
+                  Payment Received Date <span aria-hidden="true">*</span>
+                  <input
+                    required
+                    type="date"
+                    value={form.paymentReceivedDate}
+                    onChange={(e) => setForm((f) => ({ ...f, paymentReceivedDate: e.target.value }))}
                   />
                 </label>
                 <label>
@@ -1804,8 +1821,8 @@ function PaymentDetails({
         <h3>Order Details</h3>
         <dl>
           <div>
-            <dt>Payment Date</dt>
-            <dd>{date(p.paymentDate || p.createdAt)}</dd>
+            <dt>{p.status === "Unauthorised" ? "Payment Received Date" : "Payment Date"}</dt>
+            <dd>{date(p.status === "Unauthorised" ? (p.paymentReceivedDate || p.paymentDate) : (p.paymentDate || p.createdAt))}</dd>
           </div>
           <div>
             <dt>Order Date</dt>
@@ -1950,7 +1967,7 @@ function DesktopRow({
       onClick={onOpen}
       onKeyDown={activate}
     >
-      <td>{date(p.paymentDate || p.createdAt)}</td>
+      <td>{p.status === "Unauthorised" && <small className="payment-date-label">Received </small>}{date(p.status === "Unauthorised" ? (p.paymentReceivedDate || p.paymentDate) : (p.paymentDate || p.createdAt))}</td>
       <td>
         <strong className="payment-company">{paymentCustomerLabel(p.customerName)}</strong>
         <button className="payment-so-link" onClick={onOpen}>
@@ -2041,7 +2058,7 @@ function MobileCard({
         />
       </header>
       <div className="viewer-card-meta">
-        <span>{date(p.paymentDate || p.createdAt)}</span>
+        <span>{p.status === "Unauthorised" ? "Received " : ""}{date(p.status === "Unauthorised" ? (p.paymentReceivedDate || p.paymentDate) : (p.paymentDate || p.createdAt))}</span>
         <span>{p.paymentMode || (p.utrReference ? `UTR ${p.utrReference}` : "Payment")}</span>
         {(role === "Admin" || role === "Viewer") && salesperson(p) !== "—" && (
           <span
