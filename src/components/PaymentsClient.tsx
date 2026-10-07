@@ -96,6 +96,10 @@ const emptyFilters: Filters = {
   from: "",
   to: "",
 };
+const expensePrefill = (paymentAmount: string, outstanding: string) => {
+  const excess = Number(paymentAmount) - Number(outstanding);
+  return excess > 0 ? String(Math.round(excess * 100) / 100) : "";
+};
 const money = (n: number) =>
   new Intl.NumberFormat("en-IN", {
     style: "currency",
@@ -157,6 +161,7 @@ export function PaymentsClient({
     [deleting, setDeleting] = useState<Payment | null>(null),
     [deleteReason, setDeleteReason] = useState("");
   const [proofDragActive, setProofDragActive] = useState(false);
+  const [expenseOpen, setExpenseOpen] = useState(false);
   const proofDragDepth = useRef(0);
   const refreshBusy = useRef(false);
   const refreshSequence = useRef(0);
@@ -454,9 +459,10 @@ export function PaymentsClient({
       submittedAmount: String(order.settlement.advanceReceived),
       provisionalOutstanding: String(outstanding),
     };
-    if (target === "add")
+    if (target === "add") {
+      setExpenseOpen(false);
       setForm((f) => ({ ...f, ...value, paymentAmount: String(outstanding) }));
-    else setForm((f) => ({ ...f, ...value, paymentAmount: String(Math.min(claiming?.remainingAmount ?? claiming?.paymentAmount ?? 0, outstanding)) }));
+    } else setForm((f) => ({ ...f, ...value, paymentAmount: String(Math.min(claiming?.remainingAmount ?? claiming?.paymentAmount ?? 0, outstanding)) }));
   }
   function startAdd(so?: string) {
     const existing = so
@@ -479,6 +485,7 @@ export function PaymentsClient({
         : emptyForm(),
     );
     setProofs([]);
+    setExpenseOpen(false);
     setError("");
     submissionKey.current = crypto.randomUUID();
     setOpen(true);
@@ -505,7 +512,7 @@ export function PaymentsClient({
     setSaving(false);submitBusy.current=false;
     if(!r.ok){setError(j.error || (r.status===401 ? "Your session has expired. Please log in again." : "Could not save payment. Please try again."));requestAnimationFrame(()=>{addErrorRef.current?.scrollIntoView({block:"nearest"});addErrorRef.current?.focus()});return}
     setPayments((p) => sortPayments([j.data.payment, ...p.filter(x=>x.id!==j.data.payment.id)]));
-    setError("");setForm(emptyForm());setProofs([]);submissionKey.current="";setOpen(false);
+    setError("");setForm(emptyForm());setProofs([]);setExpenseOpen(false);submissionKey.current="";setOpen(false);
   }
   async function patch(body: object) {
     const id = typeof (body as {id?:unknown}).id === "string" ? (body as {id:string}).id : "";
@@ -649,6 +656,7 @@ export function PaymentsClient({
     setEditing(p);
     setProofs([]);
     setError("");
+    setExpenseOpen(Boolean(p.expenseAmount));
     setForm({
       ...emptyForm(),
       salesOrderId: p.salesOrderId || "",
@@ -1115,20 +1123,20 @@ export function PaymentsClient({
                     }}
                   />
                 </label>
-                {!manualEntry && form.salesOrderId && form.expenseAmount === "" && Number(form.paymentAmount) > Number(form.provisionalOutstanding) && (
+                {!manualEntry && form.salesOrderId && !expenseOpen && Number(form.paymentAmount) > Number(form.provisionalOutstanding) && (
                   <div className="expense-overage-prompt" role="note">
                     <span>{money(Number(form.paymentAmount)-Number(form.provisionalOutstanding))} is above the provisional outstanding.</span>
-                    <button type="button" onClick={() => setForm(f => ({...f,expenseAmount:String(Math.round((Number(f.paymentAmount)-Number(f.provisionalOutstanding))*100)/100)}))}>Add {money(Number(form.paymentAmount)-Number(form.provisionalOutstanding))} as expense</button>
+                    <button type="button" onClick={() => { setForm(f => ({...f,expenseAmount:expensePrefill(f.paymentAmount,f.provisionalOutstanding)})); setExpenseOpen(true); }}>Add {money(Number(form.paymentAmount)-Number(form.provisionalOutstanding))} as expense</button>
                   </div>
                 )}
-                {!manualEntry && form.salesOrderId && form.expenseAmount === "" && (
-                  <button type="button" className="link-button expense-toggle" aria-expanded="false" aria-controls="new-payment-expense-fields" onClick={() => setForm(f => ({...f,expenseAmount:"0"}))}>Add an expense</button>
+                {!manualEntry && form.salesOrderId && !expenseOpen && (
+                  <button type="button" className="expense-add-action" aria-expanded="false" aria-controls="new-payment-expense-fields" onClick={() => { setForm(f => ({...f,expenseAmount:expensePrefill(f.paymentAmount,f.provisionalOutstanding)})); setExpenseOpen(true); }}><span aria-hidden="true">＋</span> Add an expense</button>
                 )}
-                {!manualEntry && form.salesOrderId && form.expenseAmount !== "" && <div className="expense-line" id="new-payment-expense-fields">
-                  <label htmlFor="new-expense-name">Expense name</label><input id="new-expense-name" required={Number(form.expenseAmount)>0} maxLength={120} value={form.expenseName} onChange={e=>setForm(f=>({...f,expenseName:e.target.value}))} placeholder="e.g. Bank charges" />
-                  <label htmlFor="new-expense-amount">Expense amount</label><input id="new-expense-amount" type="text" inputMode="decimal" pattern="[0-9]+(?:[.][0-9]{1,2})?" value={form.expenseAmount} onChange={e=>setForm(f=>({...f,expenseAmount:normalizePaymentAmountInput(e.target.value)}))} />
-                  <small>SO payment: {money(Math.max(0,Number(form.paymentAmount||0)-Number(form.expenseAmount||0)))}</small>
-                  <button type="button" className="link-button expense-toggle" aria-expanded="true" aria-controls="new-payment-expense-fields" onClick={()=>setForm(f=>({...f,expenseAmount:"",expenseName:""}))}>Remove expense</button>
+                {!manualEntry && form.salesOrderId && expenseOpen && <div className="expense-editor" id="new-payment-expense-fields">
+                  <div className="expense-editor-head"><div><strong>Expense</strong><small>Deduct from the amount applied to this sales order</small></div><button type="button" className="expense-remove-action" aria-expanded="true" aria-controls="new-payment-expense-fields" onClick={()=>{setForm(f=>({...f,expenseAmount:"",expenseName:""}));setExpenseOpen(false)}}>Remove</button></div>
+                  <div className="expense-fields"><label htmlFor="new-expense-name">Expense name<input id="new-expense-name" required={Number(form.expenseAmount)>0} maxLength={120} value={form.expenseName} onChange={e=>setForm(f=>({...f,expenseName:e.target.value}))} placeholder="e.g. Bank charges" /></label>
+                  <label htmlFor="new-expense-amount">Expense amount<input id="new-expense-amount" type="text" inputMode="decimal" pattern="[0-9]+(?:[.][0-9]{1,2})?" value={form.expenseAmount} onChange={e=>setForm(f=>({...f,expenseAmount:normalizePaymentAmountInput(e.target.value)}))} placeholder="0.00" /></label></div>
+                  <div className="so-payment-summary"><span>SO payment</span><strong>{money(Math.max(0,Number(form.paymentAmount||0)-Number(form.expenseAmount||0)))}</strong></div>
                 </div>}
                 <label>
                   Payment mode
@@ -1311,14 +1319,12 @@ export function PaymentsClient({
                 }
               />
             </label>
-            {editing.salesOrderId && <div className="expense-line">
-              {form.expenseAmount === "" ? <button type="button" className="link-button" onClick={()=>setForm(f=>({...f,expenseAmount:"0"}))}>Add an expense</button> : <>
-                <label>Expense name <input required={Number(form.expenseAmount)>0} maxLength={120} value={form.expenseName} onChange={e=>setForm(f=>({...f,expenseName:e.target.value}))} /></label>
-                <label>Expense amount <input type="text" inputMode="decimal" value={form.expenseAmount} onChange={e=>setForm(f=>({...f,expenseAmount:normalizePaymentAmountInput(e.target.value)}))} /></label>
-                <small>SO payment: {money(Math.max(0,Number(form.paymentAmount)-Number(form.expenseAmount||0)))}</small>
-                <button type="button" className="link-button" onClick={()=>setForm(f=>({...f,expenseAmount:"",expenseName:""}))}>Remove expense</button>
-              </>}
-            </div>}
+            {editing.salesOrderId && (!expenseOpen ? <button type="button" className="expense-add-action" aria-expanded="false" aria-controls="edit-payment-expense-fields" onClick={()=>{setForm(f=>({...f,expenseAmount:""}));setExpenseOpen(true)}}><span aria-hidden="true">＋</span> Add an expense</button> : <div className="expense-editor" id="edit-payment-expense-fields">
+              <div className="expense-editor-head"><div><strong>Expense</strong><small>Deduct from the amount applied to this sales order</small></div><button type="button" className="expense-remove-action" aria-expanded="true" aria-controls="edit-payment-expense-fields" onClick={()=>{setForm(f=>({...f,expenseAmount:"",expenseName:""}));setExpenseOpen(false)}}>Remove</button></div>
+              <div className="expense-fields"><label>Expense name<input required={Number(form.expenseAmount)>0} maxLength={120} value={form.expenseName} onChange={e=>setForm(f=>({...f,expenseName:e.target.value}))} /></label>
+              <label>Expense amount<input type="text" inputMode="decimal" value={form.expenseAmount} placeholder="0.00" onChange={e=>setForm(f=>({...f,expenseAmount:normalizePaymentAmountInput(e.target.value)}))} /></label></div>
+              <div className="so-payment-summary"><span>SO payment</span><strong>{money(Math.max(0,Number(form.paymentAmount)-Number(form.expenseAmount||0)))}</strong></div>
+            </div>)}
             <label>
               Payment mode
               <select
