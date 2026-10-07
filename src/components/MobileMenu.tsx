@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import type { SafeUser } from '@/lib/auth'
 import { NotificationCenter } from './NotificationCenter'
 
@@ -67,10 +68,10 @@ export function MobileMenu({ active, onLogout, user }: { nav: NavItem[]; utility
   const screenLabel = active === 'Settings' ? 'Settings' : active==='Overview'?'Overview':paymentScreenLabels[paymentTab]
   return <>
     <header className="mobile-appbar" data-mobile-app-header>
-      <a className="mobile-brand" href={['Admin','Salesperson','Spare Part Sales'].includes(user.role)?'/overview':'/payments'} aria-label="BSM Payments home">
+      <Link className="mobile-brand" href={['Admin','Salesperson','Spare Part Sales'].includes(user.role)?'/overview':'/payments'} aria-label="BSM Payments home">
         <img className="mobile-logo bsm-brand-logo" src="/brand/bsm-logo.png" alt="BSM" />
         <strong>{screenLabel}</strong>
-      </a>
+      </Link>
       <div className="mobile-app-actions">
         <NotificationCenter />
         <button ref={accountTriggerRef} className="mobile-avatar" type="button" aria-label="Open account menu" aria-expanded={accountOpen} aria-controls="mobile-account-sheet" onClick={() => setAccountOpen(true)}>{(user.name || user.email || user.role).slice(0,2).toUpperCase()}</button>
@@ -80,15 +81,15 @@ export function MobileMenu({ active, onLogout, user }: { nav: NavItem[]; utility
       <section ref={accountSheetRef} id="mobile-account-sheet" className="mobile-account-sheet" role="dialog" aria-modal="true" aria-label="Account" onClick={e => e.stopPropagation()}>
         <div className="sheet-handle"/><button ref={accountCloseRef} className="mobile-sheet-close" type="button" aria-label="Close account menu" onClick={() => setAccountOpen(false)}>×</button><header><div className="account-avatar">{(user.name || user.role).slice(0,2).toUpperCase()}</div><div><strong>{user.name || user.role}</strong><span>{user.email}</span></div></header><p>{user.role}</p>
         <div className="account-sheet-actions">
-          {['Admin', 'Accounts', 'Salesperson', 'Spare Part Sales'].includes(user.role) && <a href="/settings" className="account-settings-link" onClick={() => setAccountOpen(false)}><NavIcon icon="settings"/><span>Settings</span><b aria-hidden="true">›</b></a>}
+          {['Admin', 'Accounts', 'Salesperson', 'Spare Part Sales'].includes(user.role) && <Link href="/settings" className="account-settings-link" onClick={() => setAccountOpen(false)}><NavIcon icon="settings"/><span>Settings</span><b aria-hidden="true">›</b></Link>}
           <button className="account-logout" type="button" onClick={() => void onLogout()}>Log out</button>
         </div>
       </section>
     </div>}
-    {['Admin','Salesperson','Spare Part Sales'].includes(user.role)?<nav className="mobile-bottom-nav salesperson-bottom-nav" aria-label={`${user.role} navigation`}>{([['overview','Overview'],['all','Regular Payments'],['unauthorised','Unauthorised'],['pending','Pending Payments']] as const).map(([key,label])=>key==='overview'?<a key={key} className={active==='Overview'?'active':''} aria-current={active==='Overview'?'page':undefined} href="/overview"><span className="nav-icon-box"><PaymentTabIcon tab="overview"/></span><span>{label}</span></a>:active==='Payments'?<button key={key} type="button" aria-label={label} className={paymentTab===key?'active':''} aria-current={paymentTab===key?'page':undefined} onClick={()=>window.dispatchEvent(new CustomEvent('payment:select-tab',{detail:key}))}><span className="nav-icon-box"><PaymentTabIcon tab={key}/></span><span>{label}</span></button>:<a key={key} href={`/payments?view=${key==='all'?'regular':key}`} aria-label={label}><span className="nav-icon-box"><PaymentTabIcon tab={key}/></span><span>{label}</span></a>)}</nav>:<nav className="mobile-bottom-nav" aria-label="Payment navigation">
+    {['Admin','Salesperson','Spare Part Sales'].includes(user.role)?<nav className="mobile-bottom-nav salesperson-bottom-nav" aria-label={`${user.role} navigation`}>{([['overview','Overview'],['all','Regular Payments'],['unauthorised','Unauthorised'],['pending','Pending Payments']] as const).map(([key,label])=>key==='overview'?<Link key={key} className={active==='Overview'?'active':''} aria-current={active==='Overview'?'page':undefined} href="/overview"><span className="nav-icon-box"><PaymentTabIcon tab="overview"/></span><span>{label}</span></Link>:active==='Payments'?<button key={key} type="button" aria-label={label} className={paymentTab===key?'active':''} aria-current={paymentTab===key?'page':undefined} onClick={()=>window.dispatchEvent(new CustomEvent('payment:select-tab',{detail:key}))}><span className="nav-icon-box"><PaymentTabIcon tab={key}/></span><span>{label}</span></button>:<Link key={key} href={`/payments?view=${key==='all'?'regular':key}`} aria-label={label}><span className="nav-icon-box"><PaymentTabIcon tab={key}/></span><span>{label}</span></Link>)}</nav>:<nav className="mobile-bottom-nav" aria-label="Payment navigation">
       {destinations.map(([key,label]) => active === 'Payments'
         ? <button type="button" key={key} aria-label={label} className={paymentTab===key?'active':''} aria-current={paymentTab===key?'page':undefined} onClick={() => window.dispatchEvent(new CustomEvent('payment:select-tab',{detail:key}))}><span className="nav-icon-box"><PaymentTabIcon tab={key}/></span><span>{key === 'all' ? 'Regular' : label}</span></button>
-        : <a key={key} href={`/payments${key === 'overview' ? '' : `?view=${key === 'all' ? 'regular' : key}`}`} aria-label={label}><span className="nav-icon-box"><PaymentTabIcon tab={key}/></span><span>{key === 'all' ? 'Regular' : label}</span></a>)}
+        : <Link key={key} href={`/payments${key === 'overview' ? '' : `?view=${key === 'all' ? 'regular' : key}`}`} aria-label={label}><span className="nav-icon-box"><PaymentTabIcon tab={key}/></span><span>{key === 'all' ? 'Regular' : label}</span></Link>)}
     </nav>}
   </>
 }

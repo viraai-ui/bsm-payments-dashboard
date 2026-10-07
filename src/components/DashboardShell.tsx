@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { AuthGate, useAuth } from './AuthGate'
 import { MobileMenu, NavIcon, type NavItem } from './MobileMenu'
 import { NotificationOnboarding } from './NotificationOnboarding'
@@ -51,10 +52,10 @@ function ShellBody({ children, active }: { children: React.ReactNode; active: st
         </div>
       </div>
       <nav className="nav" aria-label="Dashboard navigation">
-        {visibleNav.map((item) => <a className={`${item.label === active ? 'active' : ''} ${item.href === '/ready-to-ship' ? 'ready-nav-link' : ''}`} href={item.href} key={item.label}><NavIcon icon={item.icon}/><span>{item.label}</span>{item.href === '/ready-to-ship' && readyCount !== null && <em className="ready-nav-count">{readyCount}</em>}</a>)}
+        {visibleNav.map((item) => <Link className={`${item.label === active ? 'active' : ''} ${item.href === '/ready-to-ship' ? 'ready-nav-link' : ''}`} href={item.href} key={item.label}><NavIcon icon={item.icon}/><span>{item.label}</span>{item.href === '/ready-to-ship' && readyCount !== null && <em className="ready-nav-count">{readyCount}</em>}</Link>)}
       </nav>
       <div className="side-user">
-        {visibleUtilityNav.map((item) => <a className={`side-utility-link ${item.href === '/wooden-packing' ? 'wooden-utility-link' : ''} ${item.label === active ? 'active' : ''}`} href={item.href} key={item.label}>{item.label}</a>)}
+        {visibleUtilityNav.map((item) => <Link className={`side-utility-link ${item.href === '/wooden-packing' ? 'wooden-utility-link' : ''} ${item.label === active ? 'active' : ''}`} href={item.href} key={item.label}>{item.label}</Link>)}
         <div className="side-user-card">
           <div className="side-user-copy"><strong>{user.name || user.role}</strong><span>{user.email}</span></div>
           <button className="side-logout-icon" type="button" aria-label="Logout" title="Logout" onClick={logout}>

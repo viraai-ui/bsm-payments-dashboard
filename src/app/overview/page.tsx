@@ -3,6 +3,7 @@ import { AdminOverviewClient } from '@/components/AdminOverviewClient'
 import { SalespersonOverviewClient } from '@/components/SalespersonOverviewClient'
 import { getSessionUser } from '@/lib/auth'
 import { paymentReadModelForUserFresh } from '@/lib/payments'
+import { adminOverviewSummaries } from '@/lib/admin-overview-metrics'
 import { redirect } from 'next/navigation'
 export const dynamic='force-dynamic'
 export default async function OverviewPage(){
@@ -13,5 +14,6 @@ export default async function OverviewPage(){
  // Admin's server-authorised read model is deliberately computed before any UI
  // filtering; overview totals therefore always represent the whole organisation.
  const model=await paymentReadModelForUserFresh(user)
- return <DashboardShell active="Overview"><AdminOverviewClient payments={model.payments} pendingOrders={model.pendingOrders}/></DashboardShell>
+ const summaries=adminOverviewSummaries(model.payments,model.pendingOrders)
+ return <DashboardShell active="Overview"><AdminOverviewClient summaries={summaries}/></DashboardShell>
 }

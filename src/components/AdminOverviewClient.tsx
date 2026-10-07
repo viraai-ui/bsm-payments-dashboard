@@ -1,8 +1,8 @@
 'use client'
 
-import {useId, useMemo, useState} from 'react'
-import type {Payment} from '@/lib/payments'
-import {adminOverviewMetrics} from '@/lib/admin-overview-metrics'
+import {useId, useState} from 'react'
+import Link from 'next/link'
+import type {AdminOverviewSummaries, AdminOverviewSummary} from '@/lib/admin-overview-metrics'
 import type {ViewerPeriod} from '@/lib/viewer-payment-metrics'
 import './admin-overview.css'
 
@@ -14,15 +14,9 @@ const money = (paise: number) => new Intl.NumberFormat('en-IN', {
 
 const periods: ViewerPeriod[] = ['day', 'week', 'month']
 
-export function AdminOverviewClient({payments, pendingOrders}: {
-  payments: Payment[]
-  pendingOrders: Array<{outstanding?: number}>
-}) {
+export function AdminOverviewClient({summaries}: {summaries: AdminOverviewSummaries}) {
   const [period, setPeriod] = useState<ViewerPeriod>('month')
-  const metrics = useMemo(
-    () => adminOverviewMetrics(payments, pendingOrders, period),
-    [payments, pendingOrders, period],
-  )
+  const metrics = summaries[period]
 
   return <section className="admin-overview" data-admin-overview>
     <header className="admin-overview-head">
@@ -43,9 +37,8 @@ export function AdminOverviewClient({payments, pendingOrders}: {
         <strong>{money(metrics.cash.amountPaise)}</strong>
         <p>{metrics.cash.count} {metrics.cash.count === 1 ? 'receipt' : 'receipts'}</p>
       </article>
-      <Metric title="Pending receipt" amount={metrics.pending.amountPaise} count={metrics.pending.count} tone="amber" />
-      <Metric title="Unauthorised" amount={metrics.unauthorised.amountPaise} count={metrics.unauthorised.count} tone="red" />
-      <Metric title="Order outstanding" amount={metrics.outstanding.amountPaise} count={metrics.outstanding.count} tone="navy" />
+      <Metric title="Pending orders" amount={metrics.pending.amountPaise} count={metrics.pending.count} noun="order" tone="amber" />
+      <Metric title="Unauthorised remaining" amount={metrics.unauthorised.amountPaise} count={metrics.unauthorised.count} tone="red" />
     </div>
 
     <div className="admin-analysis-grid">
@@ -73,7 +66,7 @@ export function AdminOverviewClient({payments, pendingOrders}: {
       <article className="admin-panel admin-recent">
         <header>
           <h2>Recent receipts</h2>
-          <a href="/payments">View all →</a>
+          <Link href="/payments">View all →</Link>
         </header>
         <div className="admin-recent-list">
           {metrics.recent.map(item => <div key={item.id}>
@@ -92,20 +85,21 @@ export function AdminOverviewClient({payments, pendingOrders}: {
   </section>
 }
 
-function Metric({title, amount, count, tone}: {
+function Metric({title, amount, count, tone, noun='receipt'}: {
   title: string
   amount: number
   count: number
   tone: string
+  noun?: string
 }) {
   return <article className={`admin-metric ${tone}`}>
     <span>{title}</span>
     <strong>{money(amount)}</strong>
-    <p>{count} {count === 1 ? 'receipt' : 'receipts'}</p>
+    <p>{count} {count === 1 ? noun : `${noun}s`}</p>
   </article>
 }
 
-function Trend({metrics}: {metrics: ReturnType<typeof adminOverviewMetrics>}) {
+function Trend({metrics}: {metrics: AdminOverviewSummary}) {
   const id = useId()
   const width = 720
   const height = 230
@@ -156,7 +150,7 @@ function Donut({rows}: {rows: Array<{status: string; amountPaise: number; count:
   }).join(',')
 
   return <article className="admin-panel admin-composition">
-    <header><h2>Receipt status</h2></header>
+    <header><h2>Payment status</h2></header>
     <div
       className="admin-donut"
       role="img"
@@ -165,7 +159,7 @@ function Donut({rows}: {rows: Array<{status: string; amountPaise: number; count:
     >
       <div>
         <strong>{rows.reduce((sum, item) => sum + item.count, 0)}</strong>
-        <span>receipts</span>
+        <span>items</span>
       </div>
     </div>
     <div className="admin-legend">
