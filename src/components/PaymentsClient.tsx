@@ -164,6 +164,7 @@ export function PaymentsClient({
   const [expenseOpen, setExpenseOpen] = useState(false);
   const proofDragDepth = useRef(0);
   const refreshBusy = useRef(false);
+  const refreshController = useRef<AbortController | null>(null);
   const refreshSequence = useRef(0);
   const mutationVersion = useRef(0);
   const mutatingIds = useRef(new Set<string>());
@@ -210,32 +211,39 @@ export function PaymentsClient({
     if (refreshBusy.current) return;
     refreshBusy.current = true;
     const sequence = ++refreshSequence.current, startedAtMutation = mutationVersion.current;
+    const controller = new AbortController();
+    refreshController.current = controller;
     try {
-      const r = await fetch(`/api/payments?sync=${Date.now()}`, { cache: "no-store", headers: { "Cache-Control": "no-cache" } }),
+      const r = await fetch(`/api/payments?sync=${Date.now()}`, { cache: "no-store", headers: { "Cache-Control": "no-cache" }, signal: controller.signal }),
         j = await r.json();
       if (r.ok && sequence === refreshSequence.current && startedAtMutation === mutationVersion.current) {
         setPayments(current => sortPayments(mergePaymentSnapshot(current, j.data.payments, mutatingIds.current)));
         setAuthoritativePending(j.data.pendingOrders);
       }
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === "AbortError")) throw error;
     } finally {
+      if (refreshController.current === controller) refreshController.current = null;
       refreshBusy.current = false;
     }
   }, [userRole]);
   useEffect(() => {
     const timer = setInterval(() => {
       if (document.visibilityState === "visible") void refresh();
-    }, 4000);
+    }, userRole === "Admin" ? 30000 : 4000);
     const focus = () => void refresh();
     const visible = () => { if (document.visibilityState === "visible") void refresh(); };
     window.addEventListener("focus", focus);
     document.addEventListener("visibilitychange", visible);
     return () => {
       clearInterval(timer);
+      refreshController.current?.abort();
       window.removeEventListener("focus", focus);
       document.removeEventListener("visibilitychange", visible);
     };
   }, [refresh]);
-  useEffect(() => { void refresh(); }, [refresh]);
+  // The server-rendered page already contains an authoritative snapshot; avoid a
+  // duplicate full-ledger request immediately after hydration.
   const syncSalesOrder = useCallback(async (payment: Payment) => {
     if (orderSync?.state === "loading") return;
     setOrderSync({paymentId:payment.id,state:"loading",message:""});

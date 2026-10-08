@@ -34,6 +34,7 @@
     "verify:currency-display": "node scripts/verify-currency-display.cjs",
     "verify:live-sync": "tsx scripts/verify-live-sync.mjs",
     "verify:admin-contract": "node scripts/verify-admin-contract.cjs",
+    "verify:admin-performance": "node scripts/verify-admin-performance-contract.cjs",
     "verify:payout-sync-ui": "node scripts/verify-payout-sync-ui.cjs",
     "verify:responsive": "node scripts/verify-responsive.cjs",
     "verify:mobile-overview-nav": "MOBILE_OVERVIEW_NAV_ONLY=1 node scripts/verify-responsive.cjs",

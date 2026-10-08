@@ -66,7 +66,7 @@ export function AdminOverviewClient({summaries}: {summaries: AdminOverviewSummar
       <article className="admin-panel admin-recent">
         <header>
           <h2>Recent receipts</h2>
-          <Link href="/payments">View all →</Link>
+          <Link href="/payments" prefetch={false}>View all →</Link>
         </header>
         <div className="admin-recent-list">
           {metrics.recent.map(item => <div key={item.id}>
