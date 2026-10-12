@@ -10,7 +10,7 @@ assert.deepEqual(mergePaymentSnapshot([optimistic],[],new Set(['p1'])),[optimist
 const client=await readFile(new URL('../src/components/PaymentsClient.tsx',import.meta.url),'utf8')
 const route=await readFile(new URL('../src/app/api/payments/route.ts',import.meta.url),'utf8')
 const onboarding=await readFile(new URL('../src/components/NotificationOnboarding.tsx',import.meta.url),'utf8')
-assert.match(client,/}, 4000\);/);assert.match(client,/cache: "no-store"/);assert.match(client,/mutationVersion/);assert.match(client,/setSelected\(payments\.find/)
+assert.match(client,/userRole === "Admin" \? 30000 : 4000/);assert.match(client,/cache: "no-store"/);assert.match(client,/mutationVersion/);assert.match(client,/createPaymentRefreshQueue/);assert.match(client,/setSelected\(payments\.find/)
 assert.match(route,/paymentReadModelForUserFresh/);assert.match(route,/private, no-store, max-age=0, must-revalidate/);assert.match(client,/j\.data\.pendingOrders/)
 assert.match(onboarding,/SETUP_TIMEOUT_MS = 10000/);assert.match(onboarding,/Service worker activation/);assert.match(onboarding,/In-app notifications remain active/)
 console.log('PASS live sync: optimistic race protection, 4s polling, fresh no-store API, dialog reconciliation, bounded push setup')

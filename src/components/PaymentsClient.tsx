@@ -32,6 +32,7 @@ import { BossMobileOverview } from "@/components/BossMobileOverview";
 import { normalizePaymentAmountInput } from "@/lib/payment-amount";
 import { managementPaymentMetrics } from "@/lib/management-payment-metrics";
 import { mergePaymentSnapshot } from "@/lib/payment-live-sync";
+import { createPaymentRefreshQueue } from "@/lib/payment-refresh-queue";
 import { PAYMENT_PROOF_ACCEPT, normalizePaymentProofFiles, removePaymentProofFile } from "@/lib/payment-proof-files";
 import { compressPaymentScreenshot } from "@/lib/payment-screenshot";
 
@@ -163,7 +164,7 @@ export function PaymentsClient({
   const [proofDragActive, setProofDragActive] = useState(false);
   const [expenseOpen, setExpenseOpen] = useState(false);
   const proofDragDepth = useRef(0);
-  const refreshBusy = useRef(false);
+  const refreshQueue = useRef(createPaymentRefreshQueue());
   const refreshController = useRef<AbortController | null>(null);
   const refreshSequence = useRef(0);
   const mutationVersion = useRef(0);
@@ -207,9 +208,7 @@ export function PaymentsClient({
       document.removeEventListener("dragleave", leave, true); document.removeEventListener("drop", drop, true); window.removeEventListener("blur", reset);
     };
   }, [proofPopupActive, acceptProofFiles]);
-  const refresh = useCallback(async () => {
-    if (refreshBusy.current) return;
-    refreshBusy.current = true;
+  const refresh = useCallback(() => refreshQueue.current.request(async () => {
     const sequence = ++refreshSequence.current, startedAtMutation = mutationVersion.current;
     const controller = new AbortController();
     refreshController.current = controller;
@@ -224,9 +223,8 @@ export function PaymentsClient({
       if (!(error instanceof DOMException && error.name === "AbortError")) throw error;
     } finally {
       if (refreshController.current === controller) refreshController.current = null;
-      refreshBusy.current = false;
     }
-  }, [userRole]);
+  }), [userRole]);
   useEffect(() => {
     const timer = setInterval(() => {
       if (document.visibilityState === "visible") void refresh();
@@ -558,6 +556,7 @@ export function PaymentsClient({
     setPayments(current => current.map(item => item.id === p.id ? { ...item, status: next } : item));
     const ok = await patch({ id: p.id, status: next });
     if (!ok) setPayments(current => current.map(item => item.id === p.id ? p : item));
+    else void refresh().catch(() => {});
     setUpdating(null);
   }
   async function claim(e: React.FormEvent) {

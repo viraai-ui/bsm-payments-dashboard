@@ -33,6 +33,7 @@
     "verify:push-delivery": "tsx scripts/verify-push-delivery.mts",
     "verify:currency-display": "node scripts/verify-currency-display.cjs",
     "verify:live-sync": "tsx scripts/verify-live-sync.mjs",
+    "verify:status-refresh": "tsx scripts/verify-status-refresh.mts",
     "verify:admin-contract": "node scripts/verify-admin-contract.cjs",
     "verify:admin-performance": "node scripts/verify-admin-performance-contract.cjs",
     "verify:save-performance": "node scripts/verify-save-performance-contract.cjs",
