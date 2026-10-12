@@ -596,7 +596,11 @@ export function PaymentsClient({
       setClaiming(null);
       setForm(emptyForm());
       claimSubmissionKey.current = "";
-      await refresh();
+      // The committed payment returned by PATCH is enough to close Save. A full
+      // authoritative ledger refresh is useful for parent balances, but must not
+      // keep the claim dialog blocked on another remote-store round trip.
+      mutationVersion.current += 1;
+      void refresh().catch(() => {});
     } catch {
       setClaimError("Could not claim this payment. Check your connection and try again.");
     } finally {
