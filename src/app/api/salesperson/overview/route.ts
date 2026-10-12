@@ -1,6 +1,6 @@
 import { apiError, apiOk } from '@/lib/api'
 import { getSessionUser, isSalesRole } from '@/lib/auth'
-import { listPayments } from '@/lib/payments'
+import { listAllPaymentsFresh } from '@/lib/payments'
 import { readPaymentOrderMirror, readPaymentOrderMirrorFresh, synchronizePaymentOrderIndex } from '@/lib/payment-order-search'
 import { selectSalespersonOverview } from '@/lib/salesperson-overview'
 import { checkRateLimit } from '@/lib/public-payment-security'
@@ -13,7 +13,11 @@ export async function GET(){
  if(!user)return apiError('Authentication required',401)
  if(!isSalesRole(user.role))return apiError('Salesperson access required',403)
  try{
-  const [mirror,payments,exclusions]=await Promise.all([readPaymentOrderMirror(),listPayments(),listLegacySalesOrderExclusions()])
+  // Status, rows and metrics must be projected from the durable ledger, not an
+  // instance-local resilient snapshot. A warm serverless instance can otherwise
+  // return the pre-mutation Pending/empty ledger after another instance committed
+  // Payment Received, making the five-second poll visibly alternate the order.
+  const [mirror,payments,exclusions]=await Promise.all([readPaymentOrderMirror(),listAllPaymentsFresh(),listLegacySalesOrderExclusions()])
   const response=apiOk(selectSalespersonOverview(mirror.orders,payments,user,mirror,new Date(),exclusions))
   response.headers.set('Cache-Control','private, no-store, max-age=0, must-revalidate')
   response.headers.set('Vary','Cookie')
@@ -31,7 +35,7 @@ export async function POST(request:Request){
  try{
   const result=await synchronizePaymentOrderIndex({recentOnly:true,maxPages:1,maxMs:5000})
   if(result.error&&result.error!=='lease-active')return apiError(result.error==='backoff'?'Sync is temporarily paused. Your saved orders are still available.':result.error,503)
-  const [mirror,payments,exclusions]=await Promise.all([readPaymentOrderMirrorFresh(),listPayments(),listLegacySalesOrderExclusions(true)])
+  const [mirror,payments,exclusions]=await Promise.all([readPaymentOrderMirrorFresh(),listAllPaymentsFresh(),listLegacySalesOrderExclusions(true)])
   const response=apiOk({overview:selectSalespersonOverview(mirror.orders,payments,user,mirror,new Date(),exclusions),coalesced:result.error==='lease-active'})
   response.headers.set('Cache-Control','private, no-store, max-age=0, must-revalidate')
   response.headers.set('Vary','Cookie')
