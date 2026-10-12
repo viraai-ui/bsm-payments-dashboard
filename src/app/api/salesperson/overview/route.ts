@@ -8,10 +8,11 @@ import { listLegacySalesOrderExclusions } from '@/lib/legacy-sales-order-exclusi
 
 export const runtime='nodejs'
 export const dynamic='force-dynamic'
+const noStore=(response:Response)=>{response.headers.set('Cache-Control','private, no-store, max-age=0, must-revalidate');response.headers.set('Vary','Cookie');return response}
 export async function GET(){
  const user=await getSessionUser()
- if(!user)return apiError('Authentication required',401)
- if(!isSalesRole(user.role))return apiError('Salesperson access required',403)
+ if(!user)return noStore(apiError('Authentication required',401))
+ if(!isSalesRole(user.role))return noStore(apiError('Salesperson access required',403))
  try{
   // Status, rows and metrics must be projected from the durable ledger, not an
   // instance-local resilient snapshot. A warm serverless instance can otherwise
@@ -19,10 +20,8 @@ export async function GET(){
   // Payment Received, making the five-second poll visibly alternate the order.
   const [mirror,payments,exclusions]=await Promise.all([readPaymentOrderMirror(),listAllPaymentsFresh(),listLegacySalesOrderExclusions()])
   const response=apiOk(selectSalespersonOverview(mirror.orders,payments,user,mirror,new Date(),exclusions))
-  response.headers.set('Cache-Control','private, no-store, max-age=0, must-revalidate')
-  response.headers.set('Vary','Cookie')
-  return response
- }catch(error){return apiError(error instanceof Error?error.message:'Could not load overview',500)}
+  return noStore(response)
+ }catch(error){return noStore(apiError(error instanceof Error?error.message:'Could not load overview',500))}
 }
 
 /** Bounded, read-only-to-finance refresh of the shared sales-order mirror. */
