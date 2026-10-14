@@ -45,7 +45,7 @@ async function login(username) {
     const permissions = { Salesperson: ['payments.view','payments.createLinked'], Accounts: [], Admin: [], Viewer: [] };
     await fs.mkdir(path.join(root, 'data'), { recursive: true });
     await fs.writeFile(path.join(root, 'data/auth-users-store.json'), JSON.stringify({ users, permissions }, null, 2));
-    await fs.writeFile(path.join(root, 'data/payment-order-index.json'), JSON.stringify({ version: 1, updatedAt: now, orders: [{ id: 'ownership-order', salesOrderNumber: 'OWN-SO-1', customerName: 'Ownership Customer', status: 'Open', orderDate: '2026-09-01', orderTotal: 1000 }] }, null, 2));
+    await fs.writeFile(path.join(root, 'data/payment-order-index.json'), JSON.stringify({ version: 1, updatedAt: now, orders: [{ id: 'ownership-order', salesOrderNumber: 'OWN-SO-1', customerName: 'Ownership Customer', status: 'Open', orderDate: '2026-09-01', orderTotal: 1000, salespersonId: 'self-sales', salespersonName: 'Authenticated Sales Name' }] }, null, 2));
     await fs.writeFile(path.join(root, 'data/payments.json'), JSON.stringify({ payments: [] }, null, 2));
     await fs.writeFile(path.join(root, 'data/payment-notifications.json'), JSON.stringify({ notifications: [] }, null, 2));
 

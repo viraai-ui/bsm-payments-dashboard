@@ -4,7 +4,6 @@ import { canEditStandaloneUnauthorised, claimPayment, createLinkedPayment, creat
 import { orderSummary } from '@/lib/payment-settlement'
 import { cleanCustomer, cleanRemarks, isPaymentMode, parseLinkedPaymentSplit, parsePaymentAmount, parseUnauthorisedPaymentInput } from '@/lib/payment-domain'
 import { searchPaymentOrders, validatePaymentOrder } from '@/lib/payment-order-search'
-import { readPaymentOrderMirrorFresh } from '@/lib/payment-order-search'
 import { salespersonOwnsOrder } from '@/lib/salesperson-overview'
 import { deletePaymentProofs, deleteProofAttachments, storeProofFiles, validateProofFiles } from '@/lib/local-payment-proofs'
 import { createClaimNotification, createPaymentNotifications, createStatusNotification, removePaymentNotifications } from '@/lib/payment-notifications'
@@ -42,10 +41,10 @@ export async function POST(request:Request){
    try{const created=await timing.measure('ledger',()=>createUnlinkedPayment({customerName:manualCustomer,manualReference:reference,paymentAmount:amount!,paymentMode:text(b.paymentMode) as import('@/lib/payment-domain').PaymentMode,remarks:remarks||undefined,status:'Pending',createdBy:auth.user.id,ownerUserId:auth.user.id,addedBy:auth.user.username||auth.user.name,salespersonName:auth.user.name},key));payment=created.payment;if(created.duplicate)return done(apiOk({payment,duplicate:true}))}catch(e){return done(apiError(e instanceof Error?e.message:'Could not save payment',400))}
   }else{
   const authoritativeOrder=order!
-  if(isSalesRole(auth.user.role)){
-   const mirrored=(await readPaymentOrderMirrorFresh()).orders.find(candidate=>candidate.id===authoritativeOrder.id&&candidate.salesOrderNumber===authoritativeOrder.salesOrderNumber)
-   if(!mirrored||!salespersonOwnsOrder(mirrored,auth.user))return apiError('This sales order does not belong to your account',403)
-  }
+  // validatePaymentOrder returns the live Zoho detail when available, including
+  // its canonical owner. Its exact persisted fallback is used only when that
+  // authoritative read fails, and remains fail-closed if the mirror lacks owner data.
+  if(isSalesRole(auth.user.role)&&!salespersonOwnsOrder(authoritativeOrder,auth.user))return apiError('This sales order does not belong to your account',403)
 
   let owner=auth.user;if(auth.user.role==='Admin'){const ownerId=text(b.ownerUserId),users=(await getUserStore()).users;const selected=users.find(u=>u.id===ownerId&&u.active&&u.role==='Salesperson');if(!selected)return apiError('Select an active Salesperson',400);owner=selected}
   // Never consume client-provided owner/name fields for Salesperson requests.
