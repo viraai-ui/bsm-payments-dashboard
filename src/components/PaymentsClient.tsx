@@ -499,7 +499,18 @@ export function PaymentsClient({
     submissionKey.current = crypto.randomUUID();
     setOpen(true);
   }
-  function startAdjustment(){setForm(emptyForm());setError("");adjustmentSubmissionKey.current=crypto.randomUUID();setAdjustmentOpen(true)}
+  function startAdjustment(order?: (typeof pending)[number]) {
+    const linkedPayment = order
+      ? payments.find((payment) => payment.salesOrderNumber === order.salesOrderNumber && payment.salesOrderId)
+      : undefined;
+    setForm(order ? {
+      ...emptyForm(), salesOrderId: linkedPayment?.salesOrderId || "",
+      salesOrderNumber: order.salesOrderNumber, customerName: order.customerName,
+      orderTotal: String(order.orderTotal), confirmedReceived: String(order.received),
+      submittedAmount: String(order.received), provisionalOutstanding: String(order.outstanding),
+    } : emptyForm());
+    setError(""); adjustmentSubmissionKey.current = crypto.randomUUID(); setAdjustmentOpen(true);
+  }
   async function submitAdjustment(e:React.FormEvent){e.preventDefault();if(submitBusy.current)return;submitBusy.current=true;setSaving(true);setError("");try{const response=await fetch('/api/payments/adjustments',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({salesOrderId:form.salesOrderId,salesOrderNumber:form.salesOrderNumber,amount:form.paymentAmount,reason:form.remarks,idempotencyKey:adjustmentSubmissionKey.current,...(userRole==='Admin'?{ownerUserId:form.ownerUserId}:{})})}),json=await response.json().catch(()=>({}));if(!response.ok)throw new Error(json.error||'Could not save adjustment');setPayments(current=>sortPayments([json.data.payment,...current.filter(p=>p.id!==json.data.payment.id)]));setAdjustmentOpen(false);setForm(emptyForm());adjustmentSubmissionKey.current='';mutationVersion.current+=1;await refresh()}catch(cause){setError(cause instanceof Error?cause.message:'Could not save adjustment')}finally{setSaving(false);submitBusy.current=false}}
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -697,7 +708,7 @@ export function PaymentsClient({
         </div>
         {userRole !== "Viewer" && (
           <div className="payments-toolbar">
-            {userRole !== "Accounts" && <button className="btn adjustment-button" onClick={startAdjustment}>Adjustment</button>}
+            {userRole === "Admin" && <button className="btn adjustment-button" onClick={() => startAdjustment()}>Adjustment</button>}
             <button
               className="btn red payments-add-button"
               onClick={() => startAdd()}
@@ -895,7 +906,7 @@ export function PaymentsClient({
       {tab === "pending" && allOrderSync && <p id="outstanding-sync-status" className={`outstanding-sync-status ${allOrderSync.state}`} role="status" aria-live="polite">{allOrderSync.message}</p>}
       <div className="card payments-card ledger-card">
         {tab === "pending" ? (
-          <PendingList orders={visiblePending} role={userRole} onAdd={startAdd} view={pendingView} />
+          <PendingList orders={visiblePending} role={userRole} onAdd={startAdd} onAdjustment={startAdjustment} view={pendingView} />
         ) : filtered.length ? (
           <>
             <div className="payments-table-wrap">
@@ -2345,11 +2356,13 @@ function PendingList({
   orders,
   role,
   onAdd,
+  onAdjustment,
   view,
 }: {
   orders: any[];
   role: AppRole;
   onAdd: (s: string) => void;
+  onAdjustment: (order: any) => void;
   view: PendingView;
 }) {
   if (!orders.length)
@@ -2391,12 +2404,12 @@ function PendingList({
             </div>
           </dl>
           {role !== "Accounts" && role !== "Viewer" && (
-            <button
-              className="ledger-action"
-              onClick={() => onAdd(s.salesOrderNumber)}
-            >
-              Add payment
-            </button>
+            <div className="pending-actions">
+              {(role === "Salesperson" || role === "Spare Part Sales") && (
+                <button className="ledger-action pending-adjustment-action" onClick={() => onAdjustment(s)}>Adjustment</button>
+              )}
+              <button className="ledger-action" onClick={() => onAdd(s.salesOrderNumber)}>Add payment</button>
+            </div>
           )}
         </article>
       ))}
