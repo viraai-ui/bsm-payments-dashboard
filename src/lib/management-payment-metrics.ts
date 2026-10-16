@@ -21,7 +21,7 @@ export function managementPaymentMetrics(
     ? (payment.remainingAmount ?? payment.paymentAmount)
     : (payment.salesOrderId ? soPaymentAmount(payment) : payment.paymentAmount)
   const sum = (status: SettlementPayment['status']) => fromPaise(payments
-    .filter(payment => payment.status === status)
+    .filter(payment => payment.entryType !== 'adjustment' && payment.status === status)
     .reduce((total, payment) => total + toPaise(accountingAmount(payment)), 0))
   const outstanding = fromPaise(outstandingOrders.reduce((total, order) => {
     const paise = toPaise(order.outstanding ?? 0)

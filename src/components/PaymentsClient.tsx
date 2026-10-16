@@ -150,6 +150,7 @@ export function PaymentsClient({
   const [allOrderSync, setAllOrderSync] = useState<{state:"loading"|"success"|"error";message:string}|null>(null);
   const [pendingView, setPendingView] = useState<PendingView>("grid");
   const [open, setOpen] = useState(false),
+    [adjustmentOpen, setAdjustmentOpen] = useState(false),
     [paymentType, setPaymentType] = useState<"unauthorised" | "regular">(
       "unauthorised",
     ),
@@ -173,6 +174,7 @@ export function PaymentsClient({
   const claimBusy = useRef(false);
   const claimSubmissionKey = useRef("");
   const submissionKey = useRef("");
+  const adjustmentSubmissionKey = useRef("");
   const addErrorRef = useRef<HTMLParagraphElement>(null);
   const proofPopupActive = open || Boolean(editing);
   const acceptProofFiles = useCallback(async (incoming: File[], mode: "append" | "replace") => {
@@ -454,7 +456,7 @@ export function PaymentsClient({
   // Search/filter state intentionally affects only visiblePending, not the headline.
   const managementMetrics = useMemo(() => managementPaymentMetrics(payments, pending), [payments, pending]);
   const activeFilters = Object.values(filters).filter(Boolean).length;
-  function selectOrder(order: Order, target: "add" | "claim") {
+  function selectOrder(order: Order, target: "add" | "claim" | "adjustment") {
     const outstanding = order.settlement.pendingPayment;
     const value = {
       salesOrderId: order.id,
@@ -468,7 +470,8 @@ export function PaymentsClient({
     if (target === "add") {
       setExpenseOpen(false);
       setForm((f) => ({ ...f, ...value, paymentAmount: String(outstanding) }));
-    } else setForm((f) => ({ ...f, ...value, paymentAmount: String(Math.min(claiming?.remainingAmount ?? claiming?.paymentAmount ?? 0, outstanding)) }));
+    } else if (target === "adjustment") setForm((f) => ({ ...f, ...value, paymentAmount: "" }));
+    else setForm((f) => ({ ...f, ...value, paymentAmount: String(Math.min(claiming?.remainingAmount ?? claiming?.paymentAmount ?? 0, outstanding)) }));
   }
   function startAdd(so?: string) {
     const existing = so
@@ -496,6 +499,8 @@ export function PaymentsClient({
     submissionKey.current = crypto.randomUUID();
     setOpen(true);
   }
+  function startAdjustment(){setForm(emptyForm());setError("");adjustmentSubmissionKey.current=crypto.randomUUID();setAdjustmentOpen(true)}
+  async function submitAdjustment(e:React.FormEvent){e.preventDefault();if(submitBusy.current)return;submitBusy.current=true;setSaving(true);setError("");try{const response=await fetch('/api/payments/adjustments',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({salesOrderId:form.salesOrderId,salesOrderNumber:form.salesOrderNumber,amount:form.paymentAmount,reason:form.remarks,idempotencyKey:adjustmentSubmissionKey.current,...(userRole==='Admin'?{ownerUserId:form.ownerUserId}:{})})}),json=await response.json().catch(()=>({}));if(!response.ok)throw new Error(json.error||'Could not save adjustment');setPayments(current=>sortPayments([json.data.payment,...current.filter(p=>p.id!==json.data.payment.id)]));setAdjustmentOpen(false);setForm(emptyForm());adjustmentSubmissionKey.current='';mutationVersion.current+=1;await refresh()}catch(cause){setError(cause instanceof Error?cause.message:'Could not save adjustment')}finally{setSaving(false);submitBusy.current=false}}
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (submitBusy.current) return;
@@ -692,6 +697,7 @@ export function PaymentsClient({
         </div>
         {userRole !== "Viewer" && (
           <div className="payments-toolbar">
+            {userRole !== "Accounts" && <button className="btn adjustment-button" onClick={startAdjustment}>Adjustment</button>}
             <button
               className="btn red payments-add-button"
               onClick={() => startAdd()}
@@ -1200,6 +1206,22 @@ export function PaymentsClient({
               label={paymentType === "unauthorised" || userRole === "Accounts" ? "Add unauthorised payment" : "Add payment"}
               disabled={userRole === "Admin" && paymentType === "regular" && salespeople.length === 0}
             />
+          </form>
+        </Sheet>
+      )}
+      {adjustmentOpen && userRole !== "Viewer" && userRole !== "Accounts" && (
+        <Sheet title="Add adjustment" eyebrow="Instantly approved ledger entry" close={()=>{if(!saving){setAdjustmentOpen(false);setError("")}}}>
+          <form className="payment-form add-payment-form adjustment-form" onSubmit={submitAdjustment}>
+            <div className="add-payment-form-body">
+              <p className="adjustment-help">Use a positive amount to increase outstanding or a negative amount to reduce it. Example: enter <strong>-9000</strong> for a ₹9,000 write-off.</p>
+              {userRole === "Admin" && <label>Salesperson <span aria-hidden="true">*</span><select required value={form.ownerUserId} onChange={e=>setForm({...emptyForm(),ownerUserId:e.target.value})}><option value="">Select salesperson</option>{salespeople.map(u=><option key={u.id} value={u.id}>{u.name||u.username}</option>)}</select></label>}
+              <OrderCombobox selected={form.salesOrderId} selectedLabel={form.salesOrderId?`${form.salesOrderNumber} · ${form.customerName}`:""} required disabled={userRole==="Admin"&&!form.ownerUserId} onSelect={o=>{setError("");selectOrder(o,"adjustment")}} onClear={()=>setForm({...emptyForm(),ownerUserId:form.ownerUserId})}/>
+              {form.salesOrderId&&<OrderSnapshot form={form} payments={payments}/>}
+              <label>Signed adjustment amount <span aria-hidden="true">*</span><input required type="text" inputMode="decimal" pattern="[+-]?[0-9]+(?:[.][0-9]{1,2})?" value={form.paymentAmount} onChange={e=>setForm(f=>({...f,paymentAmount:e.target.value.replace(/[^0-9.+-]/g,'')}))} placeholder="-9000 or +9000"/><small>Negative reduces outstanding; positive increases it.</small></label>
+              <label>Adjustment reason <span aria-hidden="true">*</span><textarea required maxLength={500} rows={3} value={form.remarks} onChange={e=>setForm(f=>({...f,remarks:e.target.value}))} placeholder="e.g. ₹9,000 written off"/><small>{form.remarks.length}/500</small></label>
+              {error&&<p className="add-payment-error" role="alert">{error}</p>}
+            </div>
+            <Actions busy={saving} close={()=>{if(!saving){setAdjustmentOpen(false);setError("")}}} label="Add adjustment" disabled={!form.salesOrderId||!form.paymentAmount||!form.remarks.trim()||(userRole==='Admin'&&!form.ownerUserId)}/>
           </form>
         </Sheet>
       )}
@@ -1841,7 +1863,7 @@ function PaymentDetails({
       <div className="payment-details-actions">
         <Overflow p={p} role={role} userId={userId} onEdit={onEdit} onDelete={onDelete} />
       </div>
-      {(role === "Admin" || role === "Accounts") && p.status !== "Unauthorised" && (
+      {(role === "Admin" || role === "Accounts") && p.status !== "Unauthorised" && p.entryType !== "adjustment" && (
         <label className="detail-status">
           Status
           <select
@@ -1901,9 +1923,9 @@ function PaymentDetails({
             <strong>{total === undefined ? "—" : money(total)}</strong>
           </div>
           <div>
-            <span>{p.expenseAmount ? "Total received" : "Payment"}</span>
-            <strong>{money(p.paymentAmount)}</strong>
-            {p.expenseAmount ? <small>SO payment {money(p.paymentAmount-p.expenseAmount)} · {p.expenseName} {money(p.expenseAmount)}</small> : null}
+            <span>{p.entryType==="adjustment"?"Adjustment":p.expenseAmount ? "Total received" : "Payment"}</span>
+            <strong>{p.entryType==="adjustment"?`${(p.adjustmentAmount||0)>0?"+":""}${money(p.adjustmentAmount||0)}`:money(p.paymentAmount)}</strong>
+            {p.entryType==="adjustment"?<small>{p.adjustmentReason}</small>:p.expenseAmount ? <small>SO payment {money(p.paymentAmount-p.expenseAmount)} · {p.expenseName} {money(p.expenseAmount)}</small> : null}
           </div>
           <div>
             <span>Outstanding</span>
@@ -1957,6 +1979,7 @@ function StatusControl({
   onStatus: (p: Payment, s: "Pending" | "Payment Received" | "Void") => void;
   onClaim: () => void;
 }) {
+  if(p.entryType==="adjustment") return <span className="ledger-status adjustment-status">Adjustment · Approved</span>;
   const can =
     p.status !== "Unauthorised" && (role === "Accounts" || role === "Admin");
   return can ? (
@@ -2008,7 +2031,7 @@ function DesktopRow({
       data-payment-id={p.id}
       tabIndex={0}
       aria-label={`View payment details for ${p.salesOrderNumber || paymentCustomerLabel(p.customerName)}`}
-      className={`payment-data-row payment-${statusClass(p.status)}-row ${highlight ? "payment-highlight" : ""}`}
+      className={`payment-data-row payment-${statusClass(p.status)}-row ${p.entryType==="adjustment"?"payment-adjustment-row":""} ${highlight ? "payment-highlight" : ""}`}
       onClick={onOpen}
       onKeyDown={activate}
     >
@@ -2027,7 +2050,8 @@ function DesktopRow({
           : money(s.orderTotal)}
       </td>
       <td className="money-cell received-cell payment-value-cell">
-        <strong>{money(p.paymentAmount)}</strong>
+        <strong>{p.entryType==="adjustment"?`${(p.adjustmentAmount||0)>0?"+":""}${money(p.adjustmentAmount||0)}`:money(p.paymentAmount)}</strong>
+        {p.entryType==="adjustment"&&<small className="adjustment-reason"><b>Adjustment</b> · {p.adjustmentReason}</small>}
         {p.expenseAmount ? <small className="partial-remaining">SO payment {money(p.paymentAmount-p.expenseAmount)} · {p.expenseName}: {money(p.expenseAmount)}</small> : null}
         {isPartiallyClaimed(p) && <small className="partial-remaining">{money(p.remainingAmount ?? 0)} remaining</small>}
       </td>
@@ -2086,7 +2110,7 @@ function MobileCard({
       data-payment-id={p.id}
       tabIndex={0}
       aria-label={`View payment details for ${p.salesOrderNumber || paymentCustomerLabel(p.customerName)}`}
-      className={`ledger-mobile-card payment-data-row payment-${statusClass(p.status)}-row ${highlight ? "payment-highlight" : ""}`}
+      className={`ledger-mobile-card payment-data-row payment-${statusClass(p.status)}-row ${p.entryType==="adjustment"?"payment-adjustment-row":""} ${highlight ? "payment-highlight" : ""}`}
       onClick={onOpen}
       onKeyDown={activate}
     >
@@ -2105,7 +2129,7 @@ function MobileCard({
       </header>
       <div className="viewer-card-meta">
         <span>{p.status === "Unauthorised" ? "Received " : ""}{date(p.status === "Unauthorised" ? (p.paymentReceivedDate || p.paymentDate) : (p.paymentDate || p.createdAt))}</span>
-        <span>{p.paymentMode || (p.utrReference ? `UTR ${p.utrReference}` : "Payment")}</span>
+        <span>{p.entryType==="adjustment"?"Adjustment":p.paymentMode || (p.utrReference ? `UTR ${p.utrReference}` : "Payment")}</span>
         {(role === "Admin" || role === "Viewer") && salesperson(p) !== "—" && (
           <span
             className="payment-salesperson-chip"
@@ -2128,8 +2152,8 @@ function MobileCard({
           </dd>
         </div>
         <div className="payment-received-amount">
-          <dt>{isPartiallyClaimed(p) ? "Amount remaining" : "Total received"}</dt>
-          <dd>{money(isPartiallyClaimed(p) ? (p.remainingAmount ?? 0) : p.paymentAmount)}</dd>
+          <dt>{p.entryType==="adjustment"?"Adjustment":isPartiallyClaimed(p) ? "Amount remaining" : "Total received"}</dt>
+          <dd>{p.entryType==="adjustment"?`${(p.adjustmentAmount||0)>0?"+":""}${money(p.adjustmentAmount||0)}`:money(isPartiallyClaimed(p) ? (p.remainingAmount ?? 0) : p.paymentAmount)}</dd>
           {isPartiallyClaimed(p) && <small className="partial-remaining">Partially claimed</small>}
         </div>
         <div>
@@ -2139,6 +2163,7 @@ function MobileCard({
           </dd>
         </div>
       </dl>
+      {p.entryType==="adjustment"&&<p className="mobile-adjustment-reason"><strong>Reason:</strong> {p.adjustmentReason}</p>}
       {p.expenseAmount ? <div className="mobile-expense-line">
         <span><strong>{p.expenseName || "Expense"}</strong><small>Expense</small></span>
         <strong>{money(p.expenseAmount)}</strong>

@@ -17,7 +17,7 @@ export type AdminOverviewSummary = {
 export type AdminOverviewSummaries = Record<ViewerPeriod, AdminOverviewSummary>
 
 const paise = (n:number) => Math.max(0, Math.round((Number.isFinite(n) ? n : 0) * 100))
-const rootReceipt = (p:Payment) => !p.parentPaymentId && p.status !== 'Void'
+const rootReceipt = (p:Payment) => p.entryType !== 'adjustment' && !p.parentPaymentId && p.status !== 'Void'
 const cashPaise = (p:Payment) => paise(p.originalPaymentAmount ?? p.paymentAmount)
 const appliedPaise = (p:Payment) => p.salesOrderNumber && p.status !== 'Void' ? paise(soPaymentAmount(p)) : 0
 const day = (p:Payment) => localDateKey(p.paymentReceivedDate || p.paymentDate || p.createdAt)

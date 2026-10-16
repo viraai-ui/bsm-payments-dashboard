@@ -1375,3 +1375,4 @@ input[type="number"]::-webkit-inner-spin-button,input[type="number"]::-webkit-ou
   .payments-table .payment-actions-heading{width:auto;min-width:0;padding-inline:8px!important}
   .payments-table .payment-actions-heading span{width:auto}
 }
+.adjustment-button{border-color:#d99aaa!important;background:#fff5f7!important;color:#a5163b!important}.payment-adjustment-row>td{background:#fff4f7!important}.payment-adjustment-row:hover>td{background:#ffedf2!important}.adjustment-status{background:#fbe4eb!important;color:#9b2348!important}.adjustment-reason{color:#8e3653!important;overflow-wrap:anywhere}.adjustment-help,.mobile-adjustment-reason{margin:0;padding:11px 13px;border:1px solid #f0cbd5;border-radius:10px;background:#fff5f7;color:#713045;font-size:12px;line-height:1.5}.adjustment-form .order-snapshot{margin:0}

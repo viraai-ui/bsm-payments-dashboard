@@ -17,12 +17,16 @@ export type SettlementPayment = {
   originalPaymentAmount?:number
   closedRemainderAmount?:number
   remainingAmount?:number
+  entryType?:'payment'|'adjustment'
+  adjustmentAmount?:number
+  adjustmentReason?:string
 }
 
 const STATUS_ORDER={Pending:0,Unauthorised:1,'Payment Received':2,Void:3} as const
 export const toPaise=(amount:number)=>Math.round(amount*100)
 export const fromPaise=(paise:number)=>paise/100
 export const soPaymentAmount=(payment:Pick<SettlementPayment,'paymentAmount'|'expenseAmount'>)=>fromPaise(Math.max(0,toPaise(payment.paymentAmount)-toPaise(payment.expenseAmount||0)))
+export const isAdjustment=(payment:Pick<SettlementPayment,'entryType'>)=>payment.entryType==='adjustment'
 const normalizedOrder=(value?:string)=>String(value||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'')
 const sameOrder=(a?:string,b?:string)=>Boolean(normalizedOrder(a))&&normalizedOrder(a)===normalizedOrder(b)
 export function paymentStatusLabel(status:SettlementPayment['status']){return status==='Pending'?'Payment Pending':status==='Void'?'Payment Void':status}
@@ -47,12 +51,14 @@ export function orderSummary(payments:SettlementPayment[], so:string, orderTotal
   const total=orderTotal??storedTotal
   const salesOrderDate=linked.find(p=>p.salesOrderDate)?.salesOrderDate
     ?? linked.map(p=>p.paymentDate).filter((date):date is string=>Boolean(date)).sort()[0]
-  const confirmedReceivedPaise=linked.filter(p=>p.status==='Payment Received').reduce((n,p)=>n+toPaise(soPaymentAmount(p)),0)
-  const submittedAmountPaise=linked.filter(p=>p.status==='Payment Received'||p.status==='Pending').reduce((n,p)=>n+toPaise(soPaymentAmount(p)),0)
+  const receipts=linked.filter(p=>!isAdjustment(p))
+  const adjustmentPaise=linked.filter(p=>isAdjustment(p)&&p.status==='Payment Received').reduce((n,p)=>n+toPaise(p.adjustmentAmount||0),0)
+  const confirmedReceivedPaise=receipts.filter(p=>p.status==='Payment Received').reduce((n,p)=>n+toPaise(soPaymentAmount(p)),0)
+  const submittedAmountPaise=receipts.filter(p=>p.status==='Payment Received'||p.status==='Pending').reduce((n,p)=>n+toPaise(soPaymentAmount(p)),0)
   const totalPaise=total===undefined?undefined:toPaise(total)
   const confirmedReceived=fromPaise(confirmedReceivedPaise),submittedAmount=fromPaise(submittedAmountPaise)
-  const confirmedOutstanding=totalPaise===undefined?undefined:fromPaise(Math.max(0,totalPaise-confirmedReceivedPaise))
-  const provisionalOutstanding=totalPaise===undefined?undefined:fromPaise(Math.max(0,totalPaise-submittedAmountPaise))
+  const confirmedOutstanding=totalPaise===undefined?undefined:fromPaise(Math.max(0,totalPaise+adjustmentPaise-confirmedReceivedPaise))
+  const provisionalOutstanding=totalPaise===undefined?undefined:fromPaise(Math.max(0,totalPaise+adjustmentPaise-submittedAmountPaise))
   const receivedPercent=total?Math.min(100,Math.round(confirmedReceived/total*100)):0
   return {orderTotal:total,salesOrderDate,advanceReceived:submittedAmount,pendingPayment:provisionalOutstanding,received:confirmedReceived,confirmedReceived,submittedAmount,outstanding:confirmedOutstanding,confirmedOutstanding,provisionalOutstanding,receivedPercent,outstandingPercent:total&&confirmedOutstanding!==undefined?Math.round(confirmedOutstanding/total*100):0,settled:total!==undefined&&total>0&&confirmedOutstanding===0,hasConfirmedReceipt:linked.some(p=>p.status==='Payment Received')}
 }
@@ -69,7 +75,7 @@ export function paymentOutstandingById(payments:SettlementPayment[]){
     const order=payment.salesOrderId?`id:${payment.salesOrderId}`:`so:${normalizedOrder(payment.salesOrderNumber)}`
     if(order==='so:'){result.set(payment.id,undefined);continue}
     const prior=received.get(order)||0
-    const cumulative=prior+((payment.status==='Pending'||payment.status==='Payment Received')?toPaise(soPaymentAmount(payment)):0)
+    const cumulative=prior+(isAdjustment(payment)&&payment.status==='Payment Received'?-toPaise(payment.adjustmentAmount||0):(payment.status==='Pending'||payment.status==='Payment Received')?toPaise(soPaymentAmount(payment)):0)
     received.set(order,cumulative)
     result.set(payment.id,payment.orderTotal===undefined?undefined:fromPaise(Math.max(0,toPaise(payment.orderTotal)-cumulative)))
   }
