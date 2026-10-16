@@ -1355,3 +1355,23 @@ input[type="number"]::-webkit-inner-spin-button,input[type="number"]::-webkit-ou
 .viewer-metric span{display:block;min-height:2.5em;color:#64748b;font-size:.78rem;font-weight:700;letter-spacing:.02em}.viewer-metric strong{display:block;margin:10px 0 6px;color:#0f172a;font-size:clamp(1.25rem,2vw,1.8rem);line-height:1.1;overflow-wrap:anywhere}.viewer-metric small{color:#64748b;font-weight:600}
 @media(max-width:960px){.viewer-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:520px){.viewer-metrics{gap:10px}.viewer-metric{padding:14px}.viewer-metric span{font-size:.7rem}.viewer-metric strong{font-size:1.05rem}}@media(max-width:340px){.viewer-metrics{grid-template-columns:minmax(0,1fr)}.viewer-metric span{min-height:0}}
 .payments-header,.payment-command,.ledger-tabs,.results-bar,.ledger-card,.viewer-metrics{width:100%;max-width:100%;box-sizing:border-box}.payments-toolbar{position:static;display:flex;align-items:center;gap:10px}.payment-company{display:block}.payment-so-link{display:block;border:0;background:none;padding:3px 0;color:#64748b;font:inherit;font-weight:400;cursor:pointer}.add-payment-form label{font-weight:600}.add-payment-form label>span{display:inline;color:#c8102e}.payment-actions-heading{width:72px;text-align:center!important}.payment-overflow{display:flex;justify-content:center}.payment-overflow-trigger{display:flex;align-items:center;justify-content:center;gap:3px;width:44px;min-width:44px;height:44px;padding:0;border:0;border-radius:12px;background:transparent}.payment-overflow-trigger:hover,.payment-overflow-trigger:focus-visible{background:#f1f5f9}.payment-overflow-trigger span{width:4px;height:4px;border-radius:50%;background:currentColor}
+
+/* Desktop payment ledger columns: controlled sizing keeps dates and headings intact. */
+@media(min-width:701px){
+  .payments-table{table-layout:fixed;min-width:1100px}
+  .payments-table .payment-col-date{width:112px}
+  .payments-table .payment-col-company{width:auto}
+  .payments-table .payment-col-order-total{width:132px}
+  .payments-table .payment-col-payment{width:118px}
+  .payments-table .payment-col-outstanding{width:132px}
+  .payments-table .payment-col-salesperson{width:126px}
+  .payments-table .payment-col-status{width:154px}
+  .payments-table .payment-col-actions{width:72px}
+  .payments-table th{white-space:nowrap}
+  .payments-table .payment-date-cell,.payments-table .payment-date-heading{white-space:nowrap}
+  .payments-table .payment-money-heading,.payments-table td.money-cell{text-align:right}
+  .payments-table .payment-value-heading,.payments-table .payment-value-cell{text-align:center}
+  .payments-table .payment-value-cell small{white-space:normal}
+  .payments-table .payment-actions-heading{width:auto;min-width:0;padding-inline:8px!important}
+  .payments-table .payment-actions-heading span{width:auto}
+}

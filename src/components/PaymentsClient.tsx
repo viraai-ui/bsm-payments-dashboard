@@ -894,13 +894,23 @@ export function PaymentsClient({
           <>
             <div className="payments-table-wrap">
               <table className="payments-table ledger-table">
+                <colgroup>
+                  <col className="payment-col-date" />
+                  <col className="payment-col-company" />
+                  <col className="payment-col-order-total" />
+                  <col className="payment-col-payment" />
+                  <col className="payment-col-outstanding" />
+                  <col className="payment-col-salesperson" />
+                  <col className="payment-col-status" />
+                  <col className="payment-col-actions" />
+                </colgroup>
                 <thead>
                   <tr>
-                    <th>Date</th>
+                    <th className="payment-date-heading">Date</th>
                     <th>Company / Sales Order</th>
-                    <th>Order Total</th>
-                    <th>Payment</th>
-                    <th>Outstanding</th>
+                    <th className="payment-money-heading">Order Total</th>
+                    <th className="payment-value-heading">Payment</th>
+                    <th className="payment-money-heading">Outstanding</th>
                     <th>Salesperson</th>
                     <th>Status</th>
                     <th className="payment-actions-heading">Actions</th>
@@ -2002,7 +2012,7 @@ function DesktopRow({
       onClick={onOpen}
       onKeyDown={activate}
     >
-      <td>{p.status === "Unauthorised" && <small className="payment-date-label">Received </small>}{date(p.status === "Unauthorised" ? (p.paymentReceivedDate || p.paymentDate) : (p.paymentDate || p.createdAt))}</td>
+      <td className="payment-date-cell">{p.status === "Unauthorised" && <small className="payment-date-label">Received </small>}{date(p.status === "Unauthorised" ? (p.paymentReceivedDate || p.paymentDate) : (p.paymentDate || p.createdAt))}</td>
       <td>
         <strong className="payment-company">{paymentCustomerLabel(p.customerName)}</strong>
         <button className="payment-so-link" onClick={onOpen}>
@@ -2016,7 +2026,7 @@ function DesktopRow({
             : "—"
           : money(s.orderTotal)}
       </td>
-      <td className="money-cell received-cell">
+      <td className="money-cell received-cell payment-value-cell">
         <strong>{money(p.paymentAmount)}</strong>
         {p.expenseAmount ? <small className="partial-remaining">SO payment {money(p.paymentAmount-p.expenseAmount)} · {p.expenseName}: {money(p.expenseAmount)}</small> : null}
         {isPartiallyClaimed(p) && <small className="partial-remaining">{money(p.remainingAmount ?? 0)} remaining</small>}
