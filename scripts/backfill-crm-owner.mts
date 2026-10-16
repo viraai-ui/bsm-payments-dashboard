@@ -15,7 +15,7 @@ await updateLocalJson<any>(file,{orders:{}},s=>{const o=s.orders[id];assert(o);a
 const after=await readAuthoritativeJson<any>(file,{orders:{}}),order=after.orders[id],owner=users.find((u:any)=>u.id===order.crmOwner.dashboardUserId)
 assert.equal(Object.keys(before.orders).length,Object.keys(after.orders).length)
 for(const [key,value] of Object.entries(before.orders)){if(key!==id)assert.deepEqual(after.orders[key],value)}
-const stripped={...order};delete stripped.crmQuoteId;delete stripped.crmOwner;delete stripped.crmOwnerConflict;assert.deepEqual(stripped,before.orders[id])
+const stripped={...order},original={...before.orders[id]};for(const k of ['crmQuoteId','crmOwner','crmOwnerConflict']){delete stripped[k];delete original[k]}assert.deepEqual(stripped,original)
 assert(salespersonOwnsOrder(order,owner));for(const user of users.filter((u:any)=>u.active&&['Salesperson','Spare Part Sales'].includes(u.role)&&u.id!==owner.id))assert(!salespersonOwnsOrder(order,user))
 assert.equal(selectSalespersonOverview([order],[],owner,{lastSyncedAt:'',recencyVerifiedAt:''}).orders.length,1)
 console.log(JSON.stringify({backup,count:Object.keys(after.orders).length,order,owner:{id:owner.id,email:owner.email,role:owner.role},otherUsersDenied:true,source:'authoritative-production-projection'}))
