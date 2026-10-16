@@ -41,6 +41,7 @@ try {
   const stored = JSON.parse(await readFile(path.join(sandbox, 'data/payments.json'), 'utf8'))
   assert.equal(stored.payments.length, 1, 'adjustment must be persisted exactly once')
   await assert.rejects(createAdjustment({...input, adjustmentAmount:-10.26}, 'adjustment_key_123456'), /different adjustment/)
+  await assert.rejects(createAdjustment({...input, createdBy:'sales-2', ownerUserId:'sales-2'}, 'adjustment_key_123456'), /different adjustment/, 'idempotency keys must not cross actor or owner boundaries')
   await assert.rejects(updatePaymentStatus(first.payment.id, 'Void', 'admin'), /immutable/)
   await assert.rejects(createAdjustment({...input, adjustmentAmount:-100.01}, 'another_adjustment_key'), /cannot exceed/)
   await assert.rejects(readFile(path.join(sandbox, 'data/payments-payouts-outbox.json')), { code:'ENOENT' })

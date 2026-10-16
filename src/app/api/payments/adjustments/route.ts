@@ -40,6 +40,7 @@ export async function POST(request: Request) {
     const users = (await getUserStore()).users
     const selected = users.find(user => user.id === text(body.ownerUserId) && user.active && isSalesRole(user.role))
     if (!selected) return apiError('Select an active salesperson', 400)
+    if (!salespersonOwnsOrder(order, selected)) return apiError('This sales order does not belong to the selected salesperson', 403)
     owner = selected
   }
   try {
