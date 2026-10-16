@@ -17,8 +17,10 @@ const ERP_OWNER_ALIASES:Record<string,string[]>= {
  // 1154219000034127315) and the active dashboard account identity.
  'u-eb86002f-067d-4642-83c4-4c35a102cc30':['Manisha Gautam'],
 }
-const hasErpOwner=(order:StoredPaymentOrder)=>[order.salespersonId,order.salespersonEmail,order.salespersonName].some(value=>Boolean(norm(value)))
+const hasErpOwner=(order:StoredPaymentOrder)=>Boolean(order.crmOwner||order.crmOwnerConflict)||[order.salespersonId,order.salespersonEmail,order.salespersonName].some(value=>Boolean(norm(value)))
 export const salespersonOwnsOrder=(order:StoredPaymentOrder,user:SafeUser)=>{
+ if(order.crmOwnerConflict)return false
+ if(order.crmOwner&&!order.salespersonId&&!order.salespersonName&&!order.salespersonEmail)return isSalesRole(user.role)&&order.crmOwner.dashboardUserId===user.id&&order.crmOwner.email===user.email.trim().toLowerCase()
  const aliases=new Set([user.id,user.email,user.name,user.username,...(ERP_OWNER_ALIASES[user.id]||[])].map(norm).filter(Boolean))
  return [order.salespersonId,order.salespersonEmail,order.salespersonName].some(value=>aliases.has(norm(value)))
 }

@@ -1,11 +1,12 @@
+import { enrichCrmOrderOwners, type CrmOwnership } from './crm-order-owner'
 import { readLocalJson, readLocalJsonFresh, updateLocalJson } from './local-store'
 import { normalizePaymentOrderSearch, paymentOrderStatus, rankPaymentOrderSuggestions } from './payment-order-lookup'
 import { fetchZohoPaymentOrderDetail, fetchZohoPaymentOrderPage, type ZohoPaymentOrder } from './zoho-payment-orders'
 import { zohoCircuitStatus } from './zoho-circuit'
 
 const FILE='payment-order-index.json',PER_PAGE=200,LEASE_MS=4*60_000,FRESH_MS=15*60_000
-export type PaymentOrderSuggestion={id:string;salesOrderNumber:string;customerName:string;rawStatus:string;status:'Open'|'Closed'|'Status unknown';orderDate:string;total:number;orderTotal:number;currency:string;modifiedTime:string;salespersonId?:string;salespersonName?:string;salespersonEmail?:string}
-export type StoredPaymentOrder={id:string;salesOrderNumber:string;customerName:string;status:string;orderDate:string;orderTotal:number;currency:string;modifiedTime:string;salespersonId?:string;salespersonName?:string;salespersonEmail?:string}
+export type PaymentOrderSuggestion=CrmOwnership & {id:string;salesOrderNumber:string;customerName:string;rawStatus:string;status:'Open'|'Closed'|'Status unknown';orderDate:string;total:number;orderTotal:number;currency:string;modifiedTime:string;crmQuoteId?:string;salespersonId?:string;salespersonName?:string;salespersonEmail?:string}
+export type StoredPaymentOrder=CrmOwnership & {id:string;salesOrderNumber:string;customerName:string;status:string;orderDate:string;orderTotal:number;currency:string;modifiedTime:string;crmQuoteId?:string;salespersonId?:string;salespersonName?:string;salespersonEmail?:string}
 type StoredOrder=StoredPaymentOrder
 type State={schema:2;mode:'backfill'|'delta'|'ready'|'backoff';nextPage:number;perPage:200;startedAt:string;completedAt:string;highWatermark:string;lastSuccessfulSync:string;recencyVerifiedAt?:string;nextEligibleAt:string;failureClass:string;failureCount:number;pagesProcessed:number;rowsSeen:number;lease?:{id:string;expiresAt:string};deltaSince?:string;deltaMax?:string}
 type Snapshot={version:2;updatedAt:string;orders:Record<string,StoredOrder>;state:State}
@@ -19,8 +20,8 @@ function migrate(value:Snapshot|Legacy|unknown):Snapshot{
  for(const o of legacy){if(!o?.id)continue;out.orders[o.id]={...o,currency:(o as StoredOrder).currency||'INR',modifiedTime:(o as StoredOrder).modifiedTime||v.updatedAt||''}}
  out.updatedAt=v.updatedAt||'';return out
 }
-function safe(o:StoredOrder|ZohoPaymentOrder):PaymentOrderSuggestion{const rawStatus='rawStatus'in o?o.rawStatus:o.status,orderTotal=Number(o.orderTotal);return{id:o.id,salesOrderNumber:o.salesOrderNumber,customerName:o.customerName,rawStatus,status:paymentOrderStatus(rawStatus),orderDate:o.orderDate,total:orderTotal,orderTotal,currency:o.currency||'INR',modifiedTime:o.modifiedTime||'',...(o.salespersonId?{salespersonId:o.salespersonId}:{}),...(o.salespersonName?{salespersonName:o.salespersonName}:{}),...(o.salespersonEmail?{salespersonEmail:o.salespersonEmail}:{})}}
-function stored(o:{id:string;salesOrderNumber:string;customerName:string;rawStatus:string;orderDate:string;orderTotal?:number;total?:number;currency:string;modifiedTime:string;salespersonId?:string;salespersonName?:string;salespersonEmail?:string}):StoredOrder|null{const total=Number(o.orderTotal??o.total);return Number.isFinite(total)?{id:o.id,salesOrderNumber:o.salesOrderNumber,customerName:o.customerName,status:o.rawStatus,orderDate:o.orderDate,orderTotal:total,currency:o.currency||'INR',modifiedTime:o.modifiedTime||'',...(o.salespersonId?{salespersonId:o.salespersonId}:{}),...(o.salespersonName?{salespersonName:o.salespersonName}:{}),...(o.salespersonEmail?{salespersonEmail:o.salespersonEmail}:{})}:null}
+function safe(o:StoredOrder|ZohoPaymentOrder):PaymentOrderSuggestion{const rawStatus='rawStatus'in o?o.rawStatus:o.status,orderTotal=Number(o.orderTotal);return{...("crmOwner" in o?{crmOwner:o.crmOwner,crmOwnerConflict:o.crmOwnerConflict}:{}),id:o.id,salesOrderNumber:o.salesOrderNumber,customerName:o.customerName,rawStatus,status:paymentOrderStatus(rawStatus),orderDate:o.orderDate,total:orderTotal,orderTotal,currency:o.currency||'INR',modifiedTime:o.modifiedTime||'',...(o.crmQuoteId?{crmQuoteId:o.crmQuoteId}:{}),...(o.salespersonId?{salespersonId:o.salespersonId}:{}),...(o.salespersonName?{salespersonName:o.salespersonName}:{}),...(o.salespersonEmail?{salespersonEmail:o.salespersonEmail}:{})}}
+function stored(o:{id:string;salesOrderNumber:string;customerName:string;rawStatus:string;orderDate:string;orderTotal?:number;total?:number;currency:string;modifiedTime:string;crmQuoteId?:string;salespersonId?:string;salespersonName?:string;salespersonEmail?:string}):StoredOrder|null{const total=Number(o.orderTotal??o.total);return Number.isFinite(total)?{id:o.id,salesOrderNumber:o.salesOrderNumber,customerName:o.customerName,status:o.rawStatus,orderDate:o.orderDate,orderTotal:total,currency:o.currency||'INR',modifiedTime:o.modifiedTime||'',...(o.crmQuoteId?{crmQuoteId:o.crmQuoteId}:{}),...(o.salespersonId?{salespersonId:o.salespersonId}:{}),...(o.salespersonName?{salespersonName:o.salespersonName}:{}),...(o.salespersonEmail?{salespersonEmail:o.salespersonEmail}:{})}:null}
 function newer(old:StoredOrder|undefined,next:StoredOrder){if(!old)return true;const a=Date.parse(old.modifiedTime)||0,b=Date.parse(next.modifiedTime)||0;return b>a||(b===a&&JSON.stringify(old)!==JSON.stringify(next))}
 const canonicalOrderNumber=(value:string)=>value.replace(/[^a-z0-9]/gi,'').toUpperCase()
 /** A temporary/manual row is keyed differently from the eventual Zoho row.
@@ -29,7 +30,7 @@ const canonicalOrderNumber=(value:string)=>value.replace(/[^a-z0-9]/gi,'').toUpp
 function mergeCanonicalOrder(orders:Record<string,StoredOrder>,next:StoredOrder){
  const number=canonicalOrderNumber(next.salesOrderNumber)
  for(const [id,old] of Object.entries(orders))if(id!==next.id&&canonicalOrderNumber(old.salesOrderNumber)===number)delete orders[id]
- if(newer(orders[next.id],next))orders[next.id]=next
+ if(newer(orders[next.id],next)){const old=orders[next.id];orders[next.id]={...old,...next};if(old?.crmQuoteId&&next.crmQuoteId&&old.crmQuoteId!==next.crmQuoteId){orders[next.id].crmOwnerConflict=true;orders[next.id].crmQuoteId=old.crmQuoteId}}
 }
 async function snapshot(fresh=false){return migrate(await(fresh?readLocalJsonFresh:readLocalJson)(FILE,empty()))}
 /** Resilient dashboard read. Explicit synchronization paths use the fresh form. */
@@ -48,7 +49,7 @@ async function seedKnown(){
  let seeds:StoredOrder[]=[]
  try{const x=await readLocalJsonFresh<{orders:Record<string,{salesOrderId:string;salesOrderNumber:string;customerName:string;orderTotal:number;orderDate:string;rawStatus:string;currency:string;modifiedTime:string}>}>('sales-order-snapshots.json',{orders:{}});seeds=Object.values(x.orders||{}).map(o=>stored({id:o.salesOrderId,...o})!).filter(Boolean)}catch{}
  if(!seeds.length)return
- await updateLocalJson<Snapshot|Legacy>(FILE,empty(),raw=>{const s=migrate(raw);for(const o of seeds)if(newer(s.orders[o.id],o))s.orders[o.id]=o;return s})
+ await updateLocalJson<Snapshot|Legacy>(FILE,empty(),raw=>{const s=migrate(raw);for(const o of seeds)if(newer(s.orders[o.id],o))s.orders[o.id]={...s.orders[o.id],...o};return s})
 }
 export async function synchronizePaymentOrderIndex(options:{maxPages?:number;maxMs?:number;fetcher?:typeof fetch;recentOnly?:boolean}={}){
  await seedKnown();const leaseId=crypto.randomUUID(),now=Date.now(),maxMs=Math.min(options.maxMs||50_000,60_000)
@@ -71,6 +72,7 @@ export async function synchronizePaymentOrderIndex(options:{maxPages?:number;max
    if(historyPage!==undefined){if(result.hasMore){x.state.nextPage=historyPage+1;x.state.mode='backfill'}else{x.state.completedAt=at;x.state.nextPage=1;x.state.mode='ready'}}
    return x})}
   await merge(recent)
+  await enrichCrmOrderOwners(recent.orders.map(o=>o.id))
   // Historical ingestion is intentionally absent from request/scheduler code.
   // Backfills must be explicit offline/admin checkpoint jobs with their own
   // reviewed hard budget; no browser, cron, or agent can activate a lane here.
@@ -104,7 +106,7 @@ function report(s:Snapshot,calls:number,error=''){
  * ID/number/customer tuple persisted by the server-side index. Client totals
  * and customer names are never accepted as authority. */
 export async function validatePaymentOrder(id:string,number:string,customer?:string){
- try{const order=safe(await fetchZohoPaymentOrderDetail(id));return order.salesOrderNumber===number&&(!customer||order.customerName===customer)?order:null}
+ try{const live=await fetchZohoPaymentOrderDetail(id),cached=(await snapshot(true)).orders[id];const order=safe({...cached,...live});return order.salesOrderNumber===number&&(!customer||order.customerName===customer)?order:null}
  catch(error){const s=await snapshot(),order=s.orders[id];if(!order||order.salesOrderNumber!==number||(customer&&order.customerName!==customer))throw error;console.warn(`Zoho detail unavailable for ${number}; using exact persisted order index entry`,error);return safe(order)}
 }
 export function resetPaymentOrderSearchForTests(){}

@@ -13,6 +13,7 @@ export type ZohoPaymentOrder = {
   currency: string
   /** Zoho's ordering token. Reconciliation rejects responses older than this value. */
   modifiedTime: string
+  crmQuoteId?: string
   salespersonId?: string
   salespersonName?: string
   salespersonEmail?: string
@@ -115,7 +116,8 @@ function salesperson(row:Record<string,unknown>){
   const id=String(row.salesperson_id||row.sales_person_id||nested.id||nested.salesperson_id||'').trim()
   const name=String(row.salesperson_name||row.sales_person_name||nested.name||nested.salesperson_name||'').trim()
   const email=String(row.salesperson_email||row.sales_person_email||nested.email||'').trim().toLowerCase()
-  return {...(id?{salespersonId:id}:{}),...(name?{salespersonName:name}:{}),...(email?{salespersonEmail:email}:{})}
+  const quote=/^CRMQUOTE:(\d+)$/.exec(String(row.reference_number||'').trim())
+  return {...(quote?{crmQuoteId:quote[1]}:{}),...(id?{salespersonId:id}:{}),...(name?{salespersonName:name}:{}),...(email?{salespersonEmail:email}:{})}
 }
 export function mapZohoPaymentOrder(value: unknown): ZohoPaymentOrder | null {
   const row = (value || {}) as Record<string, unknown>
