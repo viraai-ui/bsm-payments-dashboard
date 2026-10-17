@@ -1,5 +1,5 @@
 import { readLocalJson, readLocalJsonFresh, updateLocalJson } from './local-store'
-import { orderSummary, pendingOrderSummaries, soPaymentAmount, sortPayments, toPaise } from './payment-settlement'
+import { isAdjustment, orderSummary, pendingOrderSummaries, soPaymentAmount, sortPayments, toPaise } from './payment-settlement'
 import type { PaymentMode, PaymentStatus } from './payment-domain'
 import { getUserStore, isSalesRole, type SafeUser } from './auth'
 import { enqueueAndDeliver, type PaymentEventType } from './payouts-outbox'
@@ -17,7 +17,7 @@ export type PayoutSyncIntent={type:PaymentEventType;version:string;paymentAmount
 export type Payment={id:string;customerName:string;utrReference?:string;manualReference?:string;salesOrderId?:string;salesOrderNumber?:string;orderTotal?:number;salesOrderDate?:string;paymentAmount:number;entryType?:'payment'|'adjustment';adjustmentAmount?:number;adjustmentReason?:string;expenseAmount?:number;expenseName?:string;paymentMode?:PaymentMode;paymentDate:string;paymentReceivedDate?:string;attachments?:PaymentAttachment[];remarks?:string;addedBy?:string;salespersonName?:string;ownerUserId?:string;status:PaymentStatus;createdBy:string;claimedBy?:string;claimedAt?:string;confirmedAt?:string;voidedAt?:string;voidReason?:string;publicDeleteTokenHash?:string;publicDeviceHash?:string;idempotencyKey?:string;parentPaymentId?:string;allocationKey?:string;originalPaymentAmount?:number;allocatedAmount?:number;closedRemainderAmount?:number;closedRemainderReason?:string;closedRemainderAt?:string;closedRemainderBy?:string;remainingAmount?:number;hasAllocationChildren?:boolean;audit?:AuditEvent[];payoutSyncIntents?:PayoutSyncIntent[];createdAt:string;updatedAt:string}
 type Store={payments:Payment[]};const FILE='payments.json',EMPTY:Store={payments:[]}
 const event=(type:AuditEvent['type'],actor:string,at:string,extra:Partial<AuditEvent>={}):AuditEvent=>({id:`audit-${crypto.randomUUID()}`,type,actor,at,...extra})
-const withPayoutIntent=(payment:Payment,type:PaymentEventType):Payment=>payment.salesOrderId&&payment.salesOrderNumber?{...payment,payoutSyncIntents:[...(payment.payoutSyncIntents||[]),{type,version:payment.updatedAt,paymentAmount:soPaymentAmount(payment),paymentDate:payment.paymentDate,confirmedAt:payment.confirmedAt,salesOrderId:payment.salesOrderId,salesOrderNumber:payment.salesOrderNumber,customerName:payment.customerName}]}:payment
+const withPayoutIntent=(payment:Payment,type:PaymentEventType):Payment=>!isAdjustment(payment)&&payment.salesOrderId&&payment.salesOrderNumber?{...payment,payoutSyncIntents:[...(payment.payoutSyncIntents||[]),{type,version:payment.updatedAt,paymentAmount:soPaymentAmount(payment),paymentDate:payment.paymentDate,confirmedAt:payment.confirmedAt,salesOrderId:payment.salesOrderId,salesOrderNumber:payment.salesOrderNumber,customerName:payment.customerName}]}:payment
 /** One Sonia receipt was created by the pre-manualReference UI with free text in
  * salesOrderNumber. Normalize only that exact legacy shape in read projections;
  * the durable ledger is left untouched and genuine linked rows are never changed. */

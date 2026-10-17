@@ -42,7 +42,7 @@ export function selectSalespersonOverview(orders:StoredPaymentOrder[],payments:P
  const rows=owned.map(order=>{
   const linked=payments.filter(payment=>paymentMatchesOrder(payment,order,numberCounts))
   const summary=orderSummary(linked,order.salesOrderNumber,order.orderTotal,order.id)
-  const qualifying=linked.some(payment=>payment.status==='Pending'||payment.status==='Payment Received')
+  const qualifying=linked.some(payment=>payment.entryType!=='adjustment'&&(payment.status==='Pending'||payment.status==='Payment Received'))
   const status:OverviewStatus=order.orderTotal<=0||summary.settled?'RECEIVED':qualifying?'PENDING':'NO_PAYMENT'
   return{salesOrderId:order.id,salesOrderNumber:order.salesOrderNumber,orderDate:order.orderDate,customerName:order.customerName,currency:order.currency||'INR',orderTotal:order.orderTotal,received:summary.received,outstanding:summary.outstanding??Math.max(0,order.orderTotal),status}
  }).sort((a,b)=>rank[a.status]-rank[b.status]||b.orderDate.localeCompare(a.orderDate)||b.salesOrderId.localeCompare(a.salesOrderId))

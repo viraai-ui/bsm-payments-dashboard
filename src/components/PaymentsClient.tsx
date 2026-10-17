@@ -413,6 +413,7 @@ export function PaymentsClient({
     () =>
       sortPayments(
         payments.filter((p) => {
+          if (p.entryType === "adjustment") return false;
           const s = p.salesOrderNumber
               ? summaries.get(p.salesOrderNumber)
               : undefined,
@@ -444,8 +445,8 @@ export function PaymentsClient({
     [payments, search, tab, filters, summaries, userRole],
   );
   const counts = {
-    overview: payments.filter((p) => p.status !== "Void").length,
-    all: payments.filter((p) => p.status !== "Unauthorised").length,
+    overview: payments.filter((p) => p.entryType !== "adjustment" && p.status !== "Void").length,
+    all: payments.filter((p) => p.entryType !== "adjustment" && p.status !== "Unauthorised").length,
     unauthorised: payments.filter((p) => p.status === "Unauthorised" && (p.remainingAmount ?? p.paymentAmount) > 0).length,
     pending: pending.length,
   };
@@ -504,7 +505,7 @@ export function PaymentsClient({
       ? payments.find((payment) => payment.salesOrderNumber === order.salesOrderNumber && payment.salesOrderId)
       : undefined;
     setForm(order ? {
-      ...emptyForm(), salesOrderId: linkedPayment?.salesOrderId || "",
+      ...emptyForm(), salesOrderId: linkedPayment?.salesOrderId || "", ownerUserId: linkedPayment?.ownerUserId || "",
       salesOrderNumber: order.salesOrderNumber, customerName: order.customerName,
       orderTotal: String(order.orderTotal), confirmedReceived: String(order.received),
       submittedAmount: String(order.received), provisionalOutstanding: String(order.outstanding),
@@ -708,7 +709,6 @@ export function PaymentsClient({
         </div>
         {userRole !== "Viewer" && (
           <div className="payments-toolbar">
-            {userRole === "Admin" && <button className="btn adjustment-button" onClick={() => startAdjustment()}>Adjustment</button>}
             <button
               className="btn red payments-add-button"
               onClick={() => startAdd()}
@@ -2405,7 +2405,7 @@ function PendingList({
           </dl>
           {role !== "Accounts" && role !== "Viewer" && (
             <div className="pending-actions">
-              {(role === "Salesperson" || role === "Spare Part Sales") && (
+              {(role === "Admin" || role === "Salesperson" || role === "Spare Part Sales") && (
                 <button className="ledger-action pending-adjustment-action" onClick={() => onAdjustment(s)}>Adjustment</button>
               )}
               <button className="ledger-action" onClick={() => onAdd(s.salesOrderNumber)}>Add payment</button>

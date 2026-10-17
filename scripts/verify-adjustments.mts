@@ -4,6 +4,8 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { orderSummary, paymentOutstandingById, pendingOrderSummaries, toPaise } from '../src/lib/payment-settlement'
 import { managementPaymentMetrics } from '../src/lib/management-payment-metrics'
+import { viewerPaymentMetrics, viewerRegularSummary } from '../src/lib/viewer-payment-metrics'
+
 
 const base = { customerName:'Acme', salesOrderId:'so-1', salesOrderNumber:'SO-1', orderTotal:10000, paymentAmount:0, paymentDate:'2026-10-01', createdAt:'2026-10-01T00:00:00Z' }
 const receipt = { ...base, id:'receipt', paymentAmount:1000, status:'Payment Received' as const }
@@ -20,6 +22,13 @@ assert.equal(balances.get('writeoff'),0)
 assert.equal(balances.get('increase'),250.25)
 assert.equal(orderSummary([receipt,{...writeoff,status:'Void'}], 'SO-1', 10000, 'so-1').confirmedOutstanding,9000,'void adjustments must not affect balance')
 assert.equal(managementPaymentMetrics([receipt, increase], [])[0].amount, 1000, 'adjustments must not inflate cash received')
+assert.equal(viewerRegularSummary([receipt as any,increase as any]).received.amountPaise,100000,'viewer received totals exclude adjustments')
+assert.equal(viewerRegularSummary([receipt as any,increase as any]).received.count,1,'viewer receipt counts exclude adjustments')
+assert.equal(viewerPaymentMetrics([receipt as any,increase as any],new Date('2026-10-03T12:00:00Z'))[2].count,1,'period receipt counts exclude adjustments')
+const unrelated={...receipt,id:'other',salesOrderId:'so-other',salesOrderNumber:'SO-OTHER',orderTotal:5000,paymentAmount:500}
+assert.equal(orderSummary([receipt,writeoff,unrelated],'SO-OTHER',5000,'so-other').confirmedOutstanding,4500,'adjustment must not affect unrelated orders')
+assert.equal(pendingOrderSummaries([writeoff]).length,0,'adjustment alone must not masquerade as a confirmed receipt')
+
 
 // Exercise the real durable local-store mutation in an isolated working directory.
 const originalCwd = process.cwd()
@@ -28,6 +37,8 @@ try {
   process.chdir(sandbox)
   process.env.APP_LOCAL_ONLY = 'true'
   const { createAdjustment, updatePaymentStatus } = await import('../src/lib/payments')
+  const { enqueuePaymentEvent } = await import('../src/lib/payouts-outbox')
+  await assert.rejects(enqueuePaymentEvent(increase as any,'received',async()=>({id:'so-1',salesOrderNumber:'SO-1',customerName:'Acme'})),/cannot be synchronized/)
   const input = { customerName:'Acme', salesOrderId:'so-2', salesOrderNumber:'SO-2', orderTotal:100, adjustmentAmount:-10.25, adjustmentReason:'Audit correction', createdBy:'sales-1', ownerUserId:'sales-1', addedBy:'sales', salespersonName:'Sales Person' }
   const first = await createAdjustment(input, 'adjustment_key_123456')
   const retry = await createAdjustment(input, 'adjustment_key_123456')
@@ -57,10 +68,10 @@ const [routeSource, uiSource, cssSource] = await Promise.all([
 ])
 assert.match(routeSource, /auth\.user\.role !== 'Admin' && !isSalesRole/, 'API must explicitly authorize only admin/sales roles')
 assert.match(routeSource, /salespersonOwnsOrder\(order, auth\.user\)/, 'API must enforce salesperson ownership')
-assert.match(uiSource, /payment-adjustment-row/, 'Regular Payments rows must mark adjustments')
-assert.match(uiSource, /userRole === "Admin" && <button className="btn adjustment-button"/, 'global Adjustment action must remain admin-only')
+assert.match(uiSource, /if \(p\.entryType === "adjustment"\) return false/, 'payment/receipt history must exclude adjustment entries')
+assert.doesNotMatch(uiSource, /btn adjustment-button/, 'there must be no global Adjustment action')
 assert.match(uiSource, /onAdjustment=\{startAdjustment\}/, 'Pending Payments must wire the contextual adjustment action')
-assert.match(uiSource, /role === "Salesperson" \|\| role === "Spare Part Sales"/, 'contextual adjustment must be limited to sales roles')
+assert.match(uiSource, /role === "Admin" \|\| role === "Salesperson" \|\| role === "Spare Part Sales"/, 'contextual adjustment must support admin and sales roles')
 assert.match(uiSource, /onAdjustment\(s\)/, 'contextual adjustment must receive the exact pending order')
 assert.match(cssSource, /\.payment-adjustment-row>td\{background:#fff4f7/, 'adjustments must render pink')
-console.log('Adjustment verification passed: persistence, authorization guards, ownership, signed paise arithmetic, idempotency, immutable/no-outbox behavior, cash exclusion, pending removal, and pink rendering')
+console.log('Adjustment verification passed: target-only signed balance, persistence/audit, authorization/ownership, idempotency, immutable/no-payout behavior, received amount/count/history exclusion, item-only placement, and admin context')
