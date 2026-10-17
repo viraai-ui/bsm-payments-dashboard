@@ -59,7 +59,8 @@
     "verify:manual-payment": "tsx scripts/verify-manual-payment-persistence.mts",
     "verify:manual-payment-delete": "tsx scripts/verify-manual-payment-delete.mts && tsx scripts/verify-payment-delete-read-after-write.mts",
     "verify:legacy-already-received": "tsx scripts/verify-legacy-already-received.mts",
-    "verify:adjustments": "tsx scripts/verify-adjustments.mts"
+    "verify:adjustments": "tsx scripts/verify-adjustments.mts",
+    "verify:pending-action-styles": "node scripts/verify-pending-action-styles.cjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

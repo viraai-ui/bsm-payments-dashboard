@@ -2408,7 +2408,7 @@ function PendingList({
               {(role === "Admin" || role === "Salesperson" || role === "Spare Part Sales") && (
                 <button className="ledger-action pending-adjustment-action" onClick={() => onAdjustment(s)}>Adjustment</button>
               )}
-              <button className="ledger-action" onClick={() => onAdd(s.salesOrderNumber)}>Add payment</button>
+              <button className="ledger-action pending-add-payment-action" onClick={() => onAdd(s.salesOrderNumber)}>Add payment</button>
             </div>
           )}
         </article>
