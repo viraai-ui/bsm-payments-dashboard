@@ -413,7 +413,15 @@ export function PaymentsClient({
     () =>
       sortPayments(
         payments.filter((p) => {
-          if (p.entryType === "adjustment") return false;
+          // Adjustments are Regular ledger entries, but never receipt-status rows.
+          // Keep them visible in the unfiltered Regular view only; status filters
+          // are cash-receipt filters used by the management metrics.
+          if (p.entryType === "adjustment")
+            return tab === "all" && !filters.status && !filters.mode &&
+              (!filters.salesperson || salesperson(p) === filters.salesperson) &&
+              (!filters.from || p.paymentDate >= filters.from) &&
+              (!filters.to || p.paymentDate <= filters.to) &&
+              (!search.trim() || paymentMatchesSearch(p, search, payments));
           const s = p.salesOrderNumber
               ? summaries.get(p.salesOrderNumber)
               : undefined,
@@ -446,7 +454,8 @@ export function PaymentsClient({
   );
   const counts = {
     overview: payments.filter((p) => p.entryType !== "adjustment" && p.status !== "Void").length,
-    all: payments.filter((p) => p.entryType !== "adjustment" && p.status !== "Unauthorised").length,
+    // Visible Regular ledger-entry count, deliberately not a receipt count.
+    all: payments.filter((p) => p.status !== "Unauthorised").length,
     unauthorised: payments.filter((p) => p.status === "Unauthorised" && (p.remainingAmount ?? p.paymentAmount) > 0).length,
     pending: pending.length,
   };
@@ -1990,7 +1999,7 @@ function StatusControl({
   onStatus: (p: Payment, s: "Pending" | "Payment Received" | "Void") => void;
   onClaim: () => void;
 }) {
-  if(p.entryType==="adjustment") return <span className="ledger-status adjustment-status">Adjustment · Approved</span>;
+  if(p.entryType==="adjustment") return <span className="ledger-status adjustment-status" aria-label="Entry type: Adjustment">Adjustment</span>;
   const can =
     p.status !== "Unauthorised" && (role === "Accounts" || role === "Admin");
   return can ? (
@@ -2041,7 +2050,7 @@ function DesktopRow({
     <tr
       data-payment-id={p.id}
       tabIndex={0}
-      aria-label={`View payment details for ${p.salesOrderNumber || paymentCustomerLabel(p.customerName)}`}
+      aria-label={`View ${p.entryType==="adjustment"?"adjustment":"payment"} details for ${p.salesOrderNumber || paymentCustomerLabel(p.customerName)}`}
       className={`payment-data-row payment-${statusClass(p.status)}-row ${p.entryType==="adjustment"?"payment-adjustment-row":""} ${highlight ? "payment-highlight" : ""}`}
       onClick={onOpen}
       onKeyDown={activate}
@@ -2120,7 +2129,7 @@ function MobileCard({
     <article
       data-payment-id={p.id}
       tabIndex={0}
-      aria-label={`View payment details for ${p.salesOrderNumber || paymentCustomerLabel(p.customerName)}`}
+      aria-label={`View ${p.entryType==="adjustment"?"adjustment":"payment"} details for ${p.salesOrderNumber || paymentCustomerLabel(p.customerName)}`}
       className={`ledger-mobile-card payment-data-row payment-${statusClass(p.status)}-row ${p.entryType==="adjustment"?"payment-adjustment-row":""} ${highlight ? "payment-highlight" : ""}`}
       onClick={onOpen}
       onKeyDown={activate}
